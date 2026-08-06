@@ -1,3 +1,9 @@
-node_modules/
-.capturas/
+# Dependencias de desarrollo (solo Playwright para las pruebas end-to-end).
+# Sin barra final para que también cubra el enlace simbólico que se crea
+# cuando se instala fuera del repositorio.
+node_modules
 package-lock.json
+package.json
+
+# Capturas que genera tests/e2e.mjs
+.capturas/
