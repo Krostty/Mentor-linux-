@@ -1,0 +1,130 @@
+/* Mentor Linux — la terminal simulada y su barra de teclas. */
+
+.terminal-zona {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.consola {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  margin: 0 18px;
+  border-radius: var(--r-md);
+  background: var(--term-fondo);
+  border: 1px solid var(--line);
+  overflow: hidden;
+}
+
+.consola-salida {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 12px 11px;
+  font-family: var(--mono);
+  font-size: 12.4px;
+  line-height: 1.62;
+}
+
+.consola-linea {
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--ink);
+}
+.consola-eco { color: var(--ink); }
+.consola-nota { color: var(--dim); font-style: italic; }
+
+.consola-entrada {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 11px;
+  border-top: 1px solid var(--line);
+  background: rgba(255,255,255,.03);
+}
+.consola-prompt {
+  font-family: var(--mono);
+  font-size: 12.4px;
+  color: var(--term-prompt);
+  white-space: nowrap;
+  flex: 0 0 auto;
+}
+.consola-input {
+  flex: 1;
+  min-width: 0;
+  border: 0;
+  background: transparent;
+  color: var(--ink);
+  font-family: var(--mono);
+  outline: none;
+  caret-color: var(--term-acento);
+}
+
+/* colores de la salida */
+.t-prompt { color: var(--term-prompt); }
+.t-dir    { color: var(--cyan); font-weight: 600; }
+.t-exe    { color: var(--term-acento); font-weight: 600; }
+.t-link   { color: var(--magenta); }
+.t-err    { color: #FF8080; }
+
+/* --- barra de teclas de Linux -------------------------------------------- */
+
+.teclas {
+  display: flex;
+  gap: 6px;
+  padding: 9px 18px;
+  overflow-x: auto;
+  scrollbar-width: none;
+  background: var(--deep);
+  border-top: 1px solid var(--line);
+  flex: 0 0 auto;
+}
+.teclas::-webkit-scrollbar { display: none; }
+
+.tecla {
+  flex: 0 0 auto;
+  min-width: 40px;
+  height: 38px;
+  padding: 0 11px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+  font-family: var(--mono);
+  font-size: 15px;
+  transition: background .1s ease;
+}
+.tecla:active {
+  background: var(--term-acento);
+  color: var(--term-fondo);
+}
+
+/* --- barra de acciones bajo el enunciado --------------------------------- */
+
+.acciones-reto {
+  display: flex;
+  gap: 8px;
+  padding: 10px 18px 2px;
+  flex: 0 0 auto;
+}
+.acciones-reto .btn-fantasma {
+  flex: 1;
+  min-width: 0;
+  min-height: 40px;
+  padding: 0 10px;
+  font-size: 13.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.zona-ayuda {
+  padding: 0 18px;
+  flex: 0 0 auto;
+  max-height: 32dvh;
+  overflow-y: auto;
+}

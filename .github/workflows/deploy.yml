@@ -1,0 +1,54 @@
+name: Publicar en GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+# Un despliegue a la vez; no se cancela el que esté en curso.
+concurrency:
+  group: pages
+  cancel-in-progress: false
+
+jobs:
+  verificar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Pruebas del motor
+        run: node tests/shell.test.mjs
+      - name: Validación del currículum
+        run: node tests/content.test.mjs
+
+  desplegar:
+    needs: verificar
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+      # enablement activa GitHub Pages en el repositorio la primera vez,
+      # sin tener que tocarlo a mano en los ajustes.
+      - uses: actions/configure-pages@v5
+        with:
+          enablement: true
+      - name: Preparar los archivos de la app
+        # Se publica todo menos lo que no forma parte de la app.
+        run: |
+          mkdir -p _sitio
+          rsync -a --exclude '.git' --exclude '.github' --exclude 'tests' \
+                --exclude 'node_modules' --exclude '_sitio' ./ _sitio/
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _sitio
+      - id: deployment
+        uses: actions/deploy-pages@v4

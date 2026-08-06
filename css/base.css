@@ -1,0 +1,158 @@
+/* Mentor Linux — base: variables, reset y tipografía.
+   Mundo visual único y deliberado: "hacker luminoso". Fondo índigo profundo
+   (no negro) con neón lima, cian y magenta. Tipografía redondeada del sistema
+   para la interfaz y monoespaciada real para todo lo que es Linux. */
+
+:root {
+  color-scheme: dark;
+
+  /* fondos */
+  --void:    #0C0A1E;
+  --deep:    #12102A;
+  --panel:   #1A1738;
+  --panel-2: #221E45;
+  --line:    #2E2A57;
+
+  /* acentos */
+  --lime:    #7CFF4F;
+  --cyan:    #26E6FF;
+  --magenta: #FF3D9A;
+  --amber:   #FFC24B;
+  --rojo:    #FF5C5C;
+
+  /* texto */
+  --ink:   #EDEBFF;
+  --muted: #9A93CC;
+  --dim:   #6B649B;
+
+  /* terminal: lo cambia el tema desbloqueado */
+  --term-fondo:  #08061A;
+  --term-acento: #7CFF4F;
+  --term-prompt: #7CFF4F;
+
+  --ui: ui-rounded, -apple-system, "SF Pro Rounded", system-ui, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, monospace;
+
+  --r-sm: 10px;
+  --r-md: 16px;
+  --r-lg: 22px;
+  --tap: 44px;
+
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+/* El diseño se compromete con un solo mundo visual: el selector de tema del
+   visor no debe blanquearlo. */
+:root[data-theme="light"],
+:root[data-theme="dark"] { color-scheme: dark; }
+
+* { box-sizing: border-box; }
+
+html, body {
+  height: 100%;
+  margin: 0;
+  overflow: hidden;
+}
+
+body {
+  background:
+    radial-gradient(900px 500px at 15% -5%, #1E1A46 0%, transparent 60%),
+    radial-gradient(700px 500px at 100% 8%, #2A1140 0%, transparent 55%),
+    var(--void);
+  color: var(--ink);
+  font-family: var(--ui);
+  font-size: 16px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  -webkit-tap-highlight-color: transparent;
+  overscroll-behavior: none;
+}
+
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+button { cursor: pointer; }
+
+/* 16px en los campos evita el zoom automático de Safari en iOS */
+input, textarea { font-size: 16px; }
+
+a { color: var(--cyan); }
+
+:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-thumb { background: var(--line); border-radius: 3px; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* --- tipografía ---------------------------------------------------------- */
+
+.h1 {
+  font-size: 27px;
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -.02em;
+  margin: 6px 0 4px;
+  text-wrap: balance;
+}
+
+.h2 {
+  font-size: 20px;
+  line-height: 1.25;
+  font-weight: 800;
+  letter-spacing: -.015em;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+
+.sub {
+  color: var(--muted);
+  font-size: 15px;
+  line-height: 1.55;
+  margin: 0 0 18px;
+}
+
+.eyebrow {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  color: var(--dim);
+  margin: 22px 0 10px;
+}
+
+.mono { font-family: var(--mono); }
+
+code {
+  font-family: var(--mono);
+  font-size: .92em;
+  color: var(--cyan);
+}
+
+strong, b { font-weight: 700; }
+
+.oculto { display: none !important; }
+
+.sr-only {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: .01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: .01ms !important;
+  }
+}
