@@ -19,7 +19,7 @@ const PAGES = {
 };
 
 export const net = {
-  hostname: (args, ctx) => ok(args.includes('-I') ? '192.168.1.50 \n' : 'mentor-box\n'),
+  hostname: (args, ctx) => ok(args.includes('-I') ? `${ctx.shell.state.machine?.ip || '192.168.1.50'} \n` : `${ctx.shell.hostname || 'mentor-box'}\n`),
 
   ip: (args, ctx) => {
     const sub = args[0];
@@ -57,7 +57,8 @@ export const net = {
     const { operands, values } = parseArgs(args, { withValue: ['c'] });
     const host = operands[0];
     if (!host) return err('ping: usage error: Destination address required', 2);
-    const ip = HOSTS[host];
+    const machine = ctx.shell.state.machine;
+    const ip = machine && (host === machine.host || host === machine.ip) ? machine.ip : HOSTS[host];
     if (!ip) return err(`ping: ${host}: Name or service not known`, 2);
     const count = parseInt(values.c || '4', 10);
     const out = [`PING ${host} (${ip}) 56(84) bytes of data.`];
@@ -77,7 +78,8 @@ export const net = {
     const url = operands[0];
     if (!url) return err('curl: try \'curl --help\' for more information', 2);
     const key = url.replace(/\/$/, '');
-    const body = PAGES[key] || PAGES[key.replace('https://', 'http://')];
+    const machinePages = ctx.shell.state.machine?.pages || {};
+    const body = machinePages[key] || machinePages[key.replace('https://', 'http://')] || PAGES[key] || PAGES[key.replace('https://', 'http://')];
     if (!body) return err(`curl: (6) Could not resolve host: ${url.replace(/^https?:\/\//, '').split('/')[0]}`, 6);
     if (has('-I')) return ok('HTTP/1.1 200 OK\nServer: nginx/1.24.0\nContent-Type: text/html\nContent-Length: ' + body.length + '\n\n');
     if (values.o) {
@@ -91,7 +93,8 @@ export const net = {
     const { operands } = parseArgs(args);
     const url = operands[0];
     const key = (url || '').replace(/\/$/, '');
-    const body = PAGES[key] || PAGES[key.replace('https://', 'http://')];
+    const machinePages = ctx.shell.state.machine?.pages || {};
+    const body = machinePages[key] || machinePages[key.replace('https://', 'http://')] || PAGES[key] || PAGES[key.replace('https://', 'http://')];
     if (!body) return err(`wget: unable to resolve host address '${(url || '').replace(/^https?:\/\//, '')}'`, 4);
     const name = url.split('/').pop() || 'index.html';
     ctx.fs.writeFile(ctx.shell.resolve(name), body + '\n', ctx);
@@ -116,6 +119,18 @@ export const net = {
     const target = operands[0];
     if (!target) return err('usage: ssh [-p port] destination', 255);
     const host = target.includes('@') ? target.split('@')[1] : target;
+    const user = target.includes('@') ? target.split('@')[0] : ctx.user;
+    const machine = ctx.shell.state.machine;
+    if (machine && (host === machine.host || host === machine.ip)) {
+      if (!machine.accessUnlocked) return err(`Permission denied (publickey,password).`, 255);
+      const allowed = machine.user || 'operator';
+      if (user !== allowed) return err(`Permission denied (publickey,password).`, 255);
+      ctx.shell.setUser(allowed);
+      ctx.shell.hostname = machine.host;
+      ctx.shell.cwd = `/home/${allowed}`;
+      ctx.shell.env.PWD = ctx.shell.cwd;
+      return ok(`Welcome to ${machine.os || 'Linux'}\nLast login: Wed Jan 15 10:12:03 2026 from 10.10.14.2\n`);
+    }
     if (!HOSTS[host]) return err(`ssh: Could not resolve hostname ${host}: Name or service not known`, 255);
     return ok(`Welcome to Debian GNU/Linux 12 (bookworm)\nLast login: Wed Jan 15 09:12:03 2026 from 192.168.1.10\n(sesión simulada: en Mentor Linux la conexión no sale del dispositivo)\n`);
   },

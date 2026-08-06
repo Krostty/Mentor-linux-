@@ -2,7 +2,7 @@
 // Estrategia: cache-first para los recursos propios, con actualización en
 // segundo plano. Como todo es estático, no hay nada que pedir a la red.
 
-const VERSION = 'mentor-linux-v1';
+const VERSION = 'mentor-linux-v3-20260806';
 
 const RECURSOS = [
   './',
@@ -29,6 +29,7 @@ const RECURSOS = [
   'js/engine/commands/sysd.js',
   'js/engine/commands/misc.js',
   'js/engine/commands/sec.js',
+  'js/engine/commands/advanced.js',
   'js/data/modules.js',
   'js/data/modulos-1.js',
   'js/data/modulos-2.js',
@@ -39,6 +40,11 @@ const RECURSOS = [
   'js/data/comandos.js',
   'js/data/incidentes.js',
   'js/data/logros.js',
+  'js/data/salas.js',
+  'js/data/habilidades.js',
+  'js/data/maquinas.js',
+  'js/data/wargame.js',
+  'js/data/secretos.js',
   'assets/icons/icono-180.png',
   'assets/icons/icono-192.png',
   'assets/icons/icono-512.png',

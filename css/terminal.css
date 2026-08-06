@@ -1,130 +1,77 @@
-/* Mentor Linux — la terminal simulada y su barra de teclas. */
-
-.terminal-zona {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  min-height: 0;
-}
-
+.terminal-zona { width: 100%; min-width: 0; display: flex; min-height: 390px; flex-direction: column; }
 .consola {
-  flex: 1;
-  min-height: 0;
+  width: 100%;
+  min-width: 0;
   display: flex;
+  flex: 1;
+  min-height: 300px;
   flex-direction: column;
-  margin: 0 18px;
-  border-radius: var(--r-md);
-  background: var(--term-fondo);
-  border: 1px solid var(--line);
   overflow: hidden;
+  border: 1px solid #31456b;
+  border-radius: 16px;
+  background: var(--term-fondo);
+  box-shadow: inset 0 1px rgba(255,255,255,.045), 0 18px 45px rgba(0,0,0,.3), 0 0 0 1px rgba(82,231,255,.025);
 }
-
+.consola::before {
+  content: "●  ●  ●    mentor shell · entorno seguro";
+  padding: 9px 12px;
+  border-bottom: 1px solid rgba(255,255,255,.09);
+  background: linear-gradient(90deg, rgba(82,231,255,.055), transparent);
+  color: #7e8caf;
+  font: 10px var(--mono);
+  letter-spacing: .08em;
+}
 .consola-salida {
   flex: 1;
   min-height: 0;
   overflow-y: auto;
+  padding: 14px;
+  font: 12.5px/1.62 var(--mono);
   -webkit-overflow-scrolling: touch;
-  padding: 12px 11px;
-  font-family: var(--mono);
-  font-size: 12.4px;
-  line-height: 1.62;
 }
-
-.consola-linea {
-  white-space: pre-wrap;
-  word-break: break-word;
-  color: var(--ink);
-}
-.consola-eco { color: var(--ink); }
+.consola-linea { color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
 .consola-nota { color: var(--dim); font-style: italic; }
-
 .consola-entrada {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 10px 11px;
-  border-top: 1px solid var(--line);
-  background: rgba(255,255,255,.03);
+  padding: 12px 13px;
+  border-top: 1px solid rgba(255,255,255,.1);
+  background: rgba(255,255,255,.045);
 }
-.consola-prompt {
-  font-family: var(--mono);
-  font-size: 12.4px;
-  color: var(--term-prompt);
-  white-space: nowrap;
-  flex: 0 0 auto;
-}
-.consola-input {
-  flex: 1;
-  min-width: 0;
-  border: 0;
-  background: transparent;
-  color: var(--ink);
-  font-family: var(--mono);
-  outline: none;
-  caret-color: var(--term-acento);
-}
-
-/* colores de la salida */
+.consola-prompt { flex: none; color: var(--term-prompt); font: 12.5px var(--mono); white-space: nowrap; }
+.consola-input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; caret-color: var(--term-acento); font-family: var(--mono); }
+.consola-ejecutar { width: 40px; height: 36px; flex: none; padding: 0; border: 1px solid color-mix(in srgb, var(--term-acento) 42%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--term-acento) 12%, transparent); color: var(--term-acento); font: 850 18px var(--mono); box-shadow: 0 0 18px color-mix(in srgb, var(--term-acento) 8%, transparent); }
+.consola-ejecutar:active { background: var(--term-acento); color: var(--term-fondo); }
 .t-prompt { color: var(--term-prompt); }
-.t-dir    { color: var(--cyan); font-weight: 600; }
-.t-exe    { color: var(--term-acento); font-weight: 600; }
-.t-link   { color: var(--magenta); }
-.t-err    { color: #FF8080; }
-
-/* --- barra de teclas de Linux -------------------------------------------- */
-
+.t-dir { color: var(--cyan); font-weight: 700; }
+.t-exe { color: var(--term-acento); font-weight: 700; }
+.t-link { color: var(--magenta); }
+.t-err { color: #ff8d9b; }
 .teclas {
+  width: 100%;
+  min-width: 0;
   display: flex;
+  flex: none;
   gap: 6px;
-  padding: 9px 18px;
   overflow-x: auto;
+  padding: 9px 0 1px;
   scrollbar-width: none;
-  background: var(--deep);
-  border-top: 1px solid var(--line);
-  flex: 0 0 auto;
 }
 .teclas::-webkit-scrollbar { display: none; }
-
 .tecla {
-  flex: 0 0 auto;
-  min-width: 40px;
-  height: 38px;
+  min-width: 42px;
+  height: 39px;
+  flex: none;
   padding: 0 11px;
-  border-radius: 9px;
   border: 1px solid var(--line);
-  background: var(--panel-2);
+  border-radius: 9px;
+  background: #121b35;
   color: var(--ink);
   font-family: var(--mono);
-  font-size: 15px;
-  transition: background .1s ease;
 }
-.tecla:active {
-  background: var(--term-acento);
-  color: var(--term-fondo);
-}
-
-/* --- barra de acciones bajo el enunciado --------------------------------- */
-
-.acciones-reto {
-  display: flex;
-  gap: 8px;
-  padding: 10px 18px 2px;
-  flex: 0 0 auto;
-}
-.acciones-reto .btn-fantasma {
-  flex: 1;
-  min-width: 0;
-  min-height: 40px;
-  padding: 0 10px;
-  font-size: 13.5px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.zona-ayuda {
-  padding: 0 18px;
-  flex: 0 0 auto;
-  max-height: 32dvh;
-  overflow-y: auto;
+.tecla:active { background: var(--term-acento); color: var(--term-fondo); }
+@media (min-width: 800px) {
+  .terminal-zona { min-height: 450px; }
+  .consola-salida, .consola-prompt { font-size: 13.5px; }
 }

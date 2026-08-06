@@ -179,6 +179,20 @@ export const CATEGORIAS = [
       { n: 'alias', q: 'Atajo para un comando', s: 'alias nombre="comando"', o: [], e: 'alias ll="ls -alF"' },
     ],
   },
+  {
+    id: 'profesional',
+    nombre: 'Herramientas profesionales',
+    comandos: [
+      { n: 'strings', q: 'Extrae cadenas legibles de datos y binarios', s: 'strings archivo', o: [['-n N', 'longitud mínima']], e: 'strings programa.bin' },
+      { n: 'lsattr', q: 'Muestra atributos especiales de archivos', s: 'lsattr archivo...', o: [], e: 'lsattr /etc/resolv.conf' },
+      { n: 'chattr', q: 'Cambia atributos especiales', s: 'chattr [+|-]atributo archivo', o: [['+i', 'marca como inmutable'], ['-i', 'retira el atributo inmutable']], e: 'sudo chattr +i config.ini' },
+      { n: 'git', q: 'Control de versiones distribuido', s: 'git subcomando [opciones]', o: [['status', 'estado del repositorio'], ['log', 'historial'], ['diff', 'cambios']], e: 'git status' },
+      { n: 'nmap', q: 'Enumera puertos y servicios autorizados', s: 'nmap [opciones] objetivo', o: [['-sV', 'detecta versiones'], ['-p-', 'todos los puertos']], e: 'nmap -sV 10.10.10.21' },
+      { n: 'nc', q: 'Cliente y listener TCP de diagnóstico', s: 'nc [opciones] host puerto', o: [['-l', 'modo escucha'], ['-v', 'salida detallada']], e: 'nc -v servidor 80' },
+      { n: 'tmux', q: 'Mantiene sesiones de terminal persistentes', s: 'tmux [new|ls|attach]', o: [['new -s nombre', 'crea una sesión'], ['attach -t nombre', 'retoma una sesión']], e: 'tmux new -s trabajo' },
+      { n: 'vim', q: 'Editor modal disponible en terminal', s: 'vim archivo', o: [], e: 'vim deploy.sh' },
+    ],
+  },
 ];
 
 export const TODOS_COMANDOS = CATEGORIAS.flatMap((c) => c.comandos.map((x) => ({ ...x, categoria: c.nombre, categoriaId: c.id })));

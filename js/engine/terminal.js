@@ -55,6 +55,13 @@ export class Terminal {
     // debe quedar pegada al teclado del móvil, debajo de todo lo demás.
     this.elTeclas = opciones.teclasEn || null;
     this.snapshotNombre = opciones.snapshot || 'inicio';
+    this.opcionesShell = {
+      user: opciones.usuario || 'user',
+      cwd: opciones.cwd,
+      hostname: opciones.hostname || 'mentor',
+      groupMap: opciones.groupMap || null,
+      machine: opciones.machine ? structuredClone(opciones.machine) : null,
+    };
     this.alEjecutar = opciones.alEjecutar || (() => {});
     this.historial = [];
     this.indiceHistorial = -1;
@@ -65,13 +72,14 @@ export class Terminal {
     this.render();
     this.conectar();
     if (opciones.bienvenida !== false) this.bienvenida();
+    if (opciones.autoFocus !== false) this.enfocar();
   }
 
   crearShell() {
     this.shell = new Shell({
       fs: snapshot(this.snapshotNombre),
       commands: COMMANDS,
-      user: 'user',
+      ...this.opcionesShell,
     });
   }
 
@@ -84,6 +92,7 @@ export class Terminal {
           <input class="consola-input" autocomplete="off" autocapitalize="off"
                  autocorrect="off" spellcheck="false" aria-label="Escribe un comando"
                  enterkeyhint="go">
+          <button class="consola-ejecutar" type="submit" aria-label="Ejecutar comando">↵</button>
         </form>
       </div>`;
 
@@ -115,6 +124,14 @@ export class Terminal {
   }
 
   conectar() {
+    const consola = this.el.querySelector('.consola');
+    const enfocarConsola = (e) => {
+      if (e.target.closest('button, a')) return;
+      this.input.focus({ preventScroll: true });
+    };
+    consola.addEventListener('pointerdown', enfocarConsola);
+    consola.addEventListener('click', enfocarConsola);
+
     this.form.addEventListener('submit', (e) => {
       e.preventDefault();
       const linea = this.input.value;
@@ -291,7 +308,7 @@ export class Terminal {
   }
 
   enfocar() {
-    this.input.focus();
+    this.input.focus({ preventScroll: true });
   }
 }
 

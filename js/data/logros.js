@@ -1,6 +1,8 @@
 // Logros, títulos por nivel y temas desbloqueables.
 // Cada logro recibe el estado del progreso y decide si está conseguido.
 
+const cantidad = (valor) => Array.isArray(valor) ? valor.length : 0;
+
 export const LOGROS = [
   { id: 'primer-comando', nombre: 'Primer contacto', desc: 'Ejecutaste tu primer comando', icono: '🌱', check: (p) => p.comandosEjecutados >= 1 },
   { id: 'diez-retos', nombre: 'Cogiendo el ritmo', desc: '10 retos resueltos', icono: '⚡', check: (p) => p.retosCompletados.length >= 10 },
@@ -33,6 +35,24 @@ export const LOGROS = [
 
   { id: 'explorador', nombre: 'Explorador', desc: 'Ejecutaste 500 comandos', icono: '🧭', check: (p) => p.comandosEjecutados >= 500 },
   { id: 'chuletas', nombre: 'Consulta rápida', desc: 'Buscaste 25 veces en el chuletario', icono: '📖', check: (p) => p.busquedasChuletario >= 25 },
+
+  // v2: salas, máquinas y Wargame.
+  { id: 'ejercicio-1', nombre: 'Aprender haciendo', desc: 'Completaste tu primer ejercicio', icono: '✅', check: (p) => cantidad(p.ejerciciosCompletados) >= 1 },
+  { id: 'ejercicios-150', nombre: 'Media travesía', desc: '150 ejercicios completados', icono: '🧗', check: (p) => cantidad(p.ejerciciosCompletados) >= 150 },
+  { id: 'ejercicios-300', nombre: 'Dominio práctico', desc: 'Completaste los 300 ejercicios', icono: '🏆', check: (p) => cantidad(p.ejerciciosCompletados) >= 300 },
+  { id: 'sala-1', nombre: 'Primera sala', desc: 'Completaste una sala', icono: '🚪', check: (p) => cantidad(p.salasCompletadas) >= 1 },
+  { id: 'salas-10', nombre: 'Ruta en marcha', desc: 'Completaste 10 salas', icono: '🗺️', check: (p) => cantidad(p.salasCompletadas) >= 10 },
+  { id: 'salas-24', nombre: 'Currículo completo', desc: 'Completaste las 24 salas', icono: '🐧', check: (p) => cantidad(p.salasCompletadas) >= 24 },
+  { id: 'maquina-1', nombre: 'Primer foothold', desc: 'Completaste tu primera máquina simulada', icono: '🖥️', check: (p) => cantidad(p.maquinasCompletadas) >= 1 },
+  { id: 'maquinas-5', nombre: 'Operador', desc: 'Completaste 5 máquinas', icono: '🥷', check: (p) => cantidad(p.maquinasCompletadas) >= 5 },
+  { id: 'maquinas-12', nombre: 'Laboratorio dominado', desc: 'Completaste las 12 máquinas', icono: '👑', check: (p) => cantidad(p.maquinasCompletadas) >= 12 },
+  { id: 'primera-user-flag', nombre: 'User owned', desc: 'Capturaste tu primera user.txt', icono: '🚩', check: (p) => p.flagsUser >= 1 },
+  { id: 'primera-root-flag', nombre: 'Root owned', desc: 'Capturaste tu primera root.txt', icono: '🏴', check: (p) => p.flagsRoot >= 1 },
+  { id: 'wargame-1', nombre: 'Primera contraseña', desc: 'Superaste un nivel Wargame', icono: '🔑', check: (p) => cantidad(p.wargameCompletados) >= 1 },
+  { id: 'wargame-5', nombre: 'Cazador de secretos', desc: 'Superaste 5 niveles Wargame', icono: '🕵️', check: (p) => cantidad(p.wargameCompletados) >= 5 },
+  { id: 'wargame-15', nombre: 'Bandit de Mentor', desc: 'Superaste los 15 niveles Wargame', icono: '🗝️', check: (p) => cantidad(p.wargameCompletados) >= 15 },
+  { id: 'sin-pistas-50', nombre: 'Mente afilada', desc: 'Combo de 50 ejercicios sin pistas', icono: '🧠', check: (p) => p.mejorCombo >= 50 },
+  { id: 'seis-bloques', nombre: 'Linux integral', desc: 'Completaste los seis bloques de contenido', icono: '🌐', check: (p) => cantidad(p.bloquesCompletados) >= 6 },
 ];
 
 // Nivel a partir del XP. Cada nivel cuesta un poco más que el anterior.

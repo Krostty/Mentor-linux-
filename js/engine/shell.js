@@ -261,12 +261,14 @@ function expandWords(words, ctx) {
 // --- ejecución ----------------------------------------------------------
 
 export class Shell {
-  constructor({ fs, commands, user = 'user', env = {}, cwd = '/home/user', now = '2026-01-15 10:30' } = {}) {
+  constructor({ fs, commands, user = 'user', env = {}, cwd, now = '2026-01-15 10:30', hostname = 'mentor', groupMap = null, machine = null } = {}) {
     this.fs = fs instanceof FileSystem ? fs : FileSystem.fromJSON(fs);
     this.commands = commands;
+    this.hostname = hostname;
+    this.groupMap = groupMap;
     this.user = user;
-    this.groups = user === 'root' ? ['root'] : [user, 'users', 'sudo'];
-    this.cwd = cwd;
+    this.groups = this.groupsFor(user);
+    this.cwd = cwd || (user === 'root' ? '/root' : `/home/${user}`);
     this.umask = 0o022;
     this.now = now;
     this.history = [];
@@ -280,14 +282,20 @@ export class Shell {
       LANG: 'es_ES.UTF-8',
       ...env,
     };
-    this.state = { processes: null, services: null, packages: null, network: null };
+    this.state = { processes: null, services: null, packages: null, network: null, machine };
+  }
+
+  groupsFor(user) {
+    if (user === 'root') return ['root'];
+    if (this.groupMap && this.groupMap[user]) return [...this.groupMap[user]];
+    return [user, 'users', 'sudo'];
   }
 
   // Cambia el usuario efectivo (lo usan `su` y `sudo`) manteniendo coherentes
   // grupos, HOME y el prompt.
   setUser(user) {
     this.user = user;
-    this.groups = user === 'root' ? ['root'] : [user, 'users', 'sudo'];
+    this.groups = this.groupsFor(user);
     this.env.USER = user;
     this.env.HOME = user === 'root' ? '/root' : `/home/${user}`;
   }
@@ -295,7 +303,7 @@ export class Shell {
   prompt() {
     const home = this.env.HOME;
     const where = this.cwd === home ? '~' : this.cwd.startsWith(home + '/') ? '~' + this.cwd.slice(home.length) : this.cwd;
-    return `${this.user}@mentor:${where}${this.user === 'root' ? '#' : '$'}`;
+    return `${this.user}@${this.hostname}:${where}${this.user === 'root' ? '#' : '$'}`;
   }
 
   get ctx() {

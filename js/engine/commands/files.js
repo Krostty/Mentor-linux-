@@ -253,6 +253,8 @@ export const files = {
         if (node.type === S_DIR) desc = 'directory';
         else if (node.type === S_LINK) desc = `symbolic link to ${node.target}`;
         else if (node.content.startsWith('#!')) desc = `${node.content.split('\n')[0].includes('bash') ? 'Bourne-Again shell script' : 'script'}, ASCII text executable`;
+        else if (/^(?:\u007f|\u0000)ELF/.test(node.content)) desc = 'ELF 64-bit LSB executable, x86-64';
+        else if (/[\u0000-\u0008\u000e-\u001f]/.test(node.content)) desc = 'data';
         else if (node.content === '') desc = 'empty';
         else desc = 'ASCII text';
         out += `${t}: ${desc}\n`;

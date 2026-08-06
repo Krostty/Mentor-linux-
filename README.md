@@ -1,118 +1,104 @@
-# Mentor Linux
+# Mentor Linux v3
 
-App para aprender y practicar Linux desde el móvil. No es una terminal SSH: es un
-entorno didáctico con teoría, retos progresivos y un **Linux simulado dentro del
-propio teléfono** donde los ejercicios se validan por resultado.
+Aplicación móvil y offline para aprender Linux, Bash y fundamentos de hacking ético usando un sistema Linux simulado. No abre SSH ni contacta objetivos externos: filesystem, shell, servicios y máquinas vulnerables viven dentro del navegador.
 
-Funciona sin conexión y se instala sin pasar por la App Store.
-
----
-
-## Instalarla en el iPhone
-
-1. Abre la URL de la app en **Safari** (no en Chrome: solo Safari puede instalar).
-2. Toca **Compartir** (el cuadrado con la flecha).
-3. Elige **Añadir a pantalla de inicio**.
-
-A partir de ahí tienes un ícono en el escritorio. Se abre a pantalla completa, sin
-barra del navegador, y funciona en modo avión.
-
-En Android es lo mismo desde Chrome: menú → *Instalar aplicación*.
-
----
+La v3 conserva el contenido anterior, lo organiza como academias y rutas, y añade dominio por habilidad, práctica de recuperación y repaso espaciado.
 
 ## Qué incluye
 
-**20 módulos en 3 rutas**, con desbloqueo progresivo:
+- **24 salas** organizadas en 5 academias y 10 rutas: Linux, Redes, Bash, Seguridad ofensiva y Defensa.
+- **146 tareas y 325 ejercicios** con decisión, recuperación, completar, construcción de comandos y terminal.
+- **Sala 0 intensiva** con 37 interacciones para practicar repetidamente `pwd`, `ls`, `cd`, ayuda y errores.
+- **12 máquinas simuladas** — 5 fáciles, 4 medias y 3 difíciles— con reconocimiento, enumeración, acceso, escalada, `user.txt`, `root.txt` y writeup.
+- **Wargame de 15 niveles** encadenados por contraseña.
+- **8 misiones rápidas** y un laboratorio libre restaurable.
+- **107 fichas de chuletario**, 154 comandos/builtins disponibles en el motor y búsqueda offline.
+- **40 logros**, 15 rangos, racha, combos, temas y dominio real por habilidad.
+- **PWA offline** instalable en iOS, Android y escritorio.
 
-| Ruta | Módulos |
-|---|---|
-| **Fundamentos** | Primeros pasos · Navegación · Archivos y carpetas · Ver y escribir texto · Permisos y usuarios · Buscar · Pipes y filtros · Procesos y recursos |
-| **Administración** | Paquetes · Descriptores y flujos · Permisos especiales (SUID/SGID/capabilities) · Redes · SSH y acceso remoto · Servicios, logs y tareas |
-| **Scripting y seguridad** | Bash I · Bash II · Cifrado y hashes · Endurecer un servidor · Análisis e investigación · Hacking ético |
+La navegación principal tiene cuatro áreas: **Aprender · Máquinas · Practicar · Perfil**.
 
-Cada módulo trae lecciones cortas, retos prácticos con pistas y examen de 5 preguntas.
+## Instalar en móvil
 
-**Además:**
+### iPhone o iPad
 
-- **Terminal libre** — un sandbox sin enunciados para trastear.
-- **Modo Incidente** — 5 escenarios cronometrados: la web caída, un ataque por SSH,
-  el disco lleno, un despliegue roto y una auditoría previa a producción.
-- **Chuletario** — 99 comandos con sintaxis, opciones y ejemplos, buscable y offline.
-- **Progreso** — XP, 15 niveles, racha diaria, multiplicador por combo, 24 logros,
-  6 temas de terminal desbloqueables y repaso espaciado de lo que fallaste.
+1. Abre la aplicación en Safari.
+2. Antes de instalar, entra en **Perfil → Exportar progreso** o **Copia al portapapeles**.
+3. Toca **Compartir → Añadir a pantalla de inicio**.
 
-En números: **64 lecciones, 130 retos y 145 comandos implementados.**
+iOS puede mantener separado el almacenamiento de Safari y el de la app instalada. Mentor Linux avisa de esto en la primera visita y mantiene importar/exportar en el primer nivel del perfil.
 
-## El Linux simulado
+### Android
 
-No hay servidor ni red: todo corre en el navegador.
+Abre la aplicación en Chrome y usa **Menú → Instalar aplicación**.
 
-- Sistema de archivos en memoria con permisos octales y simbólicos, bits especiales
-  (SUID, SGID, sticky), dueños, grupos y enlaces simbólicos.
-- Shell con comillas simples y dobles, globs, variables, `|`, `>`, `>>`, `<`, `2>`,
-  `2>&1`, `/dev/null`, `&&`, `||`, `;` y bucles `for`/`while`.
-- Errores auténticos: `Permission denied`, `No such file or directory`,
-  `command not found`… porque leer errores es parte de aprender.
-- Los retos se validan **por el estado final del sistema**, no comparando texto: si
-  llegas al objetivo por otro camino, cuenta igual.
-- Cuando fallas, la app te dice **por qué**, con una explicación específica del error
-  que cometiste.
+## Modelo didáctico
+
+La jerarquía es **Academia → Ruta → Sala → Tarea → Ejercicio**. Dentro de cada tarea conviven:
+
+1. Explicaciones cortas, ejemplos y tablas.
+2. Decisiones, predicción de salida, respuestas recuperadas y construcción de comandos.
+3. Ejercicios de terminal que validan el estado final, no un único texto escrito.
+4. Repasos programados según aciertos sin pista y días distintos de práctica.
+
+Si dos secuencias de comandos producen el estado correcto, ambas cuentan. Las pistas son progresivas y los errores conocidos generan explicaciones concretas.
+
+Las máquinas siguen un flujo de laboratorio ofensivo **exclusivamente simulado y autorizado**. Sus IP, hosts, banners, tokens y vulnerabilidades son ficción determinista; ningún comando realiza tráfico de red.
+
+## Motor Linux simulado
+
+- Filesystem en memoria con dueños, grupos, permisos octales/simbólicos, SUID, SGID, sticky bit, capabilities, atributos y enlaces.
+- Shell con comillas, globs, variables, pipes, redirecciones, descriptores, `&&`, `||`, `;` y bucles.
+- Procesos, paquetes, servicios, red y criptografía simulados.
+- Herramientas profesionales como `git`, `strings`, `file`, `lsattr`, `chattr`, `nmap`, `nc`, `tmux` y `vim`.
+- Snapshots independientes para salas, máquinas y cada nivel del Wargame.
 
 ## Desarrollo
 
-Sin dependencias ni compilación. Módulos ES nativos.
+No hay compilación ni dependencias de producción; la app usa módulos ES nativos.
 
 ```bash
-python3 -m http.server 8123     # y abre http://localhost:8123
+python3 -m http.server 8123
+# abre http://localhost:8123
 ```
 
 ### Pruebas
 
 ```bash
-node tests/shell.test.mjs      # 180 pruebas del motor
-node tests/content.test.mjs    # 1935 comprobaciones del currículum
-node tests/e2e.mjs             # 48 pruebas end-to-end en Chromium (iPhone)
+node tests/shell.test.mjs        # 180 pruebas heredadas del motor
+node tests/content.test.mjs      # 1.991 comprobaciones del contenido original
+node tests/v2-shell.test.mjs     # 12 pruebas de herramientas nuevas
+node tests/v2-content.test.mjs   # 2.480 comprobaciones v2 y resolución integral
+node tests/e2e.mjs               # 32 flujos en móvil, persistencia y offline
 ```
 
-`content.test.mjs` resuelve **cada uno de los 130 retos** con su solución de
-referencia y comprueba que pasa su propia validación, así que el contenido no puede
-quedar roto sin que salte.
+`v2-content.test.mjs` resuelve todos los ejercicios de terminal con su solución de referencia, completa las cuatro fases y ambas flags de cada máquina, encadena los 15 niveles y comprueba migración, debounce y precaché PWA.
 
-`e2e.mjs` necesita el servidor local en marcha y deja capturas en `.capturas/`.
+`e2e.mjs` requiere el servidor local en el puerto 8123. Recorre una sala, una máquina completa, Wargame, laboratorio, perfil y offline a 390×844; deja las capturas en `.capturas/`.
 
-### Estructura
+## Estructura
 
-```
-index.html            sw.js              manifest.webmanifest
-css/                  base · ui · terminal
+```text
+index.html                 aplicación y navegación
+css/                       base, componentes y terminal responsive
 js/
-  app.js              vistas y navegación
-  store.js            progreso, XP, logros, repaso espaciado
-  ui.js               formato, avisos, celebraciones
-  engine/
-    fs.js             filesystem virtual
-    shell.js          tokenizer, parser y ejecución
-    terminal.js       widget de terminal
-    commands/         145 comandos en 10 familias
+  app.js                   cuatro áreas y flujos interactivos
+  store.js                 progreso v3, dominio, repaso, migración y copias
+  engine/                  filesystem, shell, terminal y comandos
   data/
-    modulos-1..4.js   el currículum
-    checks.js         validación y diagnóstico de errores
-    snapshots.js      estados iniciales del sistema
-    comandos.js       chuletario
-    incidentes.js     Modo Incidente
-    logros.js         logros, niveles y temas
+    modulos-1..4.js        contenido original conservado
+    salas.js               academias, rutas, ampliaciones y Sala 0
+    habilidades.js         catálogo, inferencia y niveles de dominio
+    maquinas.js            12 laboratorios por fases
+    wargame.js             15 niveles encadenados
+    snapshots.js           sistemas virtuales reproducibles
+tests/                     motor, contenido y E2E móvil
+sw.js                      precaché y funcionamiento offline
+manifest.webmanifest       instalación PWA
 ```
 
-## Nota sobre el módulo de seguridad
+## Alcance ético y referencias
 
-Los módulos 18–20 se enseñan **desde el lado defensivo** y todo ocurre dentro del
-Linux simulado del dispositivo: no hay red, no hay objetivos reales y nada sale del
-teléfono. El módulo de hacking ético abre con la parte legal antes que con cualquier
-técnica, porque auditar sistemas ajenos sin autorización por escrito es delito.
+La seguridad se enseña solo sobre entornos propios o expresamente autorizados. Mentor Linux no incluye objetivos reales, evasión ni conexiones externas.
 
-## Créditos
-
-La estructura del temario se apoya en el enfoque de los cursos de
-[Hack4u](https://hack4u.io) (*Introducción a Linux* e *Introducción al Hacking*),
-adaptado a formato móvil y a un laboratorio simulado.
+El diseño didáctico toma como referencia pública el aprendizaje por salas de TryHackMe, la progresión visual de Duolingo, el flujo de máquinas de Hack The Box y los niveles encadenados de OverTheWire. La cobertura temática se contrastó con los temarios públicos de [Hack4u](https://hack4u.io/); el contenido, las máquinas, los textos y la identidad visual de Mentor Linux son propios.

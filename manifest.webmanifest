@@ -1,15 +1,16 @@
 {
   "name": "Mentor Linux",
   "short_name": "Mentor Linux",
-  "description": "Aprende y practica Linux desde el móvil: 20 módulos, terminal simulada y retos que se validan de verdad. Funciona sin conexión.",
+  "description": "Aprende Linux, Bash y hacking ético con rutas, práctica adaptativa, máquinas simuladas y un Wargame offline.",
   "lang": "es",
   "dir": "ltr",
-  "start_url": ".",
-  "scope": ".",
+  "id": "./",
+  "start_url": "./#aprender",
+  "scope": "./",
   "display": "standalone",
-  "orientation": "portrait",
-  "background_color": "#0C0A1E",
-  "theme_color": "#0C0A1E",
+  "orientation": "any",
+  "background_color": "#080b19",
+  "theme_color": "#080b19",
   "categories": ["education", "productivity", "developer"],
   "icons": [
     { "src": "assets/icons/icono-180.png", "sizes": "180x180", "type": "image/png" },
@@ -18,7 +19,9 @@
     { "src": "assets/icons/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
   ],
   "shortcuts": [
-    { "name": "Terminal libre", "short_name": "Terminal", "url": "./#terminal" },
-    { "name": "Modo Incidente", "short_name": "Incidentes", "url": "./#incidentes" }
+    { "name": "Seguir aprendiendo", "short_name": "Aprender", "url": "./#aprender" },
+    { "name": "Máquinas", "short_name": "Máquinas", "url": "./#maquinas" },
+    { "name": "Laboratorio libre", "short_name": "Laboratorio", "url": "./#laboratorio/libre" },
+    { "name": "Mi perfil", "short_name": "Perfil", "url": "./#perfil" }
   ]
 }
