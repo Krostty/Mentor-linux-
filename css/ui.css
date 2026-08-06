@@ -406,3 +406,174 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
   .logro small { display: none; }
   .logro-icono { font-size: 21px; }
 }
+
+
+/* =====================================================================
+   El camino de aprendizaje
+   Las salas dejan de ser una lista plana: se conectan con una línea
+   vertical para que se lea como un recorrido. El color dice el estado y
+   nada más — la identidad de la academia va por su franja y su símbolo.
+   ===================================================================== */
+
+/* Color con significado fijo, igual en toda la app. */
+:root {
+  --estado-hecho:      var(--lime);
+  --estado-curso:      var(--cyan);
+  --estado-repaso:     var(--amber);
+  --estado-bloqueado:  var(--dim);
+}
+
+.camino { padding: 2px 0 6px; }
+
+.tramo { position: relative; padding-left: 34px; }
+
+/* La línea que une las salas del mismo tramo. */
+.tramo::before {
+  content: "";
+  position: absolute;
+  left: 15px;
+  top: 26px;
+  bottom: 14px;
+  width: 2px;
+  background: var(--line);
+  border-radius: 2px;
+}
+
+.tramo-nombre {
+  display: block;
+  margin: 12px 0 6px -34px;
+  padding-left: 34px;
+  color: var(--dim);
+  font: 600 11.5px/1 var(--mono);
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+
+.nodo {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  margin: 0 0 7px;
+  padding: 11px 13px;
+  border: 1px solid var(--line-soft);
+  border-radius: 14px;
+  background: var(--panel);
+  color: inherit;
+  text-align: left;
+}
+
+/* El punto del camino, alineado sobre la línea. */
+.nodo-punto {
+  position: absolute;
+  left: -34px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 2px solid var(--line);
+  border-radius: 50%;
+  background: var(--deep);
+  font: 700 12px/1 var(--mono);
+  color: var(--dim);
+}
+
+.nodo-info { min-width: 0; }
+.nodo-info b { display: block; font-size: 15px; line-height: 1.25; }
+.nodo-info small { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+.nodo-info .mini-barra { margin-top: 7px; }
+
+.nodo-estado {
+  flex: 0 0 auto;
+  color: var(--dim);
+  font: 600 12px var(--mono);
+  white-space: nowrap;
+}
+
+/* --- estados ------------------------------------------------------- */
+
+.nodo[data-estado="hecha"] .nodo-punto {
+  border-color: var(--estado-hecho);
+  background: color-mix(in srgb, var(--estado-hecho) 20%, var(--deep));
+  color: var(--estado-hecho);
+}
+.nodo[data-estado="hecha"] .nodo-estado { color: var(--estado-hecho); }
+
+/* Solo la sala en curso lleva borde luminoso: es el único elemento
+   destacado de la pantalla, para que el ojo sepa dónde continuar. */
+.nodo[data-estado="curso"] {
+  border-color: color-mix(in srgb, var(--estado-curso) 55%, transparent);
+  background: linear-gradient(135deg, color-mix(in srgb, var(--estado-curso) 12%, var(--panel)), var(--panel));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--estado-curso) 12%, transparent);
+}
+.nodo[data-estado="curso"] .nodo-punto {
+  width: 38px;
+  height: 38px;
+  left: -37px;
+  border-color: var(--estado-curso);
+  background: color-mix(in srgb, var(--estado-curso) 22%, var(--deep));
+  color: var(--estado-curso);
+  box-shadow: 0 0 18px color-mix(in srgb, var(--estado-curso) 45%, transparent);
+}
+.nodo[data-estado="curso"] .nodo-estado { color: var(--estado-curso); }
+
+.nodo[data-estado="lista"] .nodo-punto { color: var(--muted); }
+
+.nodo[data-estado="bloqueada"] { opacity: .5; }
+.nodo[data-estado="bloqueada"] .nodo-punto { font-size: 13px; }
+
+/* --- identidad de cada academia ------------------------------------ */
+
+/* Franja lateral con el color de la academia en todas sus salas: dice
+   dónde estás sin tener que leer el encabezado. */
+.academia[data-color="lime"]    { --acento-academia: var(--lime); }
+.academia[data-color="cyan"]    { --acento-academia: var(--cyan); }
+.academia[data-color="magenta"] { --acento-academia: var(--magenta); }
+.academia[data-color="red"]     { --acento-academia: var(--red); }
+.academia[data-color="blue"]    { --acento-academia: var(--blue); }
+
+.academia .camino { border-left: 3px solid color-mix(in srgb, var(--acento-academia) 45%, transparent); }
+.academia .tramo::before { background: color-mix(in srgb, var(--acento-academia) 28%, var(--line)); }
+
+.academia-icono {
+  font-family: var(--mono);
+  font-weight: 700;
+  color: var(--acento-academia, var(--cyan));
+  background: color-mix(in srgb, var(--acento-academia, var(--cyan)) 15%, transparent);
+  border: 1px solid color-mix(in srgb, var(--acento-academia, var(--cyan)) 40%, transparent);
+}
+.academia .barra > i { background: var(--acento-academia, var(--cyan)); }
+.academia-porcentaje { color: var(--acento-academia, var(--cyan)); }
+
+@media (max-width: 560px) {
+  .tramo { padding-left: 30px; }
+  .tramo::before { left: 13px; }
+  .tramo-nombre { margin-left: -30px; padding-left: 30px; }
+  .nodo-punto { left: -30px; width: 28px; height: 28px; font-size: 11px; }
+  .nodo[data-estado="curso"] .nodo-punto { width: 33px; height: 33px; left: -32px; }
+  .nodo-info b { font-size: 14.5px; }
+}
+
+
+/* =====================================================================
+   Ajuste al teclado del móvil
+   `--alto-visible` lo fija vigilarTeclado() con la altura real visible.
+   Mientras se escribe, la barra de pestañas estorba y se retira: lo que
+   importa es ver la consola y lo que estás escribiendo.
+   ===================================================================== */
+
+.app {
+  height: var(--alto-visible, 100dvh);
+  transition: height .18s ease;
+}
+
+:root[data-teclado] .pestanas { display: none; }
+:root[data-teclado] .topbar { display: none; }
+:root[data-teclado] .brindis { bottom: calc(12px + var(--safe-bottom)); }
+
+/* Con el teclado fuera, la consola aprovecha todo el alto disponible. */
+:root[data-teclado] .consola-salida { min-height: 90px; }

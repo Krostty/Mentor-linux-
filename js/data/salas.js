@@ -4,6 +4,25 @@
 import { MODULOS } from './modules.js';
 import * as k from './checks.js';
 import { habilidadesDeEjercicio } from './habilidades.js';
+import { REFUERZOS_1 } from './refuerzos-1.js';
+import { REFUERZOS_2 } from './refuerzos-2.js';
+
+// Las salas heredadas del currículo v1 solo traían test y terminal. Los
+// refuerzos les añaden construir el comando, rellenar huecos y recordar la
+// salida, que es lo que de verdad consolida.
+const REFUERZOS = { ...REFUERZOS_1, ...REFUERZOS_2 };
+
+function ejercicioRefuerzo(r) {
+  if (r.t === 'ordenar') {
+    // Las piezas se barajan de forma estable para que el orden no delate
+    // la solución, pero sea siempre el mismo entre recargas.
+    const barajadas = [...r.k].sort((a, b) => (a + r.id).localeCompare(b + r.id, 'es'));
+    return ordenar(r.id, r.e, barajadas, r.r, r.x);
+  }
+  if (r.t === 'completar') return completar(r.id, r.e, r.p, r.r, r.x);
+  if (r.t === 'respuesta') return respuesta(r.id, r.e, r.r, r.x);
+  return quiz(r.id, r.e, r.o, r.c, r.x);
+}
 
 const dificultadDe = (n) => n <= 4 ? 'Principiante' : n <= 10 ? 'Fácil' : n <= 16 ? 'Intermedio' : 'Avanzado';
 
@@ -59,6 +78,13 @@ function normalizarModulo(modulo) {
       });
     }
   });
+
+  const extra = (REFUERZOS[modulo.id] || []).map(ejercicioRefuerzo);
+  if (extra.length) {
+    const teoricas = tareas.filter((t) => t.id.endsWith('-teoria'));
+    const destinos = teoricas.length ? teoricas : tareas;
+    extra.forEach((ejercicio, i) => destinos[i % destinos.length].practica.push(ejercicio));
+  }
 
   return {
     id: modulo.id,
@@ -348,12 +374,14 @@ export const RUTAS = [
   { id: 'defensa-base', academia: 'defensa', nombre: 'Blue Team y análisis', descripcion: 'Hardening, evidencias y respuesta inicial', nivel: 'Intermedio', salas: ['hardening', 'analisis'] },
 ];
 
+// `objetivo` dice qué sabrás HACER al terminar la academia. Un nombre técnico
+// («Filesystem y datos») no orienta a quien empieza; una capacidad sí.
 export const ACADEMIAS = [
-  { id: 'linux', nombre: 'Linux', descripcion: 'De tu primera terminal a administrar y diagnosticar sistemas', color: 'lime', icono: '>_', rutas: ['linux-cero', 'linux-esencial', 'linux-filesystem', 'linux-admin', 'linux-profesional'] },
-  { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', color: 'cyan', icono: '◎', rutas: ['redes-linux'] },
-  { id: 'bash', nombre: 'Bash y automatización', descripcion: 'Convierte comandos en herramientas repetibles', color: 'magenta', icono: '{}', rutas: ['bash-base', 'bash-proyectos'] },
-  { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', color: 'red', icono: '⚑', rutas: ['ofensiva-base'] },
-  { id: 'defensa', nombre: 'Defensa y forense', descripcion: 'Protege, investiga y explica lo ocurrido', color: 'blue', icono: '◇', rutas: ['defensa-base'] },
+  { id: 'linux', nombre: 'Linux', descripcion: 'De tu primera terminal a administrar y diagnosticar sistemas', objetivo: 'Sobrevives en cualquier servidor', color: 'lime', icono: '$_', rutas: ['linux-cero', 'linux-esencial', 'linux-filesystem', 'linux-admin', 'linux-profesional'] },
+  { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-linux'] },
+  { id: 'bash', nombre: 'Bash y automatización', descripcion: 'Convierte comandos en herramientas repetibles', objetivo: 'Automatizas lo que hacías a mano', color: 'magenta', icono: '{}', rutas: ['bash-base', 'bash-proyectos'] },
+  { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', objetivo: 'Auditas una máquina de principio a fin', color: 'red', icono: '#!', rutas: ['ofensiva-base'] },
+  { id: 'defensa', nombre: 'Defensa y forense', descripcion: 'Protege, investiga y explica lo ocurrido', objetivo: 'Detectas un ataque y lo explicas', color: 'blue', icono: '[]', rutas: ['defensa-base'] },
 ];
 
 export const RUTA_POR_ID = Object.fromEntries(RUTAS.map((r) => [r.id, r]));

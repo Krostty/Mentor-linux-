@@ -147,36 +147,64 @@ function renderAcademia(academia, abierto) {
   const rutas = academia.rutas.map((id) => RUTA_POR_ID[id]).filter(Boolean);
   const salas = rutas.flatMap((ruta) => numeroSalas(ruta));
   const avance = store.progresoAcademia(academia);
+  const hechas = salas.filter((sala) => store.salaCompletada(sala.id)).length;
+  const minutosRestantes = salas
+    .filter((sala) => !store.salaCompletada(sala.id))
+    .reduce((total, sala) => total + sala.minutos, 0);
+  const horas = minutosRestantes >= 60
+    ? `~${(minutosRestantes / 60).toFixed(minutosRestantes >= 600 ? 0 : 1).replace('.0', '')} h`
+    : `${minutosRestantes} min`;
+
+  // Academia y ruta se fusionan en un nivel: las salas cuelgan directamente de
+  // la academia y el nombre de ruta queda como un separador ligero. Antes eran
+  // tres niveles de navegación antes de llegar al contenido.
+  const actual = store.salaActual();
+  let indice = 0;
+  const cuerpo = rutas.map((ruta) => {
+    const suyas = numeroSalas(ruta);
+    const filas = suyas.map((sala) => renderNodoSala(sala, ++indice, salas.length, actual)).join('');
+    return `<div class="tramo"><span class="tramo-nombre">${escapar(ruta.nombre)}</span>${filas}</div>`;
+  }).join('');
+
   return `<details class="academia" data-color="${academia.color}" ${abierto || avance > 0 ? 'open' : ''}>
     <summary>
       <span class="academia-icono">${escapar(academia.icono)}</span>
-      <span class="academia-titulo"><b>${escapar(academia.nombre)}</b><small>${escapar(academia.descripcion)}</small><i>${rutas.length} ${rutas.length === 1 ? 'ruta' : 'rutas'} · ${salas.length} salas</i></span>
+      <span class="academia-titulo">
+        <b>${escapar(academia.nombre)}</b>
+        <small>${escapar(academia.objetivo || academia.descripcion)}</small>
+        <i>${hechas}/${salas.length} salas${minutosRestantes ? ` · quedan ${horas}` : ' · completada'}</i>
+      </span>
       <span class="academia-porcentaje">${porcentaje(avance)}%</span>
       <span class="chevron">⌄</span>
       <span class="barra"><i style="width:${porcentaje(avance)}%"></i></span>
     </summary>
-    <div class="rutas">${rutas.map((ruta, i) => renderRuta(ruta, abierto && i === 0)).join('')}</div>
+    <div class="camino">${cuerpo}</div>
   </details>`;
 }
 
-function renderRuta(ruta, abierta) {
-  const salas = numeroSalas(ruta);
-  const avance = store.progresoRuta(ruta);
-  return `<details class="ruta" ${abierta || avance > 0 ? 'open' : ''}>
-    <summary><span class="ruta-linea"></span><span class="ruta-titulo"><b>${escapar(ruta.nombre)}</b><small>${escapar(ruta.descripcion)}</small></span><span class="dificultad">${escapar(ruta.nivel)}</span><span class="chevron">⌄</span></summary>
-    <div class="lista-salas">
-      ${salas.map((sala, indice) => {
-        const desbloqueada = store.salaDesbloqueada(sala.id);
-        const hechos = ejerciciosHechosSala(sala);
-        const total = ejerciciosSala(sala);
-        return `<button class="sala-card" data-sala="${escapar(sala.id)}" ${desbloqueada ? '' : 'disabled'}>
-          <span class="sala-nodo">${store.salaCompletada(sala.id) ? '✓' : desbloqueada ? String(indice + 1).padStart(2, '0') : '·'}</span>
-          <span class="sala-info"><b>${escapar(sala.nombre)}</b><small>${sala.tareas.length} tareas · ${total} ejercicios · ${sala.minutos} min</small></span>
-          <span class="sala-avance"><b>${desbloqueada ? `${hechos}/${total}` : 'Bloqueada'}</b><span class="mini-barra"><i style="width:${porcentaje(hechos / total)}%"></i></span></span>
-        </button>`;
-      }).join('')}
-    </div>
-  </details>`;
+// Una sala como nodo de un camino: la línea vertical que las une la dibuja el
+// CSS, y el estado (hecha, en curso, bloqueada) se lee por color y por forma.
+function renderNodoSala(sala, indice, total, actual) {
+  const desbloqueada = store.salaDesbloqueada(sala.id);
+  const completada = store.salaCompletada(sala.id);
+  const hechos = ejerciciosHechosSala(sala);
+  const totalEj = ejerciciosSala(sala);
+  // «En curso» es la sala por la que toca seguir, la hayas empezado o no: sin
+  // esto ningún nodo indicaba dónde continuar hasta hacer el primer ejercicio.
+  const esActual = sala.id === actual;
+  const estado = completada ? 'hecha' : !desbloqueada ? 'bloqueada' : esActual ? 'curso' : 'lista';
+  const marca = completada ? '✓' : esActual ? '▶' : desbloqueada ? String(indice).padStart(2, '0') : '🔒';
+
+  return `<button class="nodo" data-estado="${estado}" data-sala="${escapar(sala.id)}" ${desbloqueada ? '' : 'disabled'}
+      ${indice === total ? 'data-ultimo' : ''}>
+    <span class="nodo-punto">${marca}</span>
+    <span class="nodo-info">
+      <b>${escapar(sala.nombre)}</b>
+      <small>${sala.tareas.length} tareas · ${totalEj} ejercicios · ${sala.minutos} min</small>
+      ${desbloqueada && !completada ? `<span class="mini-barra"><i style="width:${porcentaje(hechos / totalEj)}%"></i></span>` : ''}
+    </span>
+    <span class="nodo-estado">${completada ? 'Completada' : esActual ? 'Continuar' : desbloqueada ? `${hechos}/${totalEj}` : ''}</span>
+  </button>`;
 }
 
 function renderTeoria(bloques = []) {
@@ -615,5 +643,51 @@ aplicarTema();
 cargarRuta(false);
 
 if ('serviceWorker' in navigator) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+
+// =====================================================================
+// El teclado del móvil
+// En iOS el viewport de diseño NO encoge al abrir el teclado: la mitad
+// inferior de la app queda debajo, y con ella la línea donde escribes y
+// la salida de la consola. Aquí se mide el viewport VISIBLE y se ajusta
+// la altura de la app a lo que de verdad se ve.
+// =====================================================================
+
+function vigilarTeclado() {
+  const vv = window.visualViewport;
+  if (!vv) return;
+  const raiz = document.documentElement;
+
+  const ajustar = () => {
+    // Lo que tapa el teclado es la diferencia entre la ventana y lo visible.
+    const tapado = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+    const abierto = tapado > 120;
+
+    raiz.style.setProperty('--alto-visible', `${Math.round(vv.height)}px`);
+    raiz.style.setProperty('--teclado', `${Math.round(tapado)}px`);
+    raiz.toggleAttribute('data-teclado', abierto);
+
+    // Con el teclado abierto la salida de la consola debe seguir a la vista.
+    if (abierto) {
+      const salida = document.querySelector('.consola-salida');
+      if (salida) salida.scrollTop = salida.scrollHeight;
+    }
+  };
+
+  vv.addEventListener('resize', ajustar);
+  vv.addEventListener('scroll', ajustar);
+  ajustar();
+
+  // Al enfocar la línea de comandos, asegurar que queda por encima del teclado.
+  document.addEventListener('focusin', (e) => {
+    if (!e.target.classList?.contains('consola-input')) return;
+    setTimeout(() => {
+      e.target.closest('.consola')?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+      const salida = document.querySelector('.consola-salida');
+      if (salida) salida.scrollTop = salida.scrollHeight;
+    }, 260);
+  });
+}
+
+vigilarTeclado();
 
 window.__mentor = { store, ir, SALAS, BLOQUES, MAQUINAS, WARGAME, MISIONES, totales: { salas: TOTAL_SALAS, tareas: TOTAL_TAREAS, ejercicios: TOTAL_EJERCICIOS } };

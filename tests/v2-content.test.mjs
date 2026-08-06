@@ -43,7 +43,7 @@ test('hay exactamente 5 academias', ACADEMIAS.length === 5, String(ACADEMIAS.len
 test('hay exactamente 10 rutas', RUTAS.length === 10, String(RUTAS.length));
 test('hay exactamente 24 salas', TOTAL_SALAS === 24, String(TOTAL_SALAS));
 test('hay al menos 140 tareas', TOTAL_TAREAS >= 140, String(TOTAL_TAREAS));
-test('hay exactamente 325 ejercicios', TOTAL_EJERCICIOS === 325, String(TOTAL_EJERCICIOS));
+test('hay al menos 500 ejercicios', TOTAL_EJERCICIOS >= 500, String(TOTAL_EJERCICIOS));
 test('hay exactamente 12 máquinas', MAQUINAS.length === 12, String(MAQUINAS.length));
 test('hay exactamente 15 niveles Wargame', WARGAME.length === 15, String(WARGAME.length));
 test('hay exactamente 40 logros', LOGROS.length === 40, String(LOGROS.length));
@@ -78,7 +78,7 @@ for (const bloque of BLOQUES) {
 }
 test('cada sala aparece una vez en los bloques', BLOQUES.flatMap((b) => b.salas).length === new Set(BLOQUES.flatMap((b) => b.salas)).size);
 
-console.log('▸ Resolviendo los 325 ejercicios');
+console.log(`▸ Resolviendo los ${TOTAL_EJERCICIOS} ejercicios`);
 for (const e of TODOS_EJERCICIOS) {
   if (e.tipo === 'terminal') {
     let ok = false;

@@ -41,6 +41,8 @@ const RECURSOS = [
   'js/data/incidentes.js',
   'js/data/logros.js',
   'js/data/salas.js',
+  'js/data/refuerzos-2.js',
+  'js/data/refuerzos-1.js',
   'js/data/habilidades.js',
   'js/data/maquinas.js',
   'js/data/wargame.js',

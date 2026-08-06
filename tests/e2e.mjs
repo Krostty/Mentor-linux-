@@ -64,13 +64,15 @@ try {
   console.log('▸ Aprender');
   comprobar('la app arranca', await pagina.locator('.app').isVisible());
   comprobar('hay 5 academias', await pagina.locator('.academia').count() === 5);
-  comprobar('hay 10 rutas', await pagina.locator('.ruta').count() === 10);
-  comprobar('las 24 salas están renderizadas', await pagina.locator('.sala-card').count() === 24);
-  comprobar('se muestran los 325 ejercicios', (await pagina.locator('.metrica').first().innerText()).includes('/325'));
+  comprobar('hay 10 tramos de ruta', await pagina.locator('.tramo').count() === 10);
+  comprobar('las 24 salas están renderizadas', await pagina.locator('.nodo').count() === 24);
+  const totalEjercicios = await pagina.evaluate(() => window.__mentor.totales.ejercicios);
+  comprobar('el marcador refleja el total de ejercicios',
+    (await pagina.locator('.metrica').first().innerText()).includes(`/${totalEjercicios}`), String(totalEjercicios));
   comprobar('no hay desborde horizontal', await pagina.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
   await shot('v3-01-aprender');
 
-  await pagina.locator('.sala-card[data-sala="cero-absoluto"]').click();
+  await pagina.locator('.nodo[data-sala="cero-absoluto"]').click();
   comprobar('sala muestra 5 tareas', await pagina.locator('.tarea').count() === 5);
   comprobar('Sala 0 ofrece 37 interacciones', await pagina.locator('.ejercicio').count() === 37);
   comprobar('teoría y práctica comparten pantalla', await pagina.locator('.teoria').count() > 0 && await pagina.locator('.ejercicios').count() > 0);

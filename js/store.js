@@ -282,11 +282,35 @@ export class Store {
     return total ? hechos / total : 0;
   }
 
+  // Todas las salas de una academia forman una única secuencia. Antes se
+  // abría la primera de cada tramo, y el camino parecía roto: salas 1, 3 y 6
+  // abiertas con la 2 bloqueada en medio. Cada academia empieza abierta; una
+  // vez dentro, se avanza en orden.
+  salasDeAcademia(salaId) {
+    const academia = ACADEMIAS.find((a) =>
+      a.rutas.some((rutaId) => (RUTA_POR_ID[rutaId]?.salas || []).includes(salaId)));
+    if (!academia) return null;
+    return academia.rutas.flatMap((rutaId) => RUTA_POR_ID[rutaId]?.salas || []);
+  }
+
   salaDesbloqueada(salaId) {
-    const ruta = RUTAS.find((r) => r.salas.includes(salaId));
-    if (!ruta) return true;
-    const i = ruta.salas.indexOf(salaId);
-    return i <= 0 || this.salaCompletada(ruta.salas[i - 1]);
+    const secuencia = this.salasDeAcademia(salaId);
+    if (!secuencia) return true;
+    const i = secuencia.indexOf(salaId);
+    return i <= 0 || this.salaCompletada(secuencia[i - 1]);
+  }
+
+  // La sala por la que toca seguir: la primera abierta y sin terminar de la
+  // academia en la que estés más avanzado.
+  salaActual() {
+    for (const academia of ACADEMIAS) {
+      const salas = academia.rutas.flatMap((rutaId) => RUTA_POR_ID[rutaId]?.salas || []);
+      for (const salaId of salas) {
+        if (!this.salaDesbloqueada(salaId)) break;
+        if (!this.salaCompletada(salaId)) return salaId;
+      }
+    }
+    return null;
   }
 
   siguientePaso() {
