@@ -36,7 +36,11 @@ jobs:
       url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - uses: actions/checkout@v4
+      # enablement activa GitHub Pages en el repositorio la primera vez,
+      # sin tener que tocarlo a mano en los ajustes.
       - uses: actions/configure-pages@v5
+        with:
+          enablement: true
       - name: Preparar los archivos de la app
         # Se publica todo menos lo que no forma parte de la app.
         run: |
