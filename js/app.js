@@ -119,7 +119,7 @@ function renderAprender() {
       <h1>Aprende. Practica.<br><em>Recuérdalo.</em></h1>
       <p>Lecciones breves, terminal realista y repasos que vuelven justo antes de que olvides. Aquí una habilidad no termina al verla: termina cuando puedes usarla sin ayuda.</p>
       <div class="acciones">
-        ${repasos.length ? `<button class="btn" data-repasar="${escapar(repasos[0].id)}">Repasar ahora · ${repasos.length} pendientes</button>` : siguiente ? `<button class="btn" data-sala="${escapar(siguiente.sala.id)}" data-ejercicio="${escapar(siguiente.ejercicio.id)}">Continuar · ${escapar(siguiente.sala.nombre)}</button>` : '<span class="chip chip-dificultad">Todas las rutas completadas ✓</span>'}
+        ${repasos.length ? `<button class="btn" data-repasar="${escapar(repasos[0].id)}">Repasar ahora · ${repasos.length} pendientes</button>` : siguiente ? `<button class="btn" data-sala="${escapar(siguiente.sala.id)}" data-ejercicio="${escapar(siguiente.ejercicio.id)}">Continuar</button>` : '<span class="chip chip-dificultad">Todas las rutas completadas ✓</span>'}
         <button class="btn-secundario" data-ir="practicar">Entrenamiento libre</button>
       </div>
     </section>
@@ -131,14 +131,15 @@ function renderAprender() {
         <div class="sesion-paso"><span>03</span><div><b>Misión mixta</b><small>Combina lo aprendido sin receta</small></div></div>
       </div>
     </section>
+    <div class="seccion-titulo"><div><span class="eyebrow">Mapa curricular</span><h2>Elige una academia</h2><p>5 academias · 10 rutas · ${TOTAL_SALAS} salas · ${TOTAL_EJERCICIOS} ejercicios</p></div><span class="contador">teoría + práctica + repaso</span></div>
+    <div class="academias">${ACADEMIAS.map((academia, i) => renderAcademia(academia, i === 0)).join('')}</div>
+    <div class="seccion-titulo"><div><h2>Tu marcador</h2></div></div>
     <div class="metricas">
       <div class="metrica"><b>${stats.ejercicios}<small>/${TOTAL_EJERCICIOS}</small></b><span>prácticas resueltas</span></div>
       <div class="metrica"><b>${stats.habilidades}</b><span>habilidades entrenadas</span></div>
       <div class="metrica"><b>${stats.habilidadesDominadas}</b><span>habilidades dominadas</span></div>
       <div class="metrica"><b>${stats.racha}<small> días</small></b><span>racha activa</span></div>
     </div>
-    <div class="seccion-titulo"><div><span class="eyebrow">Mapa curricular</span><h2>Elige una academia</h2><p>5 academias · 10 rutas · ${TOTAL_SALAS} salas · ${TOTAL_EJERCICIOS} ejercicios</p></div><span class="contador">teoría + práctica + repaso</span></div>
-    <div class="academias">${ACADEMIAS.map((academia, i) => renderAcademia(academia, i === 0)).join('')}</div>
   </div>`;
 }
 
@@ -528,14 +529,13 @@ function renderPerfil() {
   vista.innerHTML = `<div class="pagina">
     ${renderAvisoInstalacion()}
     <section class="tarjeta perfil-hero"><div class="avatar">${emojiNivel(s.nivel.nivel)}</div><div><span class="eyebrow">Nivel ${s.nivel.nivel}</span><h1>${escapar(s.nivel.titulo)}</h1><p>${s.nivel.siguiente ? `${s.nivel.faltan} XP para ${escapar(s.nivel.siguiente.titulo)}` : 'Rango máximo alcanzado'}</p><div class="barra" style="margin-top:9px"><i style="width:${porcentaje(s.nivel.progreso)}%"></i></div></div></section>
-    <div class="seccion-titulo"><div><h2>Tu progreso, primero</h2><p>Exporta antes de instalar o cambiar de navegador</p></div></div>
-    <section class="tarjeta transferencia"><button class="btn" data-exportar>Exportar progreso</button><button class="btn-secundario" data-importar>Importar copia</button><button class="btn-fantasma" data-copiar>Copia al portapapeles</button><input class="oculto" id="archivo-importar" type="file" accept="application/json,.json"></section>
     <div class="metricas"><div class="metrica"><b>${s.xp}</b><span>XP total</span></div><div class="metrica"><b>${s.racha}</b><span>racha actual</span></div><div class="metrica"><b>${s.maquinas}/${s.totalMaquinas}</b><span>máquinas</span></div><div class="metrica"><b>${s.logros}/${s.totalLogros}</b><span>logros</span></div></div>
     <div class="seccion-titulo"><div><h2>Memoria de habilidades</h2><p>El dominio exige aciertos sin pista, contextos diferentes y repasos en días distintos</p></div><span class="contador">${s.habilidadesDominadas}/${s.habilidades} dominadas</span></div>
     <section class="tarjeta mapa-habilidades">${habilidades.length ? habilidades.map((h) => `<div class="habilidad-fila"><span class="habilidad-icono" data-nivel="${h.nivel}">${NIVELES_DOMINIO[h.nivel].icono}</span><div><b>${escapar(nombreHabilidad(h.id))}</b><small>${NIVELES_DOMINIO[h.nivel].nombre} · ${h.datos.sinPista || 0} aciertos sin pista · ${(h.datos.fechas || []).length} días</small></div><span class="contador">Nv ${h.nivel}/6</span></div>`).join('') : '<p class="muted">Completa tu primera práctica para empezar el mapa.</p>'}</section>
     <div class="seccion-titulo"><div><h2>Mapa de dominio</h2><p>Avance sala por sala</p></div></div><section class="tarjeta dominio">${s.dominio.map((d) => `<div class="dominio-fila"><span>${escapar(d.nombre)}</span><span class="barra"><i style="width:${porcentaje(d.progreso)}%"></i></span><span class="contador">${porcentaje(d.progreso)}%</span></div>`).join('')}</section>
     <div class="seccion-titulo"><div><h2>Comando a comando</h2><p>Frecuencia real en tus terminales</p></div><span class="contador">${s.comandos} ejecuciones</span></div><details class="bloque"><summary><span class="bloque-icono">$_</span><span class="bloque-titulo"><b>Ver los ${dominioComandos.length} comandos</b><small>Ordenados por uso</small></span><span class="chevron">⌄</span></summary><div class="comandos-grid" style="padding:0 12px 14px">${dominioComandos.map((c) => `<div class="comando"><b>${escapar(c.n)}</b><p>${escapar(c.q)}</p><span class="contador">${c.usos} usos</span></div>`).join('')}</div></details>
     <div class="seccion-titulo"><div><h2>Temas de terminal</h2><p>El actual es ${escapar(tema.nombre)}</p></div></div><div class="rejilla">${store.temasDisponibles.map((t) => `<button class="tarjeta" data-tema="${escapar(t.id)}"><div class="tarjeta-top"><h3>${escapar(t.nombre)}</h3><span style="width:17px;height:17px;border-radius:50%;background:${t.colores.acento}"></span></div><p>${escapar(t.desc)}</p>${t.id === tema.id ? '<span class="chip chip-dificultad">Activo</span>' : ''}</button>`).join('')}</div>
+    <details class="bloque"><summary><span class="bloque-icono">💾</span><span class="bloque-titulo"><b>Copia de seguridad</b><small>Expórtala antes de instalar la app o cambiar de navegador</small></span><span class="chevron">⌄</span></summary><div class="transferencia" style="padding:0 12px 14px"><button class="btn" data-exportar>Exportar progreso</button><button class="btn-secundario" data-importar>Importar copia</button><button class="btn-fantasma" data-copiar>Copia al portapapeles</button><input class="oculto" id="archivo-importar" type="file" accept="application/json,.json"></div></details>
     <div class="seccion-titulo"><div><h2>Logros</h2><p>40 hitos de aprendizaje y práctica</p></div><span class="contador">${s.logros}/${LOGROS.length}</span></div><div class="logros">${LOGROS.map((l) => { const conseguido = store.estado.logros.includes(l.id); return `<article class="logro" ${conseguido ? '' : 'data-bloqueado'}><span class="logro-icono">${conseguido ? escapar(l.icono) : '◌'}</span><b>${escapar(l.nombre)}</b><small>${escapar(l.desc)}</small></article>`; }).join('')}</div>
     <div class="seccion-titulo"><div><h2>Zona de datos</h2><p>La cuenta es local: tú controlas la copia</p></div></div><button class="btn-fantasma btn-peligro" data-reiniciar-progreso>Reiniciar todo el progreso</button>
   </div>`;

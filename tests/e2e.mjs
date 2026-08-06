@@ -140,7 +140,13 @@ try {
 
   console.log('▸ Perfil y offline');
   await pagina.locator('[data-pestana="perfil"]').click();
-  comprobar('exportar e importar están arriba', await pagina.locator('.transferencia').isVisible());
+  // La copia de seguridad vive en un bloque plegable al final del perfil: es
+  // importante, pero no es lo que vienes a ver al abrir tu perfil. Lo que hay
+  // que garantizar es que se pueda llegar a ella y que funcione.
+  const copia = pagina.locator('details').filter({ hasText: 'Copia de seguridad' }).first();
+  comprobar('la copia de seguridad es accesible', await copia.count() === 1);
+  await copia.locator('summary').click();
+  comprobar('exportar e importar se despliegan', await pagina.locator('.transferencia [data-exportar]').isVisible());
   comprobar('el mapa contiene 24 salas', await pagina.locator('.dominio-fila').count() === 24);
   comprobar('hay 40 tarjetas de logro', await pagina.locator('.logro').count() === 40);
   comprobar('existe el dominio comando a comando', await pagina.getByText('Ver los 107 comandos').isVisible());

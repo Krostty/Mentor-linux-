@@ -1,12 +1,12 @@
 :root {
   color-scheme: dark;
-  --void: #080b19;
-  --deep: #0d1328;
-  --panel: #121b35;
-  --panel-2: #192548;
-  --panel-3: #22315d;
-  --line: #35466f;
-  --line-soft: rgba(135, 162, 222, .18);
+  --void: #131a33;
+  --deep: #1a2244;
+  --panel: #232d55;
+  --panel-2: #2c3868;
+  --panel-3: #384682;
+  --line: #4d5c94;
+  --line-soft: rgba(168, 190, 240, .26);
   --lime: #b6ff5c;
   --cyan: #52e7ff;
   --blue: #73a9ff;
@@ -14,10 +14,10 @@
   --amber: #ffd267;
   --red: #ff7588;
   --ink: #f7faff;
-  --muted: #b5c0dc;
-  --dim: #7b89ad;
+  --muted: #c8d1ea;
+  --dim: #96a1c4;
   --good: #79f2a6;
-  --term-fondo: #060914;
+  --term-fondo: #0d1330;
   --term-acento: #b6ff5c;
   --term-prompt: #b6ff5c;
   --ui: ui-rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
@@ -37,9 +37,9 @@ html { background: var(--void); }
 body {
   overflow: hidden;
   background:
-    radial-gradient(900px 520px at 7% -10%, rgba(82, 231, 255, .14), transparent 60%),
-    radial-gradient(760px 540px at 105% 4%, rgba(255, 105, 199, .12), transparent 58%),
-    linear-gradient(155deg, #0c1228 0%, var(--void) 52%, #0d1024 100%);
+    radial-gradient(900px 520px at 7% -10%, rgba(82, 231, 255, .20), transparent 60%),
+    radial-gradient(760px 540px at 105% 4%, rgba(255, 105, 199, .17), transparent 58%),
+    linear-gradient(155deg, #1a2247 0%, var(--void) 52%, #1b1c3d 100%);
   color: var(--ink);
   font-family: var(--ui);
   font-size: 16px;
