@@ -456,6 +456,33 @@ export class Store {
     return [...new Set([...antiguos, ...porHabilidad])];
   }
 
+  // Las habilidades que peor llevas, ordenadas por cuánto te cuestan.
+  // El dato ya existía dentro del modelo de maestría pero no se veía en
+  // ninguna pantalla, y es la información más útil que guarda la app.
+  puntosDebiles(limite = 6) {
+    const debiles = [];
+    for (const [id, h] of Object.entries(this.estado.habilidades)) {
+      if (!h.intentos) continue;
+      const nivel = this.nivelHabilidad(id);
+      const tasaFallo = h.fallos / h.intentos;
+      // Cuesta más lo que fallas mucho y lo que sigue en nivel bajo pese a
+      // haberlo intentado varias veces.
+      const dificultad = tasaFallo * 2 + (6 - nivel) / 6 + (h.intentos > 3 && nivel < 3 ? 0.5 : 0);
+      if (h.fallos === 0 && nivel >= 4) continue;
+      debiles.push({ id, nivel, fallos: h.fallos, intentos: h.intentos, aciertos: h.aciertos, sinPista: h.sinPista || 0, dificultad });
+    }
+    return debiles.sort((a, b) => b.dificultad - a.dificultad).slice(0, limite);
+  }
+
+  // Un ejercicio con el que entrenar una habilidad concreta: se prefiere uno
+  // que ya hayas fallado, y si no, cualquiera que la practique.
+  ejercicioParaHabilidad(habilidadId) {
+    const candidatos = TODOS_EJERCICIOS.filter((e) => (e.habilidades || []).includes(habilidadId));
+    if (!candidatos.length) return null;
+    const fallado = candidatos.find((e) => (this.estado.intentosEjercicio[e.id]?.errores || 0) > 0);
+    return fallado || candidatos.find((e) => !this.ejercicioHecho(e.id)) || candidatos[0];
+  }
+
   ejerciciosParaRepasar(limite = 6) {
     const ids = new Set(this.retosParaRepasar());
     return TODOS_EJERCICIOS.filter((e) => ids.has(e.id)).sort((a, b) => {

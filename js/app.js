@@ -1,5 +1,5 @@
 import {
-  SALAS, SALA_POR_ID, BLOQUES, ACADEMIAS, RUTAS, RUTA_POR_ID, EJERCICIO_POR_ID,
+  SALAS, SALA_POR_ID, BLOQUES, ACADEMIAS, RUTAS, RUTA_POR_ID, ACADEMIA_POR_ID, EJERCICIO_POR_ID,
   TOTAL_SALAS, TOTAL_TAREAS, TOTAL_EJERCICIOS,
 } from './data/salas.js';
 import { nombreHabilidad, NIVELES_DOMINIO } from './data/habilidades.js';
@@ -74,7 +74,7 @@ function ir(nombre, datos = {}, guardarHistorial = true) {
   ejercicioActivo = datos.ejercicio || (nombre === 'sala' ? ejercicioActivo : null);
   modoRepaso = nombre === 'sala' && datos.repaso === true;
   terminalActiva = null;
-  const principal = nombre === 'sala' ? 'aprender' : nombre === 'maquina' ? 'maquinas' : ['wargame', 'laboratorio'].includes(nombre) ? 'practicar' : nombre;
+  const principal = ['sala', 'academia'].includes(nombre) ? 'aprender' : nombre === 'maquina' ? 'maquinas' : ['wargame', 'laboratorio'].includes(nombre) ? 'practicar' : nombre;
   document.querySelectorAll('[data-pestana]').forEach((b) => b.toggleAttribute('data-activa', b.dataset.pestana === principal));
   if (guardarHistorial && location.hash !== rutaHash(nombre, datos)) history.pushState({ nombre, datos }, '', rutaHash(nombre, datos));
   render();
@@ -83,6 +83,7 @@ function ir(nombre, datos = {}, guardarHistorial = true) {
 }
 
 function render() {
+  if (rutaActual.nombre === 'academia') return renderAcademiaDetalle(rutaActual.datos.id);
   if (rutaActual.nombre === 'sala') return renderSala(rutaActual.datos.id);
   if (rutaActual.nombre === 'maquina') return renderMaquina(rutaActual.datos.id);
   if (rutaActual.nombre === 'wargame') return renderWargame(rutaActual.datos.id);
@@ -112,74 +113,103 @@ function renderAprender() {
   const stats = store.estadisticas();
   const siguiente = store.siguientePaso();
   const repasos = store.ejerciciosParaRepasar(3);
+  const salaActual = store.salaActual();
+  const academiaActual = salaActual ? ACADEMIAS.find((a) =>
+    a.rutas.some((r) => (RUTA_POR_ID[r]?.salas || []).includes(salaActual))) : null;
+
+  // La portada muestra SOLO una cosa que hacer y la lista de academias
+  // cerradas. Antes desplegaba la primera academia entera con todas sus salas,
+  // más la sesión del día y el marcador: demasiado para una pantalla de móvil.
   vista.innerHTML = `<div class="pagina">
     ${renderAvisoInstalacion()}
-    <section class="hero hero-aprender">
-      <span class="eyebrow">Tu sistema de entrenamiento Linux</span>
-      <h1>Aprende. Practica.<br><em>Recuérdalo.</em></h1>
-      <p>Lecciones breves, terminal realista y repasos que vuelven justo antes de que olvides. Aquí una habilidad no termina al verla: termina cuando puedes usarla sin ayuda.</p>
+
+    <section class="continuar-hoy">
+      <span class="eyebrow">${repasos.length ? 'Toca repasar' : siguiente ? 'Continuar donde lo dejaste' : 'Todo completado'}</span>
+      <h1>${escapar(repasos.length ? `${repasos.length} ${repasos.length === 1 ? 'habilidad' : 'habilidades'} para refrescar`
+        : siguiente ? siguiente.sala.nombre : '¡Has terminado el currículo!')}</h1>
+      ${siguiente && !repasos.length ? `<p>${escapar(siguiente.tarea.titulo)}</p>` : ''}
       <div class="acciones">
-        ${repasos.length ? `<button class="btn" data-repasar="${escapar(repasos[0].id)}">Repasar ahora · ${repasos.length} pendientes</button>` : siguiente ? `<button class="btn" data-sala="${escapar(siguiente.sala.id)}" data-ejercicio="${escapar(siguiente.ejercicio.id)}">Continuar</button>` : '<span class="chip chip-dificultad">Todas las rutas completadas ✓</span>'}
-        <button class="btn-secundario" data-ir="practicar">Entrenamiento libre</button>
+        ${repasos.length
+          ? `<button class="btn" data-repasar="${escapar(repasos[0].id)}">Repasar ahora</button>`
+          : siguiente
+            ? `<button class="btn" data-sala="${escapar(siguiente.sala.id)}" data-ejercicio="${escapar(siguiente.ejercicio.id)}">Continuar</button>`
+            : '<button class="btn" data-ir="maquinas">Ir a las máquinas</button>'}
+        <button class="btn-secundario" data-ir="practicar">Practicar libre</button>
       </div>
+      <span class="continuar-progreso">
+        <span class="barra"><i style="width:${porcentaje(stats.ejercicios / TOTAL_EJERCICIOS)}%"></i></span>
+        <small>${stats.ejercicios} de ${TOTAL_EJERCICIOS} ejercicios · racha de ${stats.racha} ${stats.racha === 1 ? 'día' : 'días'}</small>
+      </span>
     </section>
-    <section class="sesion-hoy">
-      <div class="sesion-cabecera"><div><span class="eyebrow">Sesión recomendada</span><h2>Tu entrenamiento de hoy</h2></div><span class="sesion-tiempo">≈ 15 min</span></div>
-      <div class="sesion-pasos">
-        <div class="sesion-paso" ${repasos.length ? 'data-activo' : 'data-listo'}><span>01</span><div><b>${repasos.length ? `${repasos.length} repasos activos` : 'Memoria al día'}</b><small>Recupera habilidades anteriores</small></div></div>
-        <div class="sesion-paso" ${siguiente ? 'data-activo' : 'data-listo'}><span>02</span><div><b>${siguiente ? escapar(siguiente.tarea.titulo) : 'Contenido completado'}</b><small>${siguiente ? escapar(siguiente.ruta.nombre) : 'Explora máquinas y Wargame'}</small></div></div>
-        <div class="sesion-paso"><span>03</span><div><b>Misión mixta</b><small>Combina lo aprendido sin receta</small></div></div>
-      </div>
-    </section>
-    <div class="seccion-titulo"><div><span class="eyebrow">Mapa curricular</span><h2>Elige una academia</h2><p>5 academias · 10 rutas · ${TOTAL_SALAS} salas · ${TOTAL_EJERCICIOS} ejercicios</p></div><span class="contador">teoría + práctica + repaso</span></div>
-    <div class="academias">${ACADEMIAS.map((academia, i) => renderAcademia(academia, i === 0)).join('')}</div>
-    <div class="seccion-titulo"><div><h2>Tu marcador</h2></div></div>
-    <div class="metricas">
-      <div class="metrica"><b>${stats.ejercicios}<small>/${TOTAL_EJERCICIOS}</small></b><span>prácticas resueltas</span></div>
-      <div class="metrica"><b>${stats.habilidades}</b><span>habilidades entrenadas</span></div>
-      <div class="metrica"><b>${stats.habilidadesDominadas}</b><span>habilidades dominadas</span></div>
-      <div class="metrica"><b>${stats.racha}<small> días</small></b><span>racha activa</span></div>
-    </div>
+
+    <div class="seccion-titulo"><div><h2>Academias</h2><p>Toca una para ver sus salas</p></div></div>
+    <div class="academias">${ACADEMIAS.map((a) => renderTarjetaAcademia(a, a.id === academiaActual?.id)).join('')}</div>
   </div>`;
 }
 
-function renderAcademia(academia, abierto) {
-  const rutas = academia.rutas.map((id) => RUTA_POR_ID[id]).filter(Boolean);
-  const salas = rutas.flatMap((ruta) => numeroSalas(ruta));
+// Tarjeta cerrada: identidad, avance y nada más. Al tocarla se entra en la
+// pantalla de la academia, donde ya sí está el camino completo de salas.
+function renderTarjetaAcademia(academia, esActual) {
+  const salas = academia.rutas.flatMap((id) => numeroSalas(RUTA_POR_ID[id] || { salas: [] }));
+  const hechas = salas.filter((s) => store.salaCompletada(s.id)).length;
   const avance = store.progresoAcademia(academia);
-  const hechas = salas.filter((sala) => store.salaCompletada(sala.id)).length;
-  const minutosRestantes = salas
-    .filter((sala) => !store.salaCompletada(sala.id))
-    .reduce((total, sala) => total + sala.minutos, 0);
-  const horas = minutosRestantes >= 60
-    ? `~${(minutosRestantes / 60).toFixed(minutosRestantes >= 600 ? 0 : 1).replace('.0', '')} h`
-    : `${minutosRestantes} min`;
+  const ejercicios = salas.reduce((t, s) => t + ejerciciosSala(s), 0);
+  const abierta = salas.some((s) => store.salaDesbloqueada(s.id));
 
-  // Academia y ruta se fusionan en un nivel: las salas cuelgan directamente de
-  // la academia y el nombre de ruta queda como un separador ligero. Antes eran
-  // tres niveles de navegación antes de llegar al contenido.
+  return `<button class="tarjeta-academia" data-color="${academia.color}" data-academia="${escapar(academia.id)}"
+      ${esActual ? 'data-actual' : ''} ${abierta ? '' : 'disabled'}>
+    <span class="academia-icono">${escapar(academia.icono)}</span>
+    <span class="academia-cuerpo">
+      <b>${escapar(academia.nombre)}</b>
+      <small>${escapar(academia.objetivo || academia.descripcion)}</small>
+      <span class="academia-datos">${salas.length} salas · ${ejercicios} ejercicios</span>
+      <span class="barra"><i style="width:${porcentaje(avance)}%"></i></span>
+    </span>
+    <span class="academia-avance">
+      <b>${porcentaje(avance)}%</b>
+      <small>${hechas}/${salas.length}</small>
+    </span>
+  </button>`;
+}
+
+// Pantalla propia de una academia: el camino completo de sus salas.
+function renderAcademiaDetalle(id) {
+  const academia = ACADEMIA_POR_ID[id];
+  if (!academia) return ir('aprender');
+  const rutas = academia.rutas.map((r) => RUTA_POR_ID[r]).filter(Boolean);
+  const salas = rutas.flatMap((r) => numeroSalas(r));
+  const hechas = salas.filter((s) => store.salaCompletada(s.id)).length;
+  const avance = store.progresoAcademia(academia);
+  const ejercicios = salas.reduce((t, s) => t + ejerciciosSala(s), 0);
+  const minutos = salas.filter((s) => !store.salaCompletada(s.id)).reduce((t, s) => t + s.minutos, 0);
+  const horas = minutos >= 60 ? `~${(minutos / 60).toFixed(minutos >= 600 ? 0 : 1).replace('.0', '')} h` : `${minutos} min`;
   const actual = store.salaActual();
+
   let indice = 0;
-  const cuerpo = rutas.map((ruta) => {
+  const camino = rutas.map((ruta) => {
     const suyas = numeroSalas(ruta);
     const filas = suyas.map((sala) => renderNodoSala(sala, ++indice, salas.length, actual)).join('');
     return `<div class="tramo"><span class="tramo-nombre">${escapar(ruta.nombre)}</span>${filas}</div>`;
   }).join('');
 
-  return `<details class="academia" data-color="${academia.color}" ${abierto || avance > 0 ? 'open' : ''}>
-    <summary>
-      <span class="academia-icono">${escapar(academia.icono)}</span>
-      <span class="academia-titulo">
-        <b>${escapar(academia.nombre)}</b>
-        <small>${escapar(academia.objetivo || academia.descripcion)}</small>
-        <i>${hechas}/${salas.length} salas${minutosRestantes ? ` · quedan ${horas}` : ' · completada'}</i>
-      </span>
-      <span class="academia-porcentaje">${porcentaje(avance)}%</span>
-      <span class="chevron">⌄</span>
-      <span class="barra"><i style="width:${porcentaje(avance)}%"></i></span>
-    </summary>
-    <div class="camino">${cuerpo}</div>
-  </details>`;
+  vista.innerHTML = `<div class="pagina pagina-estrecha academia-detalle" data-color="${academia.color}">
+    <button class="enlace-volver" data-ir="aprender">← Academias</button>
+    <header class="cabecera-academia">
+      <span class="academia-icono grande">${escapar(academia.icono)}</span>
+      <div>
+        <h1>${escapar(academia.nombre)}</h1>
+        <p>${escapar(academia.objetivo || academia.descripcion)}</p>
+      </div>
+    </header>
+    <div class="chips">
+      <span class="chip">${salas.length} salas</span>
+      <span class="chip">${ejercicios} ejercicios</span>
+      <span class="chip">${minutos ? `quedan ${horas}` : 'completada'}</span>
+    </div>
+    <div class="barra" style="margin:12px 0 4px"><i style="width:${porcentaje(avance)}%"></i></div>
+    <p class="ruta-desc">${hechas} de ${salas.length} salas completadas · ${porcentaje(avance)}%</p>
+    <div class="camino">${camino}</div>
+  </div>`;
 }
 
 // Una sala como nodo de un camino: la línea vertical que las une la dibuja el
@@ -476,8 +506,26 @@ function conectarMaquina(maquina) {
 function renderPracticar() {
   const hechas = store.estado.misionesCompletadas || [];
   const repasos = store.ejerciciosParaRepasar(6);
+  const debiles = store.puntosDebiles(6);
   vista.innerHTML = `<div class="pagina">
     <section class="hero"><span class="eyebrow">Práctica deliberada</span><h1>Repite. Experimenta.<br>Domina.</h1><p>Elige una misión corta, entra al Wargame encadenado o abre un sistema libre. Todo se restaura y funciona sin conexión.</p><div class="acciones"><button class="btn" data-laboratorio="libre">Abrir modo libre</button><button class="btn-secundario" data-wargame="bandit-0">Empezar Wargame</button></div></section>
+    <div class="seccion-titulo"><div><h2>Tus puntos débiles</h2><p>Lo que más te está costando, ordenado por dificultad</p></div>${debiles.length ? `<span class="contador">${debiles.length}</span>` : ''}</div>
+    ${debiles.length
+      ? `<div class="debiles">${debiles.map((d) => {
+          const ejercicio = store.ejercicioParaHabilidad(d.id);
+          const acierto = d.intentos ? Math.round((d.aciertos / d.intentos) * 100) : 0;
+          return `<div class="debil" data-nivel="${d.nivel}">
+            <span class="debil-icono">${NIVELES_DOMINIO[d.nivel].icono}</span>
+            <span class="debil-info">
+              <b>${escapar(nombreHabilidad(d.id))}</b>
+              <small>${d.fallos} ${d.fallos === 1 ? 'fallo' : 'fallos'} en ${d.intentos} ${d.intentos === 1 ? 'intento' : 'intentos'} · ${acierto}% de acierto</small>
+              <span class="debil-barra"><i style="width:${acierto}%"></i></span>
+            </span>
+            ${ejercicio ? `<button class="btn-secundario btn-mini" data-sala="${escapar(ejercicio.salaId)}" data-ejercicio="${escapar(ejercicio.id)}">Entrenar</button>` : ''}
+          </div>`;
+        }).join('')}</div>`
+      : '<p class="vacio-suave">Aún no hay datos suficientes. Cuando falles algún ejercicio aparecerá aquí, con un botón para entrenarlo directamente.</p>'}
+
     <div class="seccion-titulo"><div><h2>Repaso inteligente</h2><p>Habilidades que toca recuperar hoy</p></div><span class="contador">${repasos.length ? `${store.retosParaRepasar().length} pendientes` : 'al día ✓'}</span></div>
     ${repasos.length ? `<div class="repasos-grid">${repasos.map((e) => `<button class="tarjeta repaso-card" data-repasar="${escapar(e.id)}"><div class="tarjeta-top"><span class="ejercicio-tipo">${tipoEjercicio(e.tipo)}</span><span class="modo-repaso">↻ toca hoy</span></div><h3>${escapar(SALA_POR_ID[e.salaId]?.nombre || 'Repaso')}</h3><p>${htmlSeguro(e.enunciado)}</p><div class="skill-chips">${(e.habilidades || []).map((id) => `<span class="skill-chip">${escapar(nombreHabilidad(id))}</span>`).join('')}</div></button>`).join('')}</div>` : '<div class="estado-vacio"><b>Memoria al día</b><span>Los ejercicios volverán cuando el intervalo de repaso termine.</span></div>'}
     <div class="seccion-titulo"><div><h2>Misiones rápidas</h2><p>Objetivos de 2–5 minutos para ganar soltura</p></div><span class="contador">${hechas.length}/${MISIONES.length}</span></div>
@@ -613,6 +661,8 @@ document.addEventListener('click', (evento) => {
   if (volver) return ir(volver.dataset.ir);
   const repaso = evento.target.closest('[data-repasar]');
   if (repaso) return abrirRepaso(repaso.dataset.repasar);
+  const academia = evento.target.closest('[data-academia]');
+  if (academia) return ir('academia', { id: academia.dataset.academia });
   const sala = evento.target.closest('[data-sala]');
   if (sala && !sala.disabled) { ejercicioActivo = sala.dataset.ejercicio || null; return ir('sala', { id: sala.dataset.sala, ejercicio: ejercicioActivo }); }
   const maquina = evento.target.closest('[data-maquina]');
@@ -633,7 +683,7 @@ document.addEventListener('visibilitychange', () => { if (document.visibilitySta
 
 function cargarRuta(guardar = false) {
   const [nombreCrudo, id] = location.hash.replace(/^#/, '').split('/');
-  const nombre = ['aprender', 'maquinas', 'practicar', 'perfil', 'sala', 'maquina', 'wargame', 'laboratorio'].includes(nombreCrudo) ? nombreCrudo : 'aprender';
+  const nombre = ['aprender', 'maquinas', 'practicar', 'perfil', 'academia', 'sala', 'maquina', 'wargame', 'laboratorio'].includes(nombreCrudo) ? nombreCrudo : 'aprender';
   ir(nombre, id ? { id } : {}, guardar);
 }
 

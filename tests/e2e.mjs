@@ -63,14 +63,24 @@ try {
 
   console.log('▸ Aprender');
   comprobar('la app arranca', await pagina.locator('.app').isVisible());
-  comprobar('hay 5 academias', await pagina.locator('.academia').count() === 5);
-  comprobar('hay 10 tramos de ruta', await pagina.locator('.tramo').count() === 10);
-  comprobar('las 24 salas están renderizadas', await pagina.locator('.nodo').count() === 24);
+  // La portada muestra las academias CERRADAS: el camino de salas vive en la
+  // pantalla de cada academia, no amontonado en el inicio.
+  comprobar('hay 5 academias en la portada', await pagina.locator('.tarjeta-academia').count() === 5);
+  comprobar('la portada no despliega salas', await pagina.locator('.nodo').count() === 0);
   const totalEjercicios = await pagina.evaluate(() => window.__mentor.totales.ejercicios);
   comprobar('el marcador refleja el total de ejercicios',
-    (await pagina.locator('.metrica').first().innerText()).includes(`/${totalEjercicios}`), String(totalEjercicios));
+    (await pagina.locator('.continuar-progreso').innerText()).includes(String(totalEjercicios)), String(totalEjercicios));
   comprobar('no hay desborde horizontal', await pagina.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
   await shot('v3-01-aprender');
+
+  // Entrar en una academia abre su pantalla con el camino completo.
+  await pagina.locator('[data-academia="linux"]').click();
+  comprobar('la academia abre su propia pantalla', await pagina.locator('.academia-detalle').isVisible());
+  comprobar('la academia Linux tiene 5 tramos', await pagina.locator('.tramo').count() === 5);
+  comprobar('la academia Linux muestra sus 15 salas', await pagina.locator('.nodo').count() === 15);
+  comprobar('la primera sala está marcada como actual', await pagina.locator('.nodo[data-estado="curso"]').count() === 1);
+  comprobar('el resto queda bloqueado en orden', await pagina.locator('.nodo[data-estado="bloqueada"]').count() === 14);
+  await shot('v3-01b-academia');
 
   await pagina.locator('.nodo[data-sala="cero-absoluto"]').click();
   comprobar('sala muestra 5 tareas', await pagina.locator('.tarea').count() === 5);
@@ -139,6 +149,8 @@ try {
   comprobar('misión rápida valida el estado', await pagina.getByRole('heading', { name: 'Misión completada', exact: true }).isVisible());
   await shot('v3-04-laboratorio');
   await pagina.getByRole('button', { name: 'Más misiones', exact: true }).click();
+
+  comprobar('el panel de puntos débiles existe', await pagina.locator('.debiles, .vacio-suave').count() > 0);
 
   console.log('▸ Perfil y offline');
   await pagina.locator('[data-pestana="perfil"]').click();
