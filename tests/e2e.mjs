@@ -250,6 +250,77 @@ comprobar('hay temas', (await pagina.locator('.tema').count()) >= 5);
 comprobar('los temas avanzados están bloqueados', (await pagina.locator('.tema[data-bloqueado]').count()) >= 4);
 await captura('12-perfil');
 
+// ---------------------------------------------------------------- progresión
+// El camino que más importa: completar un módulo entero debe desbloquear el
+// siguiente. Se recorre por completo el módulo 1.
+console.log('\n▸ Progresión y desbloqueo');
+
+await pagina.evaluate(() => window.__mentor.store.reiniciar());
+await pagina.reload({ waitUntil: 'networkidle' });
+await pagina.waitForTimeout(500);
+
+const bloqueadosAntes = await pagina.locator('.modulo[data-estado="bloqueado"]').count();
+comprobar('al empezar hay módulos bloqueados', bloqueadosAntes >= 18, `${bloqueadosAntes}`);
+
+// Se marcan las lecciones como vistas y se resuelven los retos con su solución.
+await pagina.evaluate(async () => {
+  const { store } = window.__mentor;
+  const modulo = window.__mentor.MODULOS[0];
+  for (const l of modulo.lecciones) store.verLeccion(modulo.id, l.id);
+});
+
+// Los retos se resuelven de verdad, uno a uno, por la interfaz.
+const retosModulo1 = await pagina.evaluate(() =>
+  window.__mentor.MODULOS[0].lecciones.flatMap((l) => (l.retos || []).map((r) => ({ id: r.id, solucion: r.solucion })))
+);
+
+for (const r of retosModulo1) {
+  await pagina.evaluate((id) => window.__mentor.ir('reto', { retoId: id }), r.id);
+  await pagina.waitForTimeout(220);
+  for (const linea of r.solucion.split('\n').filter(Boolean)) await comando(linea);
+  await pagina.waitForTimeout(400);
+  const celebrado = await pagina.locator('.celebracion[data-abierta]').isVisible();
+  comprobar(`el reto ${r.id} se resuelve en la app`, celebrado);
+  if (celebrado) await pagina.locator('.celebracion [data-boton]').last().click();
+  await pagina.waitForTimeout(200);
+}
+
+// Y el examen, respondiendo siempre bien.
+await pagina.evaluate(() => window.__mentor.ir('examen', { moduloId: window.__mentor.MODULOS[0].id }));
+await pagina.waitForTimeout(300);
+const correctas = await pagina.evaluate(() => window.__mentor.MODULOS[0].examen.map((p) => p.correcta));
+for (let i = 0; i < correctas.length; i++) {
+  await pagina.locator(`.opcion[data-opcion="${correctas[i]}"]`).click();
+  await pagina.waitForTimeout(220);
+  await pagina.locator('[data-siguiente]').click();
+  await pagina.waitForTimeout(280);
+}
+
+comprobar('el examen perfecto se celebra', await pagina.locator('.celebracion[data-abierta]').isVisible());
+await pagina.locator('.celebracion [data-boton]').last().click();
+await pagina.waitForTimeout(300);
+
+const modulo1Completo = await pagina.evaluate(() => window.__mentor.store.moduloCompletado('inicio'));
+comprobar('el módulo 1 queda completado', modulo1Completo);
+
+await pagina.evaluate(() => window.__mentor.ir('inicio'));
+await pagina.waitForTimeout(350);
+const modulo2Abierto = await pagina.evaluate(() => window.__mentor.store.moduloDesbloqueado(2));
+comprobar('el módulo 2 se desbloquea', modulo2Abierto);
+const bloqueadosDespues = await pagina.locator('.modulo[data-estado="bloqueado"]').count();
+comprobar('hay un módulo bloqueado menos', bloqueadosDespues === bloqueadosAntes - 1, `${bloqueadosAntes} → ${bloqueadosDespues}`);
+comprobar('el módulo 1 se marca como hecho', (await pagina.locator('.modulo[data-estado="hecho"]').count()) >= 1);
+
+// El combo sube al encadenar aciertos sin pista.
+const combo = await pagina.evaluate(() => window.__mentor.store.estado.mejorCombo);
+comprobar('el combo se acumula sin pistas', combo >= 4, `combo ${combo}`);
+
+// Y con módulos completados se abre un tema nuevo.
+const temas = await pagina.evaluate(() => window.__mentor.store.temasDisponibles.length);
+comprobar('sigue habiendo temas por desbloquear', temas >= 1 && temas < 6, `${temas} disponibles`);
+
+await captura('14-progresion');
+
 // ---------------------------------------------------------------- persistencia
 console.log('\n▸ Persistencia');
 const xpGuardado = await pagina.evaluate(() => window.__mentor.store.xp);
