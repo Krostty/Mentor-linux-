@@ -147,7 +147,16 @@ export const nav = {
       const path = ctx.shell.resolve(t);
       let node;
       try {
-        node = ctx.fs.lookup(path, ctx, { followFinal: !dirOnly });
+        // Como el ls real: un enlace se muestra como enlace (con su flecha),
+        // salvo que apunte a una carpeta, en cuyo caso se lista su contenido.
+        node = ctx.fs.lookup(path, ctx, { followFinal: false });
+        if (node.type === S_LINK && !dirOnly) {
+          let destino = null;
+          try {
+            destino = ctx.fs.lookup(path, ctx);
+          } catch {}
+          if (destino && destino.type === S_DIR) node = destino;
+        }
       } catch (e) {
         errs.push(`ls: cannot access '${t}': ${e.message}`);
         continue;

@@ -12,7 +12,9 @@ export function makeNode(type, opts = {}) {
   const node = {
     inode: nextInode++,
     type,
-    mode: opts.mode != null ? opts.mode : type === S_DIR ? 0o755 : 0o644,
+    // Los enlaces simbólicos siempre son lrwxrwxrwx: los permisos que cuentan
+    // son los del archivo al que apuntan.
+    mode: opts.mode != null ? opts.mode : type === S_DIR ? 0o755 : type === S_LINK ? 0o777 : 0o644,
     owner: opts.owner || 'root',
     group: opts.group || 'root',
     mtime: opts.mtime || '2026-01-15 10:30',

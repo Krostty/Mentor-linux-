@@ -1,0 +1,24 @@
+{
+  "name": "Mentor Linux",
+  "short_name": "Mentor Linux",
+  "description": "Aprende y practica Linux desde el móvil: 20 módulos, terminal simulada y retos que se validan de verdad. Funciona sin conexión.",
+  "lang": "es",
+  "dir": "ltr",
+  "start_url": ".",
+  "scope": ".",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0C0A1E",
+  "theme_color": "#0C0A1E",
+  "categories": ["education", "productivity", "developer"],
+  "icons": [
+    { "src": "assets/icons/icono-180.png", "sizes": "180x180", "type": "image/png" },
+    { "src": "assets/icons/icono-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icono-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "assets/icons/icono-maskable-512.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable" }
+  ],
+  "shortcuts": [
+    { "name": "Terminal libre", "short_name": "Terminal", "url": "./#terminal" },
+    { "name": "Modo Incidente", "short_name": "Incidentes", "url": "./#incidentes" }
+  ]
+}
