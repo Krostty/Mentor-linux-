@@ -1,13 +1,14 @@
-# Mentor Linux v3
+# Mentor Linux v4
 
 Aplicación móvil y offline para aprender Linux, Bash y fundamentos de hacking ético usando un sistema Linux simulado. No abre SSH ni contacta objetivos externos: filesystem, shell, servicios y máquinas vulnerables viven dentro del navegador.
 
-La v3 conserva el contenido anterior, lo organiza como academias y rutas, y añade dominio por habilidad, práctica de recuperación y repaso espaciado.
+La v4 conserva el contenido y lo sirve **una cosa por pantalla**: cada tarea es una lección paso a paso, con avance y retroceso siempre disponibles, diagnóstico concreto del fallo y la ficha del comando a mano.
 
 ## Qué incluye
 
 - **24 salas** organizadas en 5 academias y 10 rutas: Linux, Redes, Bash, Seguridad ofensiva y Defensa.
-- **146 tareas y 325 ejercicios** con decisión, recuperación, completar, construcción de comandos y terminal.
+- **146 lecciones y 563 ejercicios** con decisión, recuperación, completar, construcción de comandos y terminal.
+- **Reproductor paso a paso**: un bloque de teoría o un ejercicio por pantalla, barra de progreso por lección, saltar y repescar, y pantalla de cierre con el resumen.
 - **Sala 0 intensiva** con 37 interacciones para practicar repetidamente `pwd`, `ls`, `cd`, ayuda y errores.
 - **12 máquinas simuladas** — 5 fáciles, 4 medias y 3 difíciles— con reconocimiento, enumeración, acceso, escalada, `user.txt`, `root.txt` y writeup.
 - **Wargame de 15 niveles** encadenados por contraseña.
@@ -17,6 +18,9 @@ La v3 conserva el contenido anterior, lo organiza como academias y rutas, y aña
 - **PWA offline** instalable en iOS, Android y escritorio.
 
 La navegación principal tiene cuatro áreas: **Aprender · Máquinas · Practicar · Perfil**.
+
+Dentro de Aprender la jerarquía es: **academia → sala → lección → paso**. Una academia agrupa
+salas, una sala enumera sus lecciones y una lección se recorre pantalla a pantalla.
 
 ## Instalar en móvil
 

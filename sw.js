@@ -2,7 +2,7 @@
 // Estrategia: cache-first para los recursos propios, con actualización en
 // segundo plano. Como todo es estático, no hay nada que pedir a la red.
 
-const VERSION = 'mentor-linux-v3-20260806';
+const VERSION = 'mentor-linux-v4-20260807';
 
 const RECURSOS = [
   './',

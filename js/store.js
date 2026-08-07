@@ -293,6 +293,18 @@ export class Store {
     return academia.rutas.flatMap((rutaId) => RUTA_POR_ID[rutaId]?.salas || []);
   }
 
+  // Dentro de una sala las lecciones se abren en orden. Una lección ya
+  // empezada nunca se vuelve a cerrar, aunque el progreso venga de una
+  // versión anterior donde el orden no importaba.
+  tareaDesbloqueada(tareaId) {
+    const sala = SALAS.find((s) => s.tareas.some((t) => t.id === tareaId));
+    if (!sala) return true;
+    const i = sala.tareas.findIndex((t) => t.id === tareaId);
+    if (i <= 0) return true;
+    if (this.tareaHecha(sala.tareas[i - 1].id)) return true;
+    return sala.tareas[i].practica.some((e) => this.ejercicioHecho(e.id));
+  }
+
   salaDesbloqueada(salaId) {
     const secuencia = this.salasDeAcademia(salaId);
     if (!secuencia) return true;

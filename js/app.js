@@ -1,5 +1,6 @@
 import {
-  SALAS, SALA_POR_ID, BLOQUES, ACADEMIAS, RUTAS, RUTA_POR_ID, ACADEMIA_POR_ID, EJERCICIO_POR_ID,
+  SALAS, SALA_POR_ID, BLOQUES, ACADEMIAS, RUTAS, RUTA_POR_ID, ACADEMIA_POR_ID,
+  EJERCICIO_POR_ID, TAREA_POR_ID, siguienteTarea,
   TOTAL_SALAS, TOTAL_TAREAS, TOTAL_EJERCICIOS,
 } from './data/salas.js';
 import { nombreHabilidad, NIVELES_DOMINIO } from './data/habilidades.js';
@@ -10,7 +11,7 @@ import { TODOS_COMANDOS, buscarComandos } from './data/comandos.js';
 import { LOGROS } from './data/logros.js';
 import { Terminal } from './engine/terminal.js';
 import { store } from './store.js';
-import { escapar, formato, brindis, celebrar, porcentaje } from './ui.js';
+import { escapar, formato, brindis, celebrar, porcentaje, vibrar } from './ui.js';
 
 const vista = document.getElementById('vista');
 const pistasMostradas = new Map();
@@ -19,6 +20,12 @@ let ejercicioActivo = null;
 let terminalActiva = null;
 let progresoPrevioDetectado = false;
 let modoRepaso = false;
+
+// Estado del reproductor de lecciones (no se persiste: al volver a entrar se
+// recalcula el primer paso pendiente).
+let pasoActual = 0;
+let saltados = [];
+let ultimoAcierto = null;
 
 const MISIONES = [
   { id: 'lab-orientacion', nombre: 'Orientación exprés', dificultad: 'Inicial', snapshot: 'inicio', objetivo: 'Averigua usuario, carpeta y kernel con tres comandos.', solucion: 'whoami; pwd; uname -a', check: (c) => ['whoami', 'pwd'].every((x) => c.historial.some((h) => h === x)) && c.historial.some((h) => /^uname\s+-a$/.test(h)), xp: 35 },
@@ -42,12 +49,15 @@ function numeroSalas(bloque) { return bloque.salas.map((id) => SALA_POR_ID[id]).
 function ejerciciosSala(sala) { return sala.tareas.reduce((n, tarea) => n + tarea.practica.length, 0); }
 function ejerciciosHechosSala(sala) { return sala.tareas.reduce((n, tarea) => n + tarea.practica.filter((e) => store.ejercicioHecho(e.id)).length, 0); }
 function ejercicioPorId(id) { return EJERCICIO_POR_ID[id]; }
-function abrirRepaso(id) {
+
+// Abrir un ejercicio suelto (continuar, entrenar un punto débil, repasar) es
+// abrir su lección posicionada en ese paso, no la sala entera.
+function irAEjercicio(id, repaso = false) {
   const ejercicio = ejercicioPorId(id);
   if (!ejercicio) return ir('aprender');
-  ejercicioActivo = ejercicio.id;
-  return ir('sala', { id: ejercicio.salaId, ejercicio: ejercicio.id, repaso: true });
+  return ir('leccion', { id: ejercicio.tareaId, ejercicio: id, repaso });
 }
+function abrirRepaso(id) { return irAEjercicio(id, true); }
 
 function marcarProgresoCompartible() {
   if (store.xp > 0) document.cookie = 'mentor_linux_progress=1; max-age=31536000; path=/; SameSite=Lax';
@@ -62,6 +72,8 @@ function actualizarCabecera() {
 }
 
 function rutaHash(nombre, datos = {}) {
+  if (nombre === 'leccion') return `#leccion/${datos.id}`;
+  if (nombre === 'academia') return `#academia/${datos.id}`;
   if (nombre === 'sala') return `#sala/${datos.id}`;
   if (nombre === 'maquina') return `#maquina/${datos.id}`;
   if (nombre === 'wargame') return `#wargame/${datos.id}`;
@@ -71,10 +83,19 @@ function rutaHash(nombre, datos = {}) {
 
 function ir(nombre, datos = {}, guardarHistorial = true) {
   rutaActual = { nombre, datos };
-  ejercicioActivo = datos.ejercicio || (nombre === 'sala' ? ejercicioActivo : null);
-  modoRepaso = nombre === 'sala' && datos.repaso === true;
+  ejercicioActivo = datos.ejercicio || null;
+  modoRepaso = datos.repaso === true;
   terminalActiva = null;
-  const principal = ['sala', 'academia'].includes(nombre) ? 'aprender' : nombre === 'maquina' ? 'maquinas' : ['wargame', 'laboratorio'].includes(nombre) ? 'practicar' : nombre;
+  if (nombre === 'leccion') {
+    saltados = [];
+    ultimoAcierto = null;
+    const tarea = TAREA_POR_ID[datos.id];
+    pasoActual = tarea ? pasoInicial(tarea, pasosDeTarea(tarea), datos.ejercicio) : 0;
+  }
+  // Dentro de una lección la barra de pestañas estorba: son 90 px de alto en
+  // una pantalla que solo tiene que mostrar una cosa.
+  document.documentElement.toggleAttribute('data-en-leccion', nombre === 'leccion');
+  const principal = ['sala', 'academia', 'leccion'].includes(nombre) ? 'aprender' : nombre === 'maquina' ? 'maquinas' : ['wargame', 'laboratorio'].includes(nombre) ? 'practicar' : nombre;
   document.querySelectorAll('[data-pestana]').forEach((b) => b.toggleAttribute('data-activa', b.dataset.pestana === principal));
   if (guardarHistorial && location.hash !== rutaHash(nombre, datos)) history.pushState({ nombre, datos }, '', rutaHash(nombre, datos));
   render();
@@ -85,6 +106,7 @@ function ir(nombre, datos = {}, guardarHistorial = true) {
 function render() {
   if (rutaActual.nombre === 'academia') return renderAcademiaDetalle(rutaActual.datos.id);
   if (rutaActual.nombre === 'sala') return renderSala(rutaActual.datos.id);
+  if (rutaActual.nombre === 'leccion') return renderLeccion(rutaActual.datos.id);
   if (rutaActual.nombre === 'maquina') return renderMaquina(rutaActual.datos.id);
   if (rutaActual.nombre === 'wargame') return renderWargame(rutaActual.datos.id);
   if (rutaActual.nombre === 'laboratorio') return renderLaboratorio(rutaActual.datos.id);
@@ -246,11 +268,12 @@ function renderTeoria(bloques = []) {
   }).join('')}</div>`;
 }
 
-function siguienteEjercicio(sala, idActual) {
-  const lista = sala.tareas.flatMap((t) => t.practica);
-  const pos = lista.findIndex((e) => e.id === idActual);
-  return lista.slice(pos + 1).find((e) => !store.ejercicioHecho(e.id)) || lista.find((e) => !store.ejercicioHecho(e.id)) || null;
-}
+// =====================================================================
+// Pantalla de sala: la lista de sus lecciones
+// Antes esta pantalla pintaba las 3-7 tareas desplegadas con toda su
+// teoría y hasta 37 ejercicios en columna. Ahora solo enumera lecciones
+// cortas; el contenido vive dentro del reproductor.
+// =====================================================================
 
 function renderSala(id) {
   const sala = SALA_POR_ID[id];
@@ -260,52 +283,527 @@ function renderSala(id) {
   const hechos = ejerciciosHechosSala(sala);
   const total = ejerciciosSala(sala);
   const habilidades = [...new Set(sala.tareas.flatMap((t) => t.practica.flatMap((e) => e.habilidades || [])))];
-  const primeraPendiente = sala.tareas.find((t) => t.practica.some((e) => !store.ejercicioHecho(e.id)))?.id;
-  const tareaActiva = ejercicioActivo ? sala.tareas.find((t) => t.practica.some((e) => e.id === ejercicioActivo))?.id : primeraPendiente;
+  const actual = sala.tareas.find((t) => store.tareaDesbloqueada(t.id) && !store.tareaHecha(t.id))?.id;
+
   vista.innerHTML = `<div class="pagina pagina-estrecha">
-    <button class="enlace-volver" data-ir="aprender">← Volver a la ruta</button>
+    <button class="enlace-volver" ${academia ? `data-academia="${escapar(academia.id)}"` : 'data-ir="aprender"'}>← ${escapar(academia?.nombre || 'Aprender')}</button>
     <header class="detalle-cabecera">
-      <div class="migas"><span>${escapar(academia?.nombre || 'Aprender')}</span><i>›</i><span>${escapar(ruta?.nombre || 'Ruta')}</span><i>›</i><b>Sala ${sala.n}</b></div>
-      ${modoRepaso ? '<span class="modo-repaso">↻ Repaso de memoria</span>' : ''}
+      <div class="migas"><span>${escapar(academia?.nombre || 'Aprender')}</span><i>›</i><b>${escapar(ruta?.nombre || 'Ruta')}</b></div>
       <h1>${escapar(sala.nombre)}</h1><p>${escapar(sala.resumen)}</p>
-      <div class="chips"><span class="chip chip-dificultad">${escapar(sala.dificultad)}</span><span class="chip">◷ ${sala.minutos} min</span><span class="chip">${sala.tareas.length} tareas</span><span class="chip">${total} ejercicios</span></div>
+      <div class="chips"><span class="chip chip-dificultad">${escapar(sala.dificultad)}</span><span class="chip">◷ ${sala.minutos} min</span><span class="chip">${total} ejercicios</span></div>
       <div class="barra"><i style="width:${porcentaje(hechos / total)}%"></i></div>
-      <div class="habilidades-sala">${habilidades.slice(0, 8).map((id) => `<span>${NIVELES_DOMINIO[store.nivelHabilidad(id)].icono} ${escapar(nombreHabilidad(id))}</span>`).join('')}</div>
+      <div class="habilidades-sala">${habilidades.slice(0, 8).map((h) => `<span>${NIVELES_DOMINIO[store.nivelHabilidad(h)].icono} ${escapar(nombreHabilidad(h))}</span>`).join('')}</div>
     </header>
-    <div class="lista-tareas">
-      ${sala.tareas.map((tarea, i) => renderTarea(tarea, i, tarea.id === tareaActiva)).join('')}
-    </div>
+    <div class="seccion-titulo"><div><h2>Lecciones</h2><p>Una cosa por pantalla, paso a paso</p></div><span class="contador">${hechos}/${total}</span></div>
+    <div class="camino"><div class="tramo">${sala.tareas.map((t, i) => renderNodoTarea(t, i, sala, actual)).join('')}</div></div>
   </div>`;
-  conectarEjercicios(sala);
 }
 
-function renderTarea(tarea, indice, abierta) {
+function renderNodoTarea(tarea, indice, sala, actual) {
   const hechos = tarea.practica.filter((e) => store.ejercicioHecho(e.id)).length;
-  const completa = store.tareaHecha(tarea.id);
-  return `<details class="tarea" data-tarea="${escapar(tarea.id)}" ${completa ? 'data-completa' : ''} ${abierta ? 'open' : ''}>
-    <summary><span class="tarea-num">${completa ? '✓' : indice + 1}</span><span class="tarea-titulo"><b>${escapar(tarea.titulo)}</b><small>${escapar(tarea.subtitulo || 'Teoría y práctica guiada')}</small></span><span class="tarea-progreso">${hechos}/${tarea.practica.length}</span></summary>
-    <div class="tarea-cuerpo">${renderTeoria(tarea.teoria)}<div class="practica-titulo"><span>Ponlo en práctica</span><small>${tarea.practica.length} interacciones</small></div><div class="ejercicios">${tarea.practica.map(renderEjercicio).join('')}</div></div>
-  </details>`;
+  const total = tarea.practica.length;
+  const completa = total > 0 && hechos === total;
+  const abierta = store.tareaDesbloqueada(tarea.id);
+  const esActual = tarea.id === actual;
+  const estado = completa ? 'hecha' : !abierta ? 'bloqueada' : esActual ? 'curso' : 'lista';
+  const marca = completa ? '✓' : esActual ? '▶' : abierta ? String(indice + 1).padStart(2, '0') : '🔒';
+  const pasos = (tarea.teoria || []).length + total;
+
+  return `<button class="nodo" data-estado="${estado}" data-leccion="${escapar(tarea.id)}" ${abierta ? '' : 'disabled'}
+      ${indice === sala.tareas.length - 1 ? 'data-ultimo' : ''}>
+    <span class="nodo-punto">${marca}</span>
+    <span class="nodo-info">
+      <b>${escapar(tarea.titulo)}</b>
+      <small>${pasos} pantallas · ${total} ${total === 1 ? 'ejercicio' : 'ejercicios'}</small>
+      ${abierta && !completa && total ? `<span class="mini-barra"><i style="width:${porcentaje(hechos / total)}%"></i></span>` : ''}
+    </span>
+    <span class="nodo-estado">${completa ? 'Hecha' : esActual ? 'Continuar' : abierta ? `${hechos}/${total}` : ''}</span>
+  </button>`;
 }
 
-function renderEjercicio(ejercicio) {
-  const completo = store.ejercicioHecho(ejercicio.id);
-  const activo = ejercicioActivo === ejercicio.id;
-  const enRepaso = modoRepaso && activo;
+// =====================================================================
+// Reproductor de lecciones
+// Una tarea = una lección. Cada bloque de teoría y cada ejercicio ocupan
+// su propia pantalla, con avance y retroceso siempre disponibles: el
+// problema real de la versión anterior era que, una vez acertabas, no
+// existía ninguna forma de volver a leer la pregunta anterior.
+// =====================================================================
+
+function pasosDeTarea(tarea) {
+  const pasos = (tarea.teoria || []).map((bloque) => ({ tipo: 'teoria', bloque }));
+  tarea.practica.forEach((ejercicio) => pasos.push({ tipo: 'ejercicio', ejercicio }));
+  // Lo que saltas vuelve al final de la lección, antes del cierre.
+  saltados.forEach((id) => {
+    const ejercicio = tarea.practica.find((e) => e.id === id);
+    if (ejercicio) pasos.push({ tipo: 'ejercicio', ejercicio, reintento: true });
+  });
+  pasos.push({ tipo: 'fin' });
+  return pasos;
+}
+
+function pasoInicial(tarea, pasos, ejercicioId) {
+  if (ejercicioId) {
+    const i = pasos.findIndex((p) => p.tipo === 'ejercicio' && p.ejercicio.id === ejercicioId);
+    if (i >= 0) return i;
+  }
+  // Si nunca la has tocado, empiezas por la teoría; si la retomas, por el
+  // primer ejercicio que te falta.
+  if (!tarea.practica.some((e) => store.ejercicioHecho(e.id))) return 0;
+  const pendiente = pasos.findIndex((p) => p.tipo === 'ejercicio' && !store.ejercicioHecho(p.ejercicio.id));
+  return pendiente >= 0 ? pendiente : 0;
+}
+
+function ejercicioResuelto(ejercicio) {
+  return store.ejercicioHecho(ejercicio.id) && !modoRepaso;
+}
+
+function renderLeccion(id) {
+  const tarea = TAREA_POR_ID[id];
+  if (!tarea) return ir('aprender');
+  const sala = SALA_POR_ID[tarea.salaId];
+  const pasos = pasosDeTarea(tarea);
+  pasoActual = Math.max(0, Math.min(pasoActual, pasos.length - 1));
+  const paso = pasos[pasoActual];
+  // Los reintentos (lo que saltaste) no engordan la barra: la lección sigue
+  // teniendo los pasos que anunció, y los repescados se marcan aparte.
+  const visibles = pasos.filter((p) => !p.reintento).length - 1;
+  ejercicioActivo = paso.tipo === 'ejercicio' ? paso.ejercicio.id : null;
+
+  vista.innerHTML = `<div class="leccion" data-paso="${paso.tipo}">
+    <header class="leccion-top">
+      <button class="leccion-salir" data-sala="${escapar(sala.id)}" aria-label="Salir de la lección">✕</button>
+      <div class="leccion-progreso" role="progressbar" aria-valuemin="0" aria-valuemax="${visibles}" aria-valuenow="${Math.min(pasoActual, visibles)}">
+        ${pasos.slice(0, visibles).map((p, i) => `<span data-estado="${estadoSegmento(p, i)}"></span>`).join('')}
+      </div>
+      <span class="leccion-cuenta">${paso.reintento ? '↻ repesca' : `${Math.min(pasoActual + 1, visibles)}/${visibles}`}</span>
+    </header>
+    <div class="leccion-cuerpo" id="leccion-cuerpo">${cuerpoPaso(paso, tarea, sala)}</div>
+    ${piePaso(paso, pasos, tarea, sala)}
+  </div>`;
+
+  conectarLeccion(tarea, sala, paso);
+  document.getElementById('leccion-cuerpo').scrollTop = 0;
+}
+
+// Verde = resuelto de verdad; ámbar = pasaste por encima sin resolverlo.
+// Una barra que se pone verde solo por avanzar no dice nada.
+function estadoSegmento(paso, indice) {
+  if (indice === pasoActual) return 'aqui';
+  if (indice > pasoActual) return 'pendiente';
+  if (paso.tipo === 'ejercicio') return store.ejercicioHecho(paso.ejercicio.id) ? 'hecho' : 'saltado';
+  return 'hecho';
+}
+
+function cuerpoPaso(paso, tarea, sala) {
+  if (paso.tipo === 'fin') return cuerpoFin(tarea, sala);
+  if (paso.tipo === 'teoria') {
+    const primero = pasoActual === 0;
+    return `<div class="paso paso-teoria">
+      ${primero ? `<span class="eyebrow">${escapar(sala.nombre)}</span>
+        <h1 class="paso-titulo">${escapar(tarea.titulo)}</h1>
+        ${tarea.subtitulo ? `<p class="paso-sub">${escapar(tarea.subtitulo)}</p>` : ''}` : ''}
+      ${renderTeoria([paso.bloque])}
+    </div>`;
+  }
+  return cuerpoEjercicio(paso.ejercicio);
+}
+
+function cuerpoEjercicio(ejercicio) {
+  const resuelto = ejercicioResuelto(ejercicio);
   const pistas = pistasMostradas.get(ejercicio.id) || 0;
   const habilidades = (ejercicio.habilidades || []).map((id) => {
     const nivel = store.nivelHabilidad(id);
     return `<span class="skill-chip" data-nivel="${nivel}">${NIVELES_DOMINIO[nivel].icono} ${escapar(nombreHabilidad(id))}</span>`;
   }).join('');
-  let controles = '';
-  if (completo && !enRepaso) controles = '<div class="feedback feedback-completo" data-ok>✓ Completado · volverá cuando toque repasarlo</div>';
-  else if (ejercicio.tipo === 'quiz') controles = `<div class="opciones">${ejercicio.opciones.map((o, i) => `<button class="opcion" data-quiz="${escapar(ejercicio.id)}" data-opcion="${i}"><span>${String.fromCharCode(65 + i)}</span>${escapar(o)}</button>`).join('')}</div><div class="feedback" data-feedback="${escapar(ejercicio.id)}"></div>`;
-  else if (ejercicio.tipo === 'respuesta' || ejercicio.tipo === 'completar') controles = `${ejercicio.plantilla ? `<div class="plantilla-comando">${htmlSeguro(ejercicio.plantilla)}</div>` : ''}<form class="respuesta-form" data-respuesta="${escapar(ejercicio.id)}"><input class="campo" name="respuesta" autocomplete="off" placeholder="${ejercicio.tipo === 'completar' ? 'Escribe solo lo que falta' : 'Escribe la salida exacta'}" aria-label="Tu respuesta"><button class="btn btn-mini">Comprobar</button></form><div class="feedback" data-feedback="${escapar(ejercicio.id)}"></div>`;
-  else if (ejercicio.tipo === 'ordenar') controles = `<div class="constructor" data-constructor="${escapar(ejercicio.id)}"><div class="constructor-salida" data-constructor-salida><span>Toca los bloques en orden</span></div><div class="fichas">${ejercicio.tokens.map((token, i) => `<button class="ficha" data-token="${i}" type="button">${escapar(token)}</button>`).join('')}</div><div class="acciones"><button class="btn btn-mini" data-validar-constructor type="button">Comprobar</button><button class="btn-fantasma btn-mini" data-limpiar-constructor type="button">Reiniciar</button></div></div><div class="feedback" data-feedback="${escapar(ejercicio.id)}"></div>`;
-  else controles = activo
-    ? `<div class="ejercicio-terminal"><div class="terminal-zona" id="terminal-ejercicio"></div><div class="acciones"><button class="btn-fantasma btn-mini" data-pista="${escapar(ejercicio.id)}">Pista ${Math.min(pistas + 1, ejercicio.pistas?.length || 1)}</button><button class="btn-fantasma btn-mini" data-reiniciar-terminal>Restaurar</button></div>${renderPistas(ejercicio, pistas)}<div class="feedback" data-feedback="${escapar(ejercicio.id)}">Escribe el comando y pulsa Intro.</div></div>`
-    : `<button class="btn-secundario btn-mini" data-abrir-ejercicio="${escapar(ejercicio.id)}">Abrir terminal</button>`;
-  return `<article class="ejercicio" id="ejercicio-${escapar(ejercicio.id)}" ${completo ? 'data-completo' : ''} ${enRepaso ? 'data-repaso' : ''}><div class="ejercicio-cabecera"><span class="ejercicio-tipo">${tipoEjercicio(ejercicio.tipo)}</span><span class="ejercicio-xp">${enRepaso ? 'REPASO' : `+${ejercicio.xp || 15} XP`}</span></div><p>${htmlSeguro(ejercicio.enunciado)}</p>${habilidades ? `<div class="skill-chips">${habilidades}</div>` : ''}${controles}</article>`;
+
+  return `<article class="paso paso-ejercicio ejercicio" id="ejercicio-${escapar(ejercicio.id)}"
+      ${resuelto ? 'data-completo' : ''} ${modoRepaso ? 'data-repaso' : ''}>
+    <div class="ejercicio-cabecera">
+      <span class="ejercicio-tipo">${tipoEjercicio(ejercicio.tipo)}</span>
+      <span class="ejercicio-xp">${modoRepaso ? 'REPASO' : `+${ejercicio.xp || 15} XP`}</span>
+    </div>
+    <p class="paso-enunciado">${htmlSeguro(ejercicio.enunciado)}</p>
+    ${habilidades ? `<div class="skill-chips">${habilidades}</div>` : ''}
+    ${fichaComando(ejercicio)}
+    ${controlesEjercicio(ejercicio, resuelto)}
+    ${renderPistas({ pistas: pistasDe(ejercicio) }, pistas)}
+  </article>`;
+}
+
+function controlesEjercicio(ejercicio, resuelto) {
+  if (resuelto) {
+    return `<div class="feedback feedback-completo" data-ok>✓ Ya lo resolviste</div>
+      ${ejercicio.explicacion ? `<div class="paso-explicacion"><b>Por qué</b>${htmlSeguro(ejercicio.explicacion)}</div>` : ''}`;
+  }
+  if (ejercicio.tipo === 'quiz') {
+    return `<div class="opciones">${ejercicio.opciones.map((o, i) =>
+      `<button class="opcion" data-quiz="${escapar(ejercicio.id)}" data-opcion="${i}"><span>${String.fromCharCode(65 + i)}</span>${escapar(o)}</button>`).join('')}</div>`;
+  }
+  if (ejercicio.tipo === 'respuesta' || ejercicio.tipo === 'completar') {
+    // Si el enunciado ya enseña la plantilla, repetirla debajo solo añade ruido.
+    const repetida = ejercicio.plantilla && normalizar(ejercicio.enunciado).includes(normalizar(ejercicio.plantilla));
+    return `${ejercicio.plantilla && !repetida ? `<div class="plantilla-comando">${htmlSeguro(ejercicio.plantilla)}</div>` : ''}
+      <form class="respuesta-form" data-respuesta="${escapar(ejercicio.id)}">
+        <input class="campo" name="respuesta" autocomplete="off" autocapitalize="off" autocorrect="off" spellcheck="false"
+          placeholder="${ejercicio.tipo === 'completar' ? 'Escribe solo lo que falta' : 'Escribe la respuesta'}" aria-label="Tu respuesta">
+        <button class="sr-only" type="submit">Comprobar</button>
+      </form>`;
+  }
+  if (ejercicio.tipo === 'ordenar') {
+    return `<div class="constructor" data-constructor="${escapar(ejercicio.id)}">
+      <div class="constructor-salida" data-constructor-salida><span>Toca los bloques en orden</span></div>
+      <div class="fichas">${ejercicio.tokens.map((token, i) => `<button class="ficha" data-token="${i}" type="button">${escapar(token)}</button>`).join('')}</div>
+      <div class="acciones"><button class="btn-fantasma btn-mini" data-limpiar-constructor type="button">Reiniciar</button></div>
+    </div>`;
+  }
+  return `<div class="ejercicio-terminal">
+    <div class="terminal-zona" id="terminal-ejercicio"></div>
+    <div class="acciones"><button class="btn-fantasma btn-mini" data-reiniciar-terminal type="button">Restaurar sistema</button></div>
+  </div>`;
+}
+
+function cuerpoFin(tarea, sala) {
+  const hechos = tarea.practica.filter((e) => store.ejercicioHecho(e.id));
+  const pendientes = tarea.practica.length - hechos.length;
+  const xp = hechos.reduce((n, e) => n + (e.xp || 15), 0);
+  const completa = pendientes === 0;
+  const siguiente = siguienteTarea(sala, tarea.id);
+  const comandos = [...new Set(tarea.practica.flatMap((e) => e.habilidades || []).filter((h) => COMANDO_POR_NOMBRE[h]))];
+
+  return `<div class="paso paso-fin" ${completa ? 'data-completa' : ''}>
+    <div class="fin-marca">${completa ? '✓' : '↻'}</div>
+    <h1>${completa ? '¡Lección completada!' : 'Casi lo tienes'}</h1>
+    <p>${completa ? escapar(tarea.titulo) : `Te faltan ${pendientes} ${pendientes === 1 ? 'ejercicio' : 'ejercicios'} de esta lección.`}</p>
+    <div class="fin-datos">
+      <div><b>${hechos.length}/${tarea.practica.length}</b><small>ejercicios</small></div>
+      <div><b>${xp}</b><small>XP</small></div>
+      <div><b>${porcentaje(store.progresoSala(sala.id))}%</b><small>de la sala</small></div>
+    </div>
+    ${comandos.length ? `<div class="fin-comandos"><span class="eyebrow">Has practicado</span>${comandos.map((c) => `<code>${escapar(c)}</code>`).join('')}</div>` : ''}
+    <p class="fin-siguiente">${siguiente ? `Siguiente: <b>${escapar(siguiente.titulo)}</b>` : `Has terminado <b>${escapar(sala.nombre)}</b>`}</p>
+  </div>`;
+}
+
+function piePaso(paso, pasos, tarea, sala) {
+  const atras = `<button class="icon-btn paso-atras" data-mover="-1" ${pasoActual === 0 ? 'disabled' : ''} aria-label="Paso anterior">←</button>`;
+
+  if (paso.tipo === 'fin') {
+    // Si quedan ejercicios sin resolver, lo útil es volver al primero de
+    // ellos, no salir de la lección.
+    const pendiente = pasos.findIndex((p) => p.tipo === 'ejercicio' && !store.ejercicioHecho(p.ejercicio.id));
+    if (pendiente >= 0) {
+      return `<footer class="leccion-pie"><div class="leccion-botones">${atras}
+        <button class="btn" data-ir-paso="${pendiente}">Rematar lo que falta</button>
+      </div></footer>`;
+    }
+    const siguiente = siguienteTarea(sala, tarea.id);
+    const abierta = siguiente && store.tareaDesbloqueada(siguiente.id);
+    return `<footer class="leccion-pie"><div class="leccion-botones">${atras}
+      ${abierta
+        ? `<button class="btn" data-leccion="${escapar(siguiente.id)}">Siguiente lección</button>`
+        : `<button class="btn" data-sala="${escapar(sala.id)}">Volver a la sala</button>`}
+    </div></footer>`;
+  }
+
+  if (paso.tipo === 'teoria') {
+    return `<footer class="leccion-pie"><div class="leccion-botones">${atras}
+      <button class="btn" data-mover="1">Continuar</button>
+    </div></footer>`;
+  }
+
+  const ejercicio = paso.ejercicio;
+  const resuelto = ejercicioResuelto(ejercicio);
+  const acierto = ultimoAcierto && ultimoAcierto.id === ejercicio.id;
+  const ultimo = pasoActual >= pasos.length - 2;
+  const mensaje = acierto
+    ? `**${acierto && ultimoAcierto.repaso ? '↻ Repaso superado.' : '¡Correcto!'}** ${ejercicio.explicacion || ''}`
+    : resuelto ? '' : ejercicio.tipo === 'terminal' ? 'Escribe el comando y pulsa Intro.' : '';
+  const hayPistas = !resuelto && pistasDe(ejercicio).length > (pistasMostradas.get(ejercicio.id) || 0);
+  // El botón grande del pie es el que se usa: comprobar cuando hay algo que
+  // comprobar, continuar cuando ya está resuelto. Saltar queda pequeño, a
+  // mano pero sin invitar a saltárselo todo.
+  const seComprueba = !resuelto && ['respuesta', 'completar', 'ordenar'].includes(ejercicio.tipo);
+  const principal = resuelto
+    ? `<button class="btn" data-mover="1">${ultimo ? 'Terminar' : 'Continuar'}</button>`
+    : seComprueba
+      ? '<button class="btn" data-comprobar type="button">Comprobar</button>'
+      : `<button class="btn-fantasma" data-mover="1" data-saltar="${escapar(ejercicio.id)}">Saltar</button>`;
+
+  return `<footer class="leccion-pie" ${acierto ? 'data-estado="ok"' : ''}>
+    ${acierto && ultimoAcierto.xp ? `<span class="leccion-xp">+${ultimoAcierto.xp} XP</span>` : ''}
+    <div class="feedback" data-feedback="${escapar(ejercicio.id)}" ${acierto ? 'data-ok' : ''}>${mensaje ? htmlSeguro(mensaje) : ''}</div>
+    <div class="leccion-botones">
+      ${atras}
+      ${hayPistas ? `<button class="btn-fantasma btn-mini" data-pista="${escapar(ejercicio.id)}">Pista</button>` : ''}
+      ${seComprueba ? `<button class="btn-fantasma btn-mini" data-mover="1" data-saltar="${escapar(ejercicio.id)}">Saltar</button>` : ''}
+      ${principal}
+    </div>
+  </footer>`;
+}
+
+function moverPaso(tarea, delta, saltar) {
+  if (saltar && !saltados.includes(saltar)) saltados.push(saltar);
+  ultimoAcierto = null;
+  modoRepaso = false;
+  pasoActual += delta;
+  renderLeccion(tarea.id);
+}
+
+function conectarLeccion(tarea, sala, paso) {
+  vista.querySelectorAll('[data-mover]').forEach((b) => b.addEventListener('click', () =>
+    moverPaso(tarea, Number(b.dataset.mover), b.dataset.saltar)));
+
+  vista.querySelectorAll('[data-ir-paso]').forEach((b) => b.addEventListener('click', () =>
+    moverPaso(tarea, Number(b.dataset.irPaso) - pasoActual)));
+
+  vista.querySelectorAll('[data-pista]').forEach((b) => b.addEventListener('click', () => {
+    const e = ejercicioPorId(b.dataset.pista);
+    pistasMostradas.set(e.id, Math.min((pistasMostradas.get(e.id) || 0) + 1, pistasDe(e).length));
+    renderLeccion(tarea.id);
+  }));
+
+  if (paso.tipo !== 'ejercicio') return;
+  const ejercicio = paso.ejercicio;
+
+  vista.querySelectorAll('[data-quiz]').forEach((b) => b.addEventListener('click', () => {
+    const elegida = Number(b.dataset.opcion);
+    if (elegida !== ejercicio.correcta) {
+      store.registrarIntento(ejercicio, { correcto: false });
+      b.disabled = true;
+      b.setAttribute('data-descartada', '');
+      const quedan = [...vista.querySelectorAll('[data-quiz]')].filter((o) => !o.disabled).length;
+      return feedback(ejercicio.id, `Esa no; queda descartada. ${quedan === 1 ? 'Solo queda una opción posible.' : `Quedan ${quedan} opciones.`}`);
+    }
+    completarEjercicio(tarea, ejercicio);
+  }));
+
+  // Comprobar vive en el pie, bajo el pulgar; el formulario sigue aceptando
+  // Intro y el constructor ya no necesita su propio botón.
+  let comprobar = null;
+
+  const form = vista.querySelector('[data-respuesta]');
+  if (form) {
+    comprobar = () => {
+      const valor = String(new FormData(form).get('respuesta') || '');
+      if (!(ejercicio.respuestas || []).some((r) => normalizar(r) === normalizar(valor))) {
+        store.registrarIntento(ejercicio, { correcto: false });
+        return feedback(ejercicio.id, diagnosticar(ejercicio, valor));
+      }
+      completarEjercicio(tarea, ejercicio);
+    };
+    form.addEventListener('submit', (evento) => { evento.preventDefault(); comprobar(); });
+  }
+
+  const constructor = vista.querySelector('[data-constructor]');
+  if (constructor) {
+    const salida = constructor.querySelector('[data-constructor-salida]');
+    const pintar = () => {
+      const seleccion = JSON.parse(constructor.dataset.valor || '[]');
+      salida.innerHTML = seleccion.length
+        ? seleccion.map((i) => `<code>${escapar(ejercicio.tokens[i])}</code>`).join('<span> </span>')
+        : '<span>Toca los bloques en orden</span>';
+      constructor.querySelectorAll('[data-token]').forEach((b) => { b.disabled = seleccion.includes(Number(b.dataset.token)); });
+    };
+    constructor.querySelectorAll('[data-token]').forEach((b) => b.addEventListener('click', () => {
+      const seleccion = JSON.parse(constructor.dataset.valor || '[]');
+      seleccion.push(Number(b.dataset.token));
+      constructor.dataset.valor = JSON.stringify(seleccion);
+      pintar();
+    }));
+    constructor.querySelector('[data-limpiar-constructor]').addEventListener('click', () => { constructor.dataset.valor = '[]'; pintar(); });
+    comprobar = () => {
+      const seleccion = JSON.parse(constructor.dataset.valor || '[]');
+      const puestos = seleccion.map((i) => ejercicio.tokens[i]);
+      if (normalizar(puestos.join(' ')) !== normalizar(ejercicio.respuestaCorrecta)) {
+        store.registrarIntento(ejercicio, { correcto: false });
+        return feedback(ejercicio.id, diagnosticar(ejercicio, puestos));
+      }
+      completarEjercicio(tarea, ejercicio);
+    };
+  }
+
+  const botonComprobar = vista.querySelector('[data-comprobar]');
+  if (botonComprobar && comprobar) botonComprobar.addEventListener('click', () => comprobar());
+
+  const reiniciar = vista.querySelector('[data-reiniciar-terminal]');
+  if (reiniciar) reiniciar.addEventListener('click', () => terminalActiva?.reiniciar());
+  iniciarTerminalEjercicio(tarea, sala, ejercicio);
+}
+
+function completarEjercicio(tarea, ejercicio) {
+  const resultado = store.completarEjercicio(ejercicio, { usoPista: (pistasMostradas.get(ejercicio.id) || 0) > 0 });
+  actualizarCabecera();
+  vibrar(18);
+  (resultado.nuevosLogros || []).forEach((l) => brindis(`${l.icono} **${l.nombre}** — ${l.desc}`));
+  modoRepaso = false;
+  ultimoAcierto = { id: ejercicio.id, xp: resultado.ganado || 0, repaso: !!resultado.repaso };
+  renderLeccion(tarea.id);
+}
+
+function iniciarTerminalEjercicio(tarea, sala, ejercicio) {
+  const contenedor = document.getElementById('terminal-ejercicio');
+  if (!contenedor || ejercicio.tipo !== 'terminal') return;
+  terminalActiva = new Terminal(contenedor, {
+    snapshot: ejercicio.snapshot || sala.snapshot || 'inicio', autoFocus: true,
+    alEjecutar: (ctx) => {
+      store.contarComando(comandoDe(ctx.ultimo?.cmd));
+      let correcto = false;
+      try { correcto = ejercicio.check(ctx) === true; } catch { correcto = false; }
+      if (correcto) return completarEjercicio(tarea, ejercicio);
+      // Explorar no cuenta como fallo: en la terminal se prueba y se falla.
+      feedback(ejercicio.id, diagnosticoTerminal(ejercicio, ctx), false);
+    },
+  });
+}
+
+// =====================================================================
+// Ayudas: ficha del comando, pistas y diagnóstico del fallo
+// El contenido trae pistas en 180 de los 563 ejercicios y diagnóstico en
+// 43. Para el resto se derivan de la propia solución, para que ningún
+// ejercicio te deje con un «todavía no coincide» y nada más.
+// =====================================================================
+
+const COMANDO_POR_NOMBRE = Object.fromEntries(TODOS_COMANDOS.map((c) => [c.n, c]));
+
+function solucionDe(ejercicio) {
+  return String(ejercicio.respuestaCorrecta || (ejercicio.respuestas || [])[0] || ejercicio.solucion || '');
+}
+
+function comandoDeEjercicio(ejercicio) {
+  const candidatos = [
+    ...(ejercicio.habilidades || []),
+    comandoDe(solucionDe(ejercicio)),
+    comandoDe(ejercicio.plantilla || ''),
+  ];
+  return candidatos.map((c) => COMANDO_POR_NOMBRE[c]).find(Boolean) || null;
+}
+
+function fichaComando(ejercicio) {
+  const c = comandoDeEjercicio(ejercicio);
+  if (!c) return '';
+  return `<details class="ficha-comando">
+    <summary>¿Qué hace <code>${escapar(c.n)}</code>?</summary>
+    <div class="ficha-cuerpo">
+      <p>${escapar(c.q)}</p>
+      <pre><code>${escapar(c.s)}</code></pre>
+      ${(c.o || []).length ? `<ul class="ficha-opciones">${c.o.slice(0, 6).map(([o, d]) => `<li><code>${escapar(o)}</code><span>${escapar(d)}</span></li>`).join('')}</ul>` : ''}
+      <pre><code>${escapar(c.e)}</code></pre>
+    </div>
+  </details>`;
+}
+
+function pistasDe(ejercicio) {
+  if (ejercicio.pistas?.length) return ejercicio.pistas;
+  if (ejercicio.tipo === 'quiz') {
+    const malas = ejercicio.opciones.map((_, i) => i).filter((i) => i !== ejercicio.correcta);
+    return malas.slice(0, 2).map((i) => `Descarta esta: «${ejercicio.opciones[i]}».`);
+  }
+  const objetivo = solucionDe(ejercicio);
+  if (!objetivo) return [];
+  if (ejercicio.tipo === 'completar') {
+    return [
+      `Lo que falta tiene ${objetivo.length} ${objetivo.length === 1 ? 'carácter' : 'caracteres'}.`,
+      `Empieza por \`${objetivo.slice(0, 1)}\`.`,
+      `Es \`${objetivo}\`.`,
+    ];
+  }
+  const partes = objetivo.trim().split(/\s+/);
+  const pistas = [`El comando es \`${partes[0]}\`.`];
+  if (partes.length > 1) pistas.push(`Se completa con ${partes.length - 1} ${partes.length === 2 ? 'parte más' : 'partes más'}; la siguiente es \`${partes[1]}\`.`);
+  pistas.push(`La respuesta completa es \`${objetivo}\`.`);
+  return pistas;
+}
+
+// Reconstruye la solución de un ejercicio «ordenar» como lista de fichas,
+// consumiendo la respuesta correcta con las fichas disponibles (la más larga
+// primero, para que «done» gane a «do»).
+function bloquesSolucion(ejercicio) {
+  const objetivo = String(ejercicio.respuestaCorrecta || '').trim();
+  const piezas = [...(ejercicio.tokens || [])].sort((a, b) => b.length - a.length);
+  const salida = [];
+  let resto = objetivo;
+  while (resto.length) {
+    const pieza = piezas.find((t) => t && resto.startsWith(t));
+    if (!pieza) return objetivo.split(/\s+/);
+    salida.push(pieza);
+    resto = resto.slice(pieza.length).replace(/^\s+/, '');
+  }
+  return salida;
+}
+
+function distancia(a, b) {
+  const s = String(a), t = String(b);
+  const fila = Array.from({ length: t.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= s.length; i++) {
+    let previo = fila[0];
+    fila[0] = i;
+    for (let j = 1; j <= t.length; j++) {
+      const temp = fila[j];
+      fila[j] = Math.min(fila[j] + 1, fila[j - 1] + 1, previo + (s[i - 1] === t[j - 1] ? 0 : 1));
+      previo = temp;
+    }
+  }
+  return fila[t.length];
+}
+
+function opcionConocida(ejercicio, texto) {
+  const c = comandoDeEjercicio(ejercicio);
+  const limpio = String(texto).trim();
+  return (c?.o || []).find(([o]) => o === limpio || o === `-${limpio}`) || null;
+}
+
+// Diagnóstico concreto para ordenar / completar / respuesta.
+function diagnosticar(ejercicio, dado) {
+  const escrito = String(dado).trim();
+
+  if (ejercicio.tipo === 'ordenar') {
+    // Se compara bloque a bloque, no palabra a palabra: hay fichas con
+    // espacios dentro («1 2 3;», «"Failed password"») y contar palabras
+    // daba mensajes falsos sobre cuántos bloques faltaban.
+    const correcto = bloquesSolucion(ejercicio);
+    const puestos = Array.isArray(dado) ? dado : escrito.split(/\s+/).filter(Boolean);
+    if (!puestos.length) return 'Toca los bloques para construir la orden.';
+    if (puestos.length !== correcto.length) {
+      const diferencia = Math.abs(correcto.length - puestos.length);
+      return `La orden se construye con ${correcto.length} bloques y pusiste ${puestos.length}: ${puestos.length < correcto.length ? 'falta' : 'sobra'}n ${diferencia}.`;
+    }
+    if ([...puestos].sort().join(' ') === [...correcto].sort().join(' ')) {
+      return 'Los bloques son los correctos, pero no el orden: **comando → opción → sobre qué actúa**.';
+    }
+    if (puestos[0] !== correcto[0]) return `El primer bloque tiene que ser el comando: \`${correcto[0]}\`.`;
+    return 'Alguno de los bloques no encaja ahí. Reinicia y piensa qué aporta cada uno.';
+  }
+
+  const validas = (ejercicio.respuestas || []).map(String);
+  if (!escrito) return 'Escribe una respuesta antes de comprobar.';
+
+  if (ejercicio.tipo === 'completar') {
+    if (validas.some((r) => r.toLowerCase() === escrito.toLowerCase())) return 'Es eso, pero Linux distingue mayúsculas de minúsculas.';
+    if (validas.some((r) => r.replace(/^-+/, '') === escrito.replace(/^-+/, ''))) {
+      return escrito.startsWith('-') ? 'Ahí no hace falta el guion.' : 'Las opciones cortas se escriben con guion delante: `-x`.';
+    }
+    const opcion = opcionConocida(ejercicio, escrito);
+    if (opcion) return `\`${opcion[0]}\` existe, pero hace otra cosa: ${opcion[1]}.`;
+    if (validas.some((r) => distancia(r, escrito) <= 1)) return 'Casi. Revisa la respuesta carácter a carácter.';
+    return 'Todavía no. Mira la plantilla: solo falta ese trozo, no el comando entero.';
+  }
+
+  if (validas.some((r) => normalizar(r) === normalizar(escrito.replace(/\/+$/, '')))) return 'Es eso, pero sin la barra final.';
+  if (validas.every((r) => r.startsWith('/')) && !escrito.startsWith('/')) return 'Se espera la ruta completa, la que empieza por `/`.';
+  if (validas.every((r) => /^\d+$/.test(r)) && !/^\d+$/.test(escrito)) return 'La respuesta es un número, sin texto alrededor.';
+  if (validas.some((r) => distancia(normalizar(r), normalizar(escrito)) <= 2)) return 'Casi. Revisa la ortografía y los separadores.';
+  return 'Todavía no coincide. Vuelve atrás con la flecha si necesitas releer el ejercicio anterior.';
+}
+
+function diagnosticoTerminal(ejercicio, ctx) {
+  const propio = (ejercicio.diagnostico || []).find((d) => { try { return d.cuando(ctx); } catch { return false; } });
+  if (propio) return `**${propio.titulo}.** ${propio.texto}`;
+  const esperado = comandoDeEjercicio(ejercicio)?.n;
+  if (esperado && !(ctx.historial || []).some((h) => comandoDe(h) === esperado)) {
+    return `Todavía no has usado \`${esperado}\`, que es el comando de este ejercicio.`;
+  }
+  if (ctx.ultimo?.code) return 'El último comando terminó con error. Lee el mensaje: suele decir si la ruta no existe o si falta un permiso.';
+  return 'El sistema aún no está en el estado que pide el enunciado. Prueba otra opción del comando.';
 }
 
 function renderPistas(ejercicio, cantidad) {
@@ -319,88 +817,6 @@ function feedback(id, mensaje, ok = false) {
   el.innerHTML = htmlSeguro(mensaje);
   el.toggleAttribute('data-ok', ok);
   el.toggleAttribute('data-error', !ok);
-}
-
-function completarEjercicio(sala, ejercicio) {
-  const resultado = store.completarEjercicio(ejercicio, { usoPista: (pistasMostradas.get(ejercicio.id) || 0) > 0 });
-  actualizarCabecera();
-  if (resultado.repaso) {
-    const siguienteRepaso = store.ejerciciosParaRepasar(1)[0];
-    celebrar({
-      marca: '↻', titulo: 'Repaso superado', texto: 'La habilidad quedó reforzada y volverá en un intervalo mayor.', xp: 0,
-      botones: [{ texto: siguienteRepaso ? 'Siguiente repaso' : 'Volver a Aprender', accion: () => siguienteRepaso ? abrirRepaso(siguienteRepaso.id) : ir('aprender') }],
-    });
-    return;
-  }
-  if (!resultado.ganado) return;
-  const siguiente = siguienteEjercicio(sala, ejercicio.id);
-  celebrar({
-    marca: '✓', titulo: 'Ejercicio completado', texto: ejercicio.explicacion || 'La terminal confirmó el estado correcto.', xp: resultado.ganado,
-    combo: store.estado.combo, logros: resultado.nuevosLogros,
-    botones: [{ texto: siguiente ? 'Siguiente ejercicio' : 'Ver progreso de la sala', accion: () => { ejercicioActivo = siguiente?.id || null; renderSala(sala.id); } }],
-  });
-}
-
-function conectarEjercicios(sala) {
-  vista.querySelectorAll('[data-abrir-ejercicio]').forEach((b) => b.addEventListener('click', () => { ejercicioActivo = b.dataset.abrirEjercicio; renderSala(sala.id); }));
-  vista.querySelectorAll('[data-quiz]').forEach((b) => b.addEventListener('click', () => {
-    const e = ejercicioPorId(b.dataset.quiz);
-    if (Number(b.dataset.opcion) !== e.correcta) { store.registrarIntento(e, { correcto: false }); return feedback(e.id, 'Aún no. Lee la explicación, descarta una opción y vuelve a intentarlo.'); }
-    completarEjercicio(sala, e);
-  }));
-  vista.querySelectorAll('[data-respuesta]').forEach((form) => form.addEventListener('submit', (evento) => {
-    evento.preventDefault();
-    const e = ejercicioPorId(form.dataset.respuesta);
-    const valor = new FormData(form).get('respuesta');
-    if (!(e.respuestas || []).some((r) => normalizar(r) === normalizar(valor))) { store.registrarIntento(e, { correcto: false }); return feedback(e.id, 'Todavía no coincide. Revisa la ruta, la opción o la salida y prueba otra vez.'); }
-    completarEjercicio(sala, e);
-  }));
-  vista.querySelectorAll('[data-constructor]').forEach((constructor) => {
-    const salida = constructor.querySelector('[data-constructor-salida]');
-    const pintar = () => {
-      const seleccion = JSON.parse(constructor.dataset.valor || '[]');
-      salida.innerHTML = seleccion.length ? seleccion.map((i) => `<code>${escapar(ejercicioPorId(constructor.dataset.constructor).tokens[i])}</code>`).join('<span> </span>') : '<span>Toca los bloques en orden</span>';
-      constructor.querySelectorAll('[data-token]').forEach((b) => { b.disabled = seleccion.includes(Number(b.dataset.token)); });
-    };
-    constructor.querySelectorAll('[data-token]').forEach((b) => b.addEventListener('click', () => {
-      const seleccion = JSON.parse(constructor.dataset.valor || '[]');
-      seleccion.push(Number(b.dataset.token));
-      constructor.dataset.valor = JSON.stringify(seleccion);
-      pintar();
-    }));
-    constructor.querySelector('[data-limpiar-constructor]').addEventListener('click', () => { constructor.dataset.valor = '[]'; pintar(); });
-    constructor.querySelector('[data-validar-constructor]').addEventListener('click', () => {
-      const e = ejercicioPorId(constructor.dataset.constructor);
-      const seleccion = JSON.parse(constructor.dataset.valor || '[]');
-      const valor = seleccion.map((i) => e.tokens[i]).join(' ');
-      if (normalizar(valor) !== normalizar(e.respuestaCorrecta)) { store.registrarIntento(e, { correcto: false }); return feedback(e.id, 'El orden aún no construye una orden válida. Reinicia y piensa en comando → opción → argumento.'); }
-      completarEjercicio(sala, e);
-    });
-  });
-  vista.querySelectorAll('[data-pista]').forEach((b) => b.addEventListener('click', () => {
-    const e = ejercicioPorId(b.dataset.pista);
-    pistasMostradas.set(e.id, Math.min((pistasMostradas.get(e.id) || 0) + 1, e.pistas?.length || 1));
-    renderSala(sala.id);
-  }));
-  const reiniciar = vista.querySelector('[data-reiniciar-terminal]');
-  if (reiniciar) reiniciar.addEventListener('click', () => terminalActiva?.reiniciar());
-  if (ejercicioActivo) iniciarTerminalEjercicio(sala, ejercicioPorId(ejercicioActivo));
-}
-
-function iniciarTerminalEjercicio(sala, ejercicio) {
-  const contenedor = document.getElementById('terminal-ejercicio');
-  if (!contenedor || !ejercicio || ejercicio.tipo !== 'terminal') return;
-  terminalActiva = new Terminal(contenedor, {
-    snapshot: ejercicio.snapshot || sala.snapshot || 'inicio', autoFocus: true,
-    alEjecutar: (ctx) => {
-      store.contarComando(comandoDe(ctx.ultimo?.cmd));
-      let correcto = false;
-      try { correcto = ejercicio.check(ctx) === true; } catch { correcto = false; }
-      if (correcto) return completarEjercicio(sala, ejercicio);
-      const diagnostico = (ejercicio.diagnostico || []).find((d) => { try { return d.cuando(ctx); } catch { return false; } });
-      feedback(ejercicio.id, diagnostico ? `**${diagnostico.titulo}.** ${diagnostico.texto}` : 'El sistema aún no está en el estado pedido. Puedes seguir explorando.', false);
-    },
-  });
 }
 
 function progresoMaquina(maquina) {
@@ -663,8 +1079,15 @@ document.addEventListener('click', (evento) => {
   if (repaso) return abrirRepaso(repaso.dataset.repasar);
   const academia = evento.target.closest('[data-academia]');
   if (academia) return ir('academia', { id: academia.dataset.academia });
+  const leccion = evento.target.closest('[data-leccion]');
+  if (leccion && !leccion.disabled) return ir('leccion', { id: leccion.dataset.leccion });
   const sala = evento.target.closest('[data-sala]');
-  if (sala && !sala.disabled) { ejercicioActivo = sala.dataset.ejercicio || null; return ir('sala', { id: sala.dataset.sala, ejercicio: ejercicioActivo }); }
+  if (sala && !sala.disabled) {
+    // Con ejercicio concreto (continuar, entrenar) se entra directo a su
+    // lección; sin él, a la lista de lecciones de la sala.
+    if (sala.dataset.ejercicio) return irAEjercicio(sala.dataset.ejercicio);
+    return ir('sala', { id: sala.dataset.sala });
+  }
   const maquina = evento.target.closest('[data-maquina]');
   if (maquina) return ir('maquina', { id: maquina.dataset.maquina });
   const nivel = evento.target.closest('[data-wargame]');
@@ -682,8 +1105,12 @@ window.addEventListener('pagehide', () => store.flush());
 document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') store.flush(); });
 
 function cargarRuta(guardar = false) {
-  const [nombreCrudo, id] = location.hash.replace(/^#/, '').split('/');
-  const nombre = ['aprender', 'maquinas', 'practicar', 'perfil', 'academia', 'sala', 'maquina', 'wargame', 'laboratorio'].includes(nombreCrudo) ? nombreCrudo : 'aprender';
+  // El navegador escapa el hash, y hay ids con eñe («permisos-dueños-teoria»):
+  // sin decodificar, recargar en esa pantalla te echaba al inicio.
+  const [nombreCrudo, idCrudo] = location.hash.replace(/^#/, '').split('/');
+  let id = idCrudo;
+  try { id = idCrudo ? decodeURIComponent(idCrudo) : idCrudo; } catch {}
+  const nombre = ['aprender', 'maquinas', 'practicar', 'perfil', 'academia', 'sala', 'leccion', 'maquina', 'wargame', 'laboratorio'].includes(nombreCrudo) ? nombreCrudo : 'aprender';
   ir(nombre, id ? { id } : {}, guardar);
 }
 

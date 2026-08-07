@@ -83,32 +83,101 @@ try {
   await shot('v3-01b-academia');
 
   await pagina.locator('.nodo[data-sala="cero-absoluto"]').click();
-  comprobar('sala muestra 5 tareas', await pagina.locator('.tarea').count() === 5);
-  comprobar('Sala 0 ofrece 37 interacciones', await pagina.locator('.ejercicio').count() === 37);
-  comprobar('teoría y práctica comparten pantalla', await pagina.locator('.teoria').count() > 0 && await pagina.locator('.ejercicios').count() > 0);
-  await pagina.locator('[data-abrir-ejercicio="cero-pwd"]').click();
-  comprobar('terminal recibe foco al abrir', await pagina.locator('.consola-input').evaluate((e) => e === document.activeElement));
-  await pagina.locator('[data-reiniciar-terminal]').click();
-  await pagina.locator('.consola').click({ position: { x: 80, y: 120 } });
-  comprobar('tocar la consola recupera el foco', await pagina.locator('.consola-input').evaluate((e) => e === document.activeElement));
-  comprobar('el chip inline tiene fondo propio', await pagina.locator('#ejercicio-cero-pwd p code').evaluate((e) => getComputedStyle(e).backgroundColor !== 'rgba(0, 0, 0, 0)'));
-  await comando('pwd');
-  comprobar('resolver abre celebración', await pagina.locator('.celebracion[data-abierta]').isVisible());
-  comprobar('resolver suma XP', (await pagina.locator('#ficha-xp').innerText()) === '25 XP');
-  await shot('v3-02-reto-terminal');
-  await pagina.locator('.celebracion [data-boton="0"]').click();
-  await pagina.reload({ waitUntil: 'domcontentloaded' });
-  comprobar('el ejercicio persiste al recargar', await pagina.locator('#ejercicio-cero-pwd [data-ok]').isVisible());
-  comprobar('el XP persiste al recargar', (await pagina.locator('#ficha-xp').innerText()) === '25 XP');
+  // La sala ya no vuelca su contenido: enumera lecciones cortas.
+  comprobar('la sala lista sus 5 lecciones', await pagina.locator('.nodo[data-leccion]').count() === 5);
+  comprobar('la sala no pinta ejercicios', await pagina.locator('.ejercicio').count() === 0);
+  comprobar('las lecciones se abren en orden', await pagina.locator('.nodo[data-estado="bloqueada"]').count() === 4);
+  await shot('v4-02-sala-lecciones');
 
-  await pagina.locator('[data-tarea="cero-moverse"] summary').click();
-  comprobar('existe práctica de construcción de comandos', await pagina.locator('[data-constructor="cero-cd-orden"]').isVisible());
-  await pagina.locator('[data-constructor="cero-cd-orden"] [data-token="0"]').click();
-  await pagina.locator('[data-constructor="cero-cd-orden"] [data-token="1"]').click();
-  await pagina.locator('[data-constructor="cero-cd-orden"] [data-validar-constructor]').click();
-  comprobar('el constructor valida el orden correcto', await pagina.locator('.celebracion[data-abierta]').isVisible());
-  comprobar('el constructor suma XP', (await pagina.locator('#ficha-xp').innerText()) === '40 XP');
-  await pagina.locator('.celebracion [data-boton="0"]').click();
+  console.log('▸ Lección paso a paso');
+  await pagina.locator('[data-leccion="cero-que-es"]').click();
+  comprobar('la lección arranca en el paso 1', (await pagina.locator('.leccion-cuenta').innerText()).trim() === '1/9');
+  comprobar('la barra tiene un segmento por paso', await pagina.locator('.leccion-progreso span').count() === 9);
+  comprobar('solo hay una cosa en pantalla', await pagina.locator('.paso').count() === 1);
+  comprobar('las pestañas no roban alto dentro de la lección', await pagina.locator('.pestanas').isVisible() === false);
+  comprobar('el pie está visible sin hacer scroll', await pagina.locator('.leccion-pie [data-mover="1"]').isVisible());
+  await shot('v4-03-paso-teoria');
+
+  for (let i = 0; i < 3; i++) await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('tras la teoría llega el primer ejercicio', await pagina.locator('#ejercicio-cero-q1').isVisible());
+  comprobar('el ejercicio trae la ficha del comando', await pagina.locator('.ficha-comando').count() === 1);
+
+  // Fallar descarta la opción y lo dice; antes solo repetía «aún no».
+  await pagina.locator('.opcion[data-opcion="1"]').click();
+  comprobar('la opción fallada queda descartada', await pagina.locator('.opcion[data-descartada]').count() === 1);
+  comprobar('el fallo dice cuántas opciones quedan', (await pagina.locator('.leccion-pie .feedback').innerText()).includes('Quedan 3'));
+  await shot('v4-04-fallo-descarte');
+
+  await pagina.locator('[data-pista]').click();
+  comprobar('la pista se genera aunque el ejercicio no traiga ninguna', await pagina.locator('.pista').count() === 1);
+
+  await pagina.locator('.opcion[data-opcion="0"]').click();
+  comprobar('acertar pinta el pie de verde', await pagina.locator('.leccion-pie[data-estado="ok"]').count() === 1);
+  comprobar('acertar explica el porqué', (await pagina.locator('.leccion-pie .feedback').innerText()).includes('¡Correcto!'));
+  comprobar('acertar suma XP', (await pagina.locator('#ficha-xp').innerText()) === '15 XP');
+  comprobar('acertar no abre ningún modal', await pagina.locator('.celebracion[data-abierta]').count() === 0);
+  await shot('v4-05-acierto');
+
+  // EL BUG que motivó esta versión: no había forma de volver al anterior.
+  await pagina.locator('.paso-atras').click();
+  comprobar('la flecha vuelve al paso anterior', (await pagina.locator('.leccion-cuenta').innerText()).trim() === '3/9');
+  comprobar('el paso anterior se ve entero', await pagina.locator('.paso-teoria').isVisible());
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('avanzar devuelve al ejercicio ya resuelto', await pagina.locator('#ejercicio-cero-q1[data-completo]').isVisible());
+  comprobar('el resuelto conserva su explicación', await pagina.locator('.paso-explicacion').count() === 1);
+
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  await pagina.locator('.ficha').first().click();
+  comprobar('comprobar vive en el pie, bajo el pulgar', await pagina.locator('.leccion-pie [data-comprobar]').count() === 1);
+  await pagina.locator('[data-comprobar]').click();
+  comprobar('el constructor valida el orden', (await pagina.locator('#ficha-xp').innerText()) === '30 XP');
+
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('la terminal recibe foco al llegar a su paso', await pagina.locator('.consola-input').evaluate((e) => e === document.activeElement));
+  await comando('ls');
+  comprobar('el fallo en terminal orienta al comando que falta', (await pagina.locator('.leccion-pie .feedback').innerText()).includes('pwd'));
+  await comando('pwd');
+  comprobar('la terminal completa su ejercicio', (await pagina.locator('#ficha-xp').innerText()) === '55 XP');
+  await shot('v4-06-paso-terminal');
+
+  // Saltar nunca te deja atascado, y lo saltado vuelve al final.
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('un ejercicio sin resolver ofrece saltar', await pagina.locator('[data-saltar="cero-ruta"]').count() === 1);
+  await pagina.locator('[data-saltar="cero-ruta"]').click();
+  comprobar('saltar avanza al siguiente', await pagina.locator('#ejercicio-cero-pwd-predice').isVisible());
+
+  await pagina.reload({ waitUntil: 'domcontentloaded' });
+  comprobar('la lección sobrevive a recargar', await pagina.locator('.leccion').isVisible());
+  comprobar('el XP persiste al recargar', (await pagina.locator('#ficha-xp').innerText()) === '55 XP');
+  comprobar('al volver se retoma en lo pendiente', await pagina.locator('#ejercicio-cero-ruta').isVisible());
+
+  await pagina.getByLabel('Tu respuesta').fill('home/user');
+  await pagina.locator('[data-comprobar]').click();
+  comprobar('el fallo de ruta explica que falta la barra', (await pagina.locator('.leccion-pie .feedback').innerText()).includes('/'));
+  await pagina.getByLabel('Tu respuesta').fill('/home/user');
+  await pagina.locator('[data-comprobar]').click();
+  comprobar('la respuesta corta valida', (await pagina.locator('#ficha-xp').innerText()) === '70 XP');
+
+  // Hasta el cierre de la lección.
+  for (let i = 0; i < 12 && await pagina.locator('.paso-fin').count() === 0; i++) {
+    const seguir = pagina.locator('.leccion-pie [data-mover="1"]');
+    if (await seguir.count() === 0) break;
+    await seguir.click();
+  }
+  comprobar('la lección termina en su pantalla de cierre', await pagina.locator('.paso-fin').isVisible());
+  comprobar('el cierre ofrece rematar lo que falta', await pagina.locator('[data-ir-paso]').count() === 1);
+  await shot('v4-07-fin-leccion');
+  await pagina.locator('.leccion-salir').click();
+  comprobar('salir devuelve a la lista de lecciones', await pagina.locator('.nodo[data-leccion]').count() === 5);
+
+  // Los accesos rápidos abren la lección en el ejercicio concreto, no la
+  // sala entera: era otra forma de perderse.
+  await pagina.locator('[data-pestana="aprender"]').click();
+  await pagina.locator('.continuar-hoy .btn').click();
+  comprobar('«Continuar» entra directo en la lección', await pagina.locator('.leccion').isVisible());
+  comprobar('«Continuar» cae en un ejercicio pendiente', await pagina.locator('.paso-ejercicio:not([data-completo])').count() === 1);
+  await pagina.locator('.leccion-salir').click();
+
 
   console.log('▸ Máquina completa');
   await pagina.locator('[data-pestana="maquinas"]').click();

@@ -99,6 +99,19 @@ for (const e of TODOS_EJERCICIOS) {
   } else {
     test(`constructor ${e.id} tiene bloques`, Array.isArray(e.tokens) && e.tokens.length > 0);
     test(`constructor ${e.id} tiene solución`, typeof e.respuestaCorrecta === 'string' && e.respuestaCorrecta.length > 0);
+    // La solución tiene que poder armarse usando cada ficha exactamente una
+    // vez: si no, el ejercicio es irresoluble o sobran bloques.
+    const restantes = [...e.tokens];
+    let resto = e.respuestaCorrecta.trim();
+    while (resto.length && restantes.length) {
+      const orden = [...restantes].sort((a, b) => b.length - a.length);
+      const pieza = orden.find((t) => resto.startsWith(t));
+      if (!pieza) break;
+      restantes.splice(restantes.indexOf(pieza), 1);
+      resto = resto.slice(pieza.length).replace(/^\s+/, '');
+    }
+    test(`constructor ${e.id} usa todas sus fichas`, resto === '' && restantes.length === 0,
+      `sobra "${resto}" y quedan ${restantes.length} fichas`);
   }
 }
 
