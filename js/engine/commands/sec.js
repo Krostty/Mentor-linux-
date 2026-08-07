@@ -346,13 +346,31 @@ export const sec = {
 
   // sudo -l muestra qué puede ejecutar el usuario como root. Es la primera
   // comprobación de cualquier enumeración local.
-  sudoList: (ctx) =>
-    ok(
-      `Matching Defaults entries for ${ctx.user} on mentor-box:\n` +
-        '    env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin\\:/usr/sbin\\:/usr/bin\\:/sbin\\:/bin\n\n' +
-        `User ${ctx.user} may run the following commands on mentor-box:\n` +
-        '    (ALL : ALL) ALL\n'
-    ),
+  // `sudo -l` lee la política real de /etc/sudoers cuando el snapshot la
+  // define. Sin eso, toda máquina contestaría «(ALL : ALL) ALL» y no habría
+  // nada que enumerar: el permiso concreto ES el hallazgo.
+  sudoList: (ctx) => {
+    const cabecera =
+      `Matching Defaults entries for ${ctx.user} on ${ctx.shell.hostname || 'mentor-box'}:\n` +
+      '    env_reset, mail_badpass, secure_path=/usr/local/sbin\\:/usr/local/bin\\:/usr/sbin\\:/usr/bin\\:/sbin\\:/bin\n\n';
+    let reglas = [];
+    try {
+      // `sudo -l` consulta la política con privilegios: no requiere que el
+      // usuario pueda leer /etc/sudoers (que suele ser modo 440).
+      const sudoers = ctx.fs.readFile('/etc/sudoers', { ...ctx, user: 'root', groups: ['root'] });
+      for (const linea of sudoers.split('\n')) {
+        const limpia = linea.replace(/#.*/, '').trim();
+        if (!limpia || limpia.startsWith('Defaults')) continue;
+        const quien = limpia.split(/\s+/)[0];
+        const esGrupo = quien.startsWith('%') && ctx.groups.includes(quien.slice(1));
+        if (quien !== ctx.user && !esGrupo) continue;
+        // «deploy ALL=(root) NOPASSWD: /usr/bin/find» → «(root) NOPASSWD: /usr/bin/find»
+        reglas.push('    ' + limpia.slice(quien.length).replace(/^\s*ALL\s*=\s*/, '').trim());
+      }
+    } catch {}
+    if (!reglas.length) reglas = ['    (ALL : ALL) ALL'];
+    return ok(cabecera + `User ${ctx.user} may run the following commands on ${ctx.shell.hostname || 'mentor-box'}:\n` + reglas.join('\n') + '\n');
+  },
 };
 
 export { SUID_BINARIES, CAPABILITIES, digest, b64encode, b64decode };

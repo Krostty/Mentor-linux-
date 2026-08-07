@@ -55,6 +55,11 @@ const PAGES = {
   'http://intranet.local/robots.txt': { code: 200, tipo: 'text/plain', body: 'User-agent: *\nDisallow: /admin\nDisallow: /copias' },
   'http://intranet.local/admin': { code: 403, body: 'Forbidden' },
   'http://mentor.dev': { code: 200, body: '<!doctype html>\n<html><body><h1>Mentor Dev</h1></body></html>' },
+  // Servidor del laboratorio de auditoría (snapshot `auditoria`).
+  'http://10.30.0.15': { code: 200, body: '<!doctype html>\n<html><head><title>Panel Mentor</title></head><body><h1>Servidor interno</h1></body></html>' },
+  'http://10.30.0.15/robots.txt': { code: 200, tipo: 'text/plain', body: 'User-agent: *\nDisallow: /panel\nDisallow: /copias' },
+  'http://10.30.0.15/panel': { code: 403, body: 'Forbidden' },
+  'http://10.30.0.15/copias': { code: 403, body: 'Forbidden' },
 };
 
 function paginaDe(url, ctx) {

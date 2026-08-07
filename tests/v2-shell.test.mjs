@@ -56,5 +56,20 @@ probar('curl -o guarda la respuesta en un archivo', () => { const sh = red(); ru
 probar('ping acepta una dirección numérica sin resolver', () => run(red(), 'ping -c 1 192.168.1.1').code === 0);
 probar('/etc/resolv.conf declara el resolutor', () => run(red(), 'cat /etc/resolv.conf').output.includes('nameserver 192.168.1.1'));
 
+console.log('\n▸ Ofensiva: enumeración y escalada');
+const aud = (extra = {}) => shell('auditoria', extra);
+probar('sudo -l lee la política real de /etc/sudoers', () => { const o = run(aud({ groupMap: { deploy: ['deploy'] }, user: 'deploy' }), 'sudo -l').output; return o.includes('/usr/bin/find'); });
+probar('sudo cat revela la regla NOPASSWD', () => run(aud(), 'sudo cat /etc/sudoers').output.includes('NOPASSWD'));
+probar('find -perm -4000 encuentra el SUID no estándar', () => run(aud(), 'find / -perm -4000 -type f 2>/dev/null').output.includes('/usr/local/bin/reporte'));
+probar('getcap -r lista capabilities', () => run(aud(), 'getcap -r /').output.includes('cap_net_raw'));
+probar('el crontab del sistema muestra la tarea de root', () => run(aud(), 'cat /etc/crontab').output.includes('limpiar.sh'));
+probar('el script del cron es escribible por cualquiera', () => /rwxrwxrwx/.test(run(aud(), 'ls -l /opt/mantenimiento/limpiar.sh').output));
+probar('grep encuentra la credencial en config.php', () => run(aud(), 'grep -ri pass /var/www/html').output.includes('Verano2026'));
+probar('cut extrae los nombres de /etc/passwd', () => run(aud(), 'cut -d: -f1 /etc/passwd').output.includes('deploy'));
+probar('robots.txt del host de auditoría revela rutas', () => run(aud(), 'curl http://10.30.0.15/robots.txt').output.includes('/panel'));
+probar('una ruta protegida del host responde 403', () => run(aud(), 'curl -I http://10.30.0.15/panel').output.includes('403'));
+probar('base64 codifica y -d recupera', () => { const sh = aud(); const cod = run(sh, 'base64 alcance.txt').output.trim().split('\n')[0]; return /^[A-Za-z0-9+/=]+$/.test(cod); });
+probar('sha256sum produce un hash de 64 hex', () => /[0-9a-f]{64}/.test(run(aud(), 'sha256sum alcance.txt').output));
+
 console.log(`${ok} pruebas nuevas de shell pasadas, ${mal} fallidas`);
 process.exit(mal ? 1 : 0);

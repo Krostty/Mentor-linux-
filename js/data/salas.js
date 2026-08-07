@@ -6,6 +6,7 @@ import * as k from './checks.js';
 import { habilidadesDeEjercicio } from './habilidades.js';
 import { quiz, respuesta, terminal, ordenar, completar, barajar } from './piezas.js';
 import { SALAS_REDES } from './salas-redes.js';
+import { SALAS_OFENSIVA } from './salas-ofensiva.js';
 import { REFUERZOS_1 } from './refuerzos-1.js';
 import { REFUERZOS_2 } from './refuerzos-2.js';
 
@@ -341,7 +342,7 @@ const SALA_BASH_APLICADO = {
 };
 
 const NORMALIZADAS = MODULOS.map(normalizarModulo);
-const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES];
+const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES, ...SALAS_OFENSIVA];
 
 export const RUTAS = [
   { id: 'linux-cero', academia: 'linux', nombre: 'Empieza desde cero', descripcion: 'Terminal, identidad y primeros hábitos', nivel: 'Inicial', salas: ['cero-absoluto', 'inicio'] },
@@ -354,6 +355,7 @@ export const RUTAS = [
   { id: 'bash-base', academia: 'bash', nombre: 'Bash fundamental', descripcion: 'Variables, condiciones, bucles y funciones', nivel: 'Fácil', salas: ['bash1', 'bash2'] },
   { id: 'bash-proyectos', academia: 'bash', nombre: 'Automatización aplicada', descripcion: 'Scripts ejecutables y proyectos de operación', nivel: 'Intermedio', salas: ['bash-aplicado'] },
   { id: 'ofensiva-base', academia: 'ofensiva', nombre: 'Hacking ético', descripcion: 'Criptografía práctica y metodología autorizada', nivel: 'Intermedio', salas: ['cifrado', 'etico'] },
+  { id: 'ofensiva-metodologia', academia: 'ofensiva', nombre: 'Metodología de auditoría', descripcion: 'Reconocimiento, enumeración, acceso y escalada', nivel: 'Avanzado', salas: ['recon', 'enumeracion', 'acceso', 'escalada'] },
   { id: 'defensa-base', academia: 'defensa', nombre: 'Blue Team y análisis', descripcion: 'Hardening, evidencias y respuesta inicial', nivel: 'Intermedio', salas: ['hardening', 'analisis'] },
 ];
 
@@ -363,7 +365,7 @@ export const ACADEMIAS = [
   { id: 'linux', nombre: 'Linux', descripcion: 'De tu primera terminal a administrar y diagnosticar sistemas', objetivo: 'Sobrevives en cualquier servidor', color: 'lime', icono: '$_', rutas: ['linux-cero', 'linux-esencial', 'linux-filesystem', 'linux-admin', 'linux-profesional'] },
   { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-linux', 'redes-servicios'] },
   { id: 'bash', nombre: 'Bash y automatización', descripcion: 'Convierte comandos en herramientas repetibles', objetivo: 'Automatizas lo que hacías a mano', color: 'magenta', icono: '{}', rutas: ['bash-base', 'bash-proyectos'] },
-  { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', objetivo: 'Auditas una máquina de principio a fin', color: 'red', icono: '#!', rutas: ['ofensiva-base'] },
+  { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', objetivo: 'Auditas una máquina de principio a fin', color: 'red', icono: '#!', rutas: ['ofensiva-base', 'ofensiva-metodologia'] },
   { id: 'defensa', nombre: 'Defensa y forense', descripcion: 'Protege, investiga y explica lo ocurrido', objetivo: 'Detectas un ataque y lo explicas', color: 'blue', icono: '[]', rutas: ['defensa-base'] },
 ];
 
