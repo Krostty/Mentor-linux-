@@ -230,7 +230,7 @@ try {
   comprobar('la copia de seguridad es accesible', await copia.count() === 1);
   await copia.locator('summary').click();
   comprobar('exportar e importar se despliegan', await pagina.locator('.transferencia [data-exportar]').isVisible());
-  comprobar('el mapa contiene 24 salas', await pagina.locator('.dominio-fila').count() === 24);
+  comprobar('el mapa cubre todas las salas', await pagina.locator('.dominio-fila').count() === await pagina.evaluate(() => window.__mentor.totales.salas));
   comprobar('hay 40 tarjetas de logro', await pagina.locator('.logro').count() === 40);
   comprobar('existe el dominio comando a comando', await pagina.getByText('Ver los 107 comandos').isVisible());
   await shot('v3-05-perfil');

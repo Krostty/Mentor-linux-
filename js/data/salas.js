@@ -4,6 +4,8 @@
 import { MODULOS } from './modules.js';
 import * as k from './checks.js';
 import { habilidadesDeEjercicio } from './habilidades.js';
+import { quiz, respuesta, terminal, ordenar, completar, barajar } from './piezas.js';
+import { SALAS_REDES } from './salas-redes.js';
 import { REFUERZOS_1 } from './refuerzos-1.js';
 import { REFUERZOS_2 } from './refuerzos-2.js';
 
@@ -16,8 +18,7 @@ function ejercicioRefuerzo(r) {
   if (r.t === 'ordenar') {
     // Las piezas se barajan de forma estable para que el orden no delate
     // la solución, pero sea siempre el mismo entre recargas.
-    const barajadas = [...r.k].sort((a, b) => (a + r.id).localeCompare(b + r.id, 'es'));
-    return ordenar(r.id, r.e, barajadas, r.r, r.x);
+    return ordenar(r.id, r.e, barajar(r.k, r.id), r.r, r.x);
   }
   if (r.t === 'completar') return completar(r.id, r.e, r.p, r.r, r.x);
   if (r.t === 'respuesta') return respuesta(r.id, r.e, r.r, r.x);
@@ -26,25 +27,6 @@ function ejercicioRefuerzo(r) {
 
 const dificultadDe = (n) => n <= 4 ? 'Principiante' : n <= 10 ? 'Fácil' : n <= 16 ? 'Intermedio' : 'Avanzado';
 
-function quiz(id, pregunta, opciones, correcta, explicacion, xp = 15) {
-  return { id, tipo: 'quiz', enunciado: pregunta, opciones, correcta, explicacion, xp };
-}
-
-function respuesta(id, enunciado, respuestas, explicacion, xp = 15) {
-  return { id, tipo: 'respuesta', enunciado, respuestas, explicacion, xp };
-}
-
-function terminal(id, enunciado, snapshot, solucion, check, pistas, xp = 25) {
-  return { id, tipo: 'terminal', enunciado, snapshot, solucion, check, pistas, xp };
-}
-
-function ordenar(id, enunciado, tokens, respuestaCorrecta, explicacion, habilidades = [], xp = 15) {
-  return { id, tipo: 'ordenar', enunciado, tokens, respuestaCorrecta, explicacion, habilidades, xp };
-}
-
-function completar(id, enunciado, plantilla, respuestas, explicacion, habilidades = [], xp = 15) {
-  return { id, tipo: 'completar', enunciado, plantilla, respuestas, explicacion, habilidades, xp };
-}
 
 function ejercicioReto(reto) {
   return { ...reto, tipo: 'terminal' };
@@ -359,7 +341,7 @@ const SALA_BASH_APLICADO = {
 };
 
 const NORMALIZADAS = MODULOS.map(normalizarModulo);
-const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO];
+const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES];
 
 export const RUTAS = [
   { id: 'linux-cero', academia: 'linux', nombre: 'Empieza desde cero', descripcion: 'Terminal, identidad y primeros hábitos', nivel: 'Inicial', salas: ['cero-absoluto', 'inicio'] },
@@ -368,6 +350,7 @@ export const RUTAS = [
   { id: 'linux-admin', academia: 'linux', nombre: 'Administración Linux', descripcion: 'Procesos, paquetes, descriptores y servicios', nivel: 'Intermedio', salas: ['procesos', 'paquetes', 'descriptores', 'especiales', 'systemd'] },
   { id: 'linux-profesional', academia: 'linux', nombre: 'Flujo profesional', descripcion: 'Git, tmux, editor y diagnóstico cotidiano', nivel: 'Intermedio', salas: ['herramientas-profesionales'] },
   { id: 'redes-linux', academia: 'redes', nombre: 'Redes desde Linux', descripcion: 'Interfaces, DNS, servicios y acceso remoto', nivel: 'Fácil', salas: ['redes', 'ssh'] },
+  { id: 'redes-servicios', academia: 'redes', nombre: 'Servicios y diagnóstico', descripcion: 'DNS, puertos, HTTP y el método capa a capa', nivel: 'Intermedio', salas: ['dns', 'puertos', 'http', 'diagnostico-red'] },
   { id: 'bash-base', academia: 'bash', nombre: 'Bash fundamental', descripcion: 'Variables, condiciones, bucles y funciones', nivel: 'Fácil', salas: ['bash1', 'bash2'] },
   { id: 'bash-proyectos', academia: 'bash', nombre: 'Automatización aplicada', descripcion: 'Scripts ejecutables y proyectos de operación', nivel: 'Intermedio', salas: ['bash-aplicado'] },
   { id: 'ofensiva-base', academia: 'ofensiva', nombre: 'Hacking ético', descripcion: 'Criptografía práctica y metodología autorizada', nivel: 'Intermedio', salas: ['cifrado', 'etico'] },
@@ -378,7 +361,7 @@ export const RUTAS = [
 // («Filesystem y datos») no orienta a quien empieza; una capacidad sí.
 export const ACADEMIAS = [
   { id: 'linux', nombre: 'Linux', descripcion: 'De tu primera terminal a administrar y diagnosticar sistemas', objetivo: 'Sobrevives en cualquier servidor', color: 'lime', icono: '$_', rutas: ['linux-cero', 'linux-esencial', 'linux-filesystem', 'linux-admin', 'linux-profesional'] },
-  { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-linux'] },
+  { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-linux', 'redes-servicios'] },
   { id: 'bash', nombre: 'Bash y automatización', descripcion: 'Convierte comandos en herramientas repetibles', objetivo: 'Automatizas lo que hacías a mano', color: 'magenta', icono: '{}', rutas: ['bash-base', 'bash-proyectos'] },
   { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', objetivo: 'Auditas una máquina de principio a fin', color: 'red', icono: '#!', rutas: ['ofensiva-base'] },
   { id: 'defensa', nombre: 'Defensa y forense', descripcion: 'Protege, investiga y explica lo ocurrido', objetivo: 'Detectas un ataque y lo explicas', color: 'blue', icono: '[]', rutas: ['defensa-base'] },

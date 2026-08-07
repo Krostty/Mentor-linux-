@@ -86,33 +86,70 @@ function git(args, ctx) {
   return err(`git: '${sub}' no es un comando de git.`, 1);
 }
 
+// Puertos del host de prácticas cuando no hay una máquina cargada: los
+// mismos que anuncia `ss`, para que ambas herramientas cuenten lo mismo.
+const PUERTOS_LOCALES = [
+  { port: 22, service: 'ssh', version: 'OpenSSH 9.2p1' },
+  { port: 80, service: 'http', version: 'nginx 1.22.1' },
+  { port: 443, service: 'https', version: 'nginx 1.22.1' },
+  { port: 5432, service: 'postgresql', version: 'PostgreSQL 15.4' },
+];
+
+// -p 22,80 · -p 20-25 · -p- (todos los conocidos)
+function puertosPedidos(args) {
+  const i = args.findIndex((a) => a === '-p' || a.startsWith('-p'));
+  if (i < 0) return null;
+  const spec = args[i] === '-p' ? args[i + 1] : args[i].slice(2);
+  if (!spec || spec === '-') return null;
+  const pedidos = new Set();
+  for (const trozo of spec.split(',')) {
+    const rango = trozo.match(/^(\d+)-(\d+)$/);
+    if (rango) for (let p = Number(rango[1]); p <= Number(rango[2]); p++) pedidos.add(p);
+    else if (/^\d+$/.test(trozo)) pedidos.add(Number(trozo));
+  }
+  return pedidos;
+}
+
 function nmap(args, ctx) {
-  const target = [...args].reverse().find((a) => !a.startsWith('-')) || '10.10.10.10';
+  const target = [...args].reverse().find((a) => !a.startsWith('-') && !/^\d+([,-]\d+)*$/.test(a)) || '10.10.10.10';
   const profile = ctx.shell.state.machine || {};
-  const ports = profile.ports || [
-    { port: 22, service: 'ssh', version: 'OpenSSH 9.2p1' },
-    { port: 80, service: 'http', version: 'nginx 1.22.1' },
-  ];
+  const ports = profile.ports || PUERTOS_LOCALES;
   if (profile.ip && target !== profile.ip && target !== profile.host) {
     return ok(`Starting Nmap 7.94\nNote: Host seems down.\nNmap done: 1 IP address (0 hosts up) scanned\n`);
   }
-  const detail = args.some((a) => a === '-sV' || a === '-A');
-  const rows = ports.map((p) => `${p.port}/tcp\topen\t${p.service}${detail ? `\t${p.version || ''}` : ''}`).join('\n');
-  return ok(`Starting Nmap 7.94\nNmap scan report for ${profile.host || target} (${profile.ip || target})\nHost is up.\nPORT\tSTATE\tSERVICE${detail ? '\tVERSION' : ''}\n${rows}\nNmap done: 1 IP address (1 host up) scanned\n`);
+  // -sn solo descubre hosts vivos, sin tocar puertos.
+  if (args.includes('-sn')) {
+    return ok(`Starting Nmap 7.94\nNmap scan report for ${profile.host || target} (${profile.ip || target})\nHost is up (0.00042s latency).\nNmap done: 1 IP address (1 host up) scanned\n`);
+  }
+  const pedidos = puertosPedidos(args);
+  const detail = args.some((a) => a === '-sV' || a === '-A' || a === '-sC');
+  const visibles = pedidos ? ports.filter((p) => pedidos.has(p.port)) : ports;
+  const cerrados = pedidos ? [...pedidos].filter((p) => !ports.some((x) => x.port === p)) : [];
+  const filas = [
+    ...visibles.map((p) => `${p.port}/tcp\topen\t${p.service}${detail ? `\t${p.version || ''}` : ''}`),
+    ...cerrados.map((p) => `${p}/tcp\tclosed\tunknown`),
+  ].sort((a, b) => parseInt(a, 10) - parseInt(b, 10)).join('\n');
+  return ok(`Starting Nmap 7.94\nNmap scan report for ${profile.host || target} (${profile.ip || target})\nHost is up.\nPORT\tSTATE\tSERVICE${detail ? '\tVERSION' : ''}\n${filas}\nNmap done: 1 IP address (1 host up) scanned\n`);
 }
 
 function nc(args, ctx, stdin = '') {
-  if (args.includes('-h') || args.includes('--help')) return ok('OpenBSD netcat: nc [-lv] [host] [port]\n');
+  if (args.includes('-h') || args.includes('--help')) return ok('OpenBSD netcat: nc [-lvz] [host] [port]\n');
   const profile = ctx.shell.state.machine || {};
   const port = Number([...args].reverse().find((a) => /^\d+$/.test(a)) || 0);
-  const service = (profile.ports || []).find((p) => p.port === port);
+  const host = args.filter((a) => !a.startsWith('-') && !/^\d+$/.test(a)).pop() || 'localhost';
+  const puertos = profile.ports || PUERTOS_LOCALES;
+  const service = puertos.find((p) => p.port === port);
   if (args.some((a) => /^-[a-z]*l[a-z]*$/i.test(a))) return ok('Listening on 0.0.0.0\n');
-  if (!profile.ports) {
-    if (port === 22) return ok('SSH-2.0-OpenSSH_9.2p1 Debian-2\n');
-    if (port === 80) return ok('HTTP/1.1 400 Bad Request\nServer: nginx/1.22.1\n');
+  // -z solo comprueba si el puerto acepta conexión; no envía nada.
+  if (args.some((a) => /^-[a-z]*z[a-z]*$/i.test(a))) {
+    return service
+      ? { stderr: `Connection to ${host} ${port} port [tcp/${service.service}] succeeded!\n`, code: 0 }
+      : err(`nc: connect to ${host} port ${port} (tcp) failed: Connection refused`, 1);
   }
   if (!service) return err('nc: connect to host port tcp failed: Connection refused', 1);
-  return ok(service.banner || `${service.service} service ready\n${stdin}`);
+  if (service.banner) return ok(service.banner);
+  const banners = { ssh: 'SSH-2.0-OpenSSH_9.2p1 Debian-2\n', http: 'HTTP/1.1 400 Bad Request\nServer: nginx/1.22.1\n', https: 'HTTP/1.1 400 Bad Request\nServer: nginx/1.22.1\n' };
+  return ok(banners[service.service] || `${service.service} service ready\n${stdin}`);
 }
 
 export const advanced = {

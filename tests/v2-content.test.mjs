@@ -40,8 +40,8 @@ function ejecutar({ nombreSnapshot, comandos, user = 'user', cwd, hostname = 'me
 
 console.log('\n▸ Contrato de contenido v3');
 test('hay exactamente 5 academias', ACADEMIAS.length === 5, String(ACADEMIAS.length));
-test('hay exactamente 10 rutas', RUTAS.length === 10, String(RUTAS.length));
-test('hay exactamente 24 salas', TOTAL_SALAS === 24, String(TOTAL_SALAS));
+test('cada academia tiene al menos una ruta', ACADEMIAS.every((a) => a.rutas.length > 0), String(RUTAS.length));
+test('hay al menos 28 salas', TOTAL_SALAS >= 28, String(TOTAL_SALAS));
 test('hay al menos 140 tareas', TOTAL_TAREAS >= 140, String(TOTAL_TAREAS));
 test('hay al menos 500 ejercicios', TOTAL_EJERCICIOS >= 500, String(TOTAL_EJERCICIOS));
 test('hay exactamente 12 máquinas', MAQUINAS.length === 12, String(MAQUINAS.length));

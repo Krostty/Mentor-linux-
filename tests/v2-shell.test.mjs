@@ -25,5 +25,36 @@ probar('curl enumera página simulada', () => { const m = MAQUINAS[0]; const sh 
 probar('ssh se bloquea antes de enumerar', () => { const m = MAQUINAS[0]; const sh = shell(m.snapshot, { user: 'kali', machine: structuredClone(m.profile) }); return run(sh, `ssh ${m.user}@${m.host}`).code !== 0; });
 probar('ssh entra tras desbloquear acceso', () => { const m = MAQUINAS[0]; const profile = structuredClone(m.profile); profile.accessUnlocked = true; const sh = shell(m.snapshot, { user: 'kali', machine: profile, hostname: 'attackbox', groupMap: m.groupMap }); return run(sh, `ssh ${m.user}@${m.host}`).code === 0 && sh.user === m.user; });
 
+console.log('\n▸ Red: DNS, puertos y HTTP');
+const red = () => shell('red-servicios');
+probar('dig +short devuelve solo la dirección', () => run(red(), 'dig +short api.local').output.trim() === '192.168.1.60');
+probar('dig resuelve por /etc/hosts antes que por la tabla interna', () => run(red(), 'dig +short intranet.local').output.includes('192.168.1.70'));
+probar('dig MX devuelve el registro de correo', () => /correo\.mentor\.dev/.test(run(red(), 'dig MX mentor.dev').output));
+probar('dig TXT +short devuelve el texto', () => run(red(), 'dig TXT api.local +short').output.includes('entorno=pruebas'));
+probar('dig NS lista los servidores de la zona', () => /ns1\.mentor\.dev/.test(run(red(), 'dig NS mentor.dev').output));
+probar('un tipo sin registros da NOERROR con 0 respuestas', () => { const o = run(red(), 'dig MX api.local').output; return o.includes('NOERROR') && o.includes('ANSWER: 0'); });
+probar('un dominio inexistente da NXDOMAIN', () => run(red(), 'dig noexiste.zzz').output.includes('NXDOMAIN'));
+probar('un resolutor averiado da SERVFAIL', () => run(red(), 'dig @192.168.1.99 api.local').output.includes('SERVFAIL'));
+probar('host -t MX usa el lenguaje de host', () => /mail is handled by/.test(run(red(), 'host -t MX correo.local').output));
+probar('ss -t deja fuera los sockets UDP', () => { const o = run(red(), 'ss -tlpn').output; return o.includes('tcp') && !o.includes('udp'); });
+probar('ss -u deja fuera los sockets TCP', () => { const o = run(red(), 'ss -ulpn').output; return o.includes('udp') && !o.includes('tcp'); });
+probar('ss -l solo muestra los que escuchan', () => !run(red(), 'ss -tl').output.includes('ESTAB'));
+probar('ss -a incluye las conexiones establecidas', () => run(red(), 'ss -ta').output.includes('ESTAB'));
+probar('ss sin -p oculta la columna de proceso', () => !run(red(), 'ss -tl').output.includes('sshd'));
+probar('nc -z confirma un puerto abierto', () => run(red(), 'nc -zv localhost 5432').output.includes('succeeded'));
+probar('nc -z rechaza un puerto cerrado', () => { const r = run(red(), 'nc -zv localhost 3306'); return r.code !== 0 && r.output.includes('refused'); });
+probar('nc sin -z devuelve el banner del servicio', () => run(red(), 'nc localhost 22').output.includes('SSH-2.0'));
+probar('nmap -p distingue abierto de cerrado', () => { const o = run(red(), 'nmap -p 22,3306 localhost').output; return o.includes('22/tcp\topen') && o.includes('3306/tcp\tclosed'); });
+probar('nmap -sn no escanea puertos', () => { const o = run(red(), 'nmap -sn 192.168.1.50').output; return o.includes('Host is up') && !o.includes('PORT'); });
+probar('curl -I muestra el código de estado', () => run(red(), 'curl -I http://api.local/salud').output.includes('404'));
+probar('curl sin -L no sigue la redirección', () => run(red(), 'curl http://api.local').output.trim() === '');
+probar('curl -L llega al contenido final', () => run(red(), 'curl -L http://api.local').output.includes('degraded'));
+probar('curl -w devuelve solo el código', () => run(red(), "curl -s -o /dev/null -w '%{http_code}' http://api.local/version").output.trim() === '200');
+probar('una ruta inexistente en un host que resuelve da 404', () => run(red(), 'curl -I http://intranet.local/no-existe').output.includes('404'));
+probar('un host que no resuelve da error de DNS', () => run(red(), 'curl http://noexiste.zzz').output.includes('Could not resolve'));
+probar('curl -o guarda la respuesta en un archivo', () => { const sh = red(); run(sh, 'curl -o r.txt http://intranet.local/robots.txt'); return run(sh, 'cat r.txt').output.includes('Disallow'); });
+probar('ping acepta una dirección numérica sin resolver', () => run(red(), 'ping -c 1 192.168.1.1').code === 0);
+probar('/etc/resolv.conf declara el resolutor', () => run(red(), 'cat /etc/resolv.conf').output.includes('nameserver 192.168.1.1'));
+
 console.log(`${ok} pruebas nuevas de shell pasadas, ${mal} fallidas`);
 process.exit(mal ? 1 : 0);
