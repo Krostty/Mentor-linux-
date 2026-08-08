@@ -10,6 +10,7 @@ import { sysd } from './sysd.js';
 import { misc } from './misc.js';
 import { sec } from './sec.js';
 import { advanced } from './advanced.js';
+import { scripts } from './scripts.js';
 
 // El orden importa: `files.cat` es la implementación real de cat y debe ganar
 // al fallback interno de text.js.
@@ -25,6 +26,7 @@ export const COMMANDS = {
   ...misc,
   ...sec,
   ...advanced,
+  ...scripts,
 };
 
 // `sudoList` es un ayudante interno de sec.js, no un comando real.

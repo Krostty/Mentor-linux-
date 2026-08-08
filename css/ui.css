@@ -524,6 +524,7 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
 .academia[data-color="magenta"] { --acento-academia: var(--magenta); }
 .academia[data-color="red"]     { --acento-academia: var(--red); }
 .academia[data-color="blue"]    { --acento-academia: var(--blue); }
+.academia[data-color="amber"]   { --acento-academia: var(--amber); }
 
 .academia .camino { border-left: 3px solid color-mix(in srgb, var(--acento-academia) 45%, transparent); }
 .academia .tramo::before { background: color-mix(in srgb, var(--acento-academia) 28%, var(--line)); }
@@ -640,6 +641,7 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
 .tarjeta-academia[data-color="magenta"] { --acento-academia: var(--magenta); }
 .tarjeta-academia[data-color="red"]     { --acento-academia: var(--red); }
 .tarjeta-academia[data-color="blue"]    { --acento-academia: var(--blue); }
+.tarjeta-academia[data-color="amber"]   { --acento-academia: var(--amber); }
 
 /* Solo la academia en la que estás lleva realce. */
 .tarjeta-academia[data-actual] {
@@ -676,6 +678,7 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
 .academia-detalle[data-color="magenta"] { --acento-academia: var(--magenta); }
 .academia-detalle[data-color="red"]     { --acento-academia: var(--red); }
 .academia-detalle[data-color="blue"]    { --acento-academia: var(--blue); }
+.academia-detalle[data-color="amber"]   { --acento-academia: var(--amber); }
 
 .cabecera-academia { display: flex; align-items: center; gap: 13px; margin: 6px 0 12px; }
 .cabecera-academia h1 { margin: 0; font-size: 23px; letter-spacing: -.03em; }

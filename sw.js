@@ -2,7 +2,7 @@
 // Estrategia: cache-first para los recursos propios, con actualización en
 // segundo plano. Como todo es estático, no hay nada que pedir a la red.
 
-const VERSION = 'mentor-linux-v6-portadas-sonido-contenido';
+const VERSION = 'mentor-linux-v7-scripting-portadas-png';
 
 const RECURSOS = [
   './',
@@ -33,6 +33,8 @@ const RECURSOS = [
   'js/engine/commands/misc.js',
   'js/engine/commands/sec.js',
   'js/engine/commands/advanced.js',
+  'js/engine/commands/scripts.js',
+  'js/engine/scripting.js',
   'js/data/modules.js',
   'js/data/modulos-1.js',
   'js/data/modulos-2.js',
@@ -50,6 +52,7 @@ const RECURSOS = [
   'js/data/salas-pentesting.js',
   'js/data/salas-ofensiva.js',
   'js/data/salas-defensa.js',
+  'js/data/salas-scripting.js',
   'js/data/refuerzos-2.js',
   'js/data/refuerzos-1.js',
   'js/data/habilidades.js',
@@ -60,6 +63,18 @@ const RECURSOS = [
   'assets/icons/icono-192.png',
   'assets/icons/icono-512.png',
   'assets/icons/icono-maskable-512.png',
+  // Portadas rasterizadas: pesan, pero son parte de la app y tienen que
+  // estar disponibles sin conexión igual que el resto.
+  'assets/portadas/terminal-lime.png',
+  'assets/portadas/red-cyan.png',
+  'assets/portadas/script-magenta.png',
+  'assets/portadas/codigo-amber.png',
+  'assets/portadas/encapuchado-red.png',
+  'assets/portadas/escudo-blue.png',
+  'assets/portadas/servidor-cyan.png',
+  'assets/portadas/banderas-magenta.png',
+  'assets/portadas/laboratorio-lime.png',
+  'assets/portadas/acceso-red.png',
 ];
 
 self.addEventListener('install', (evento) => {

@@ -10,6 +10,7 @@ import { SALAS_REDES } from './salas-redes.js';
 import { SALAS_PENTESTING } from './salas-pentesting.js';
 import { SALAS_OFENSIVA } from './salas-ofensiva.js';
 import { SALAS_DEFENSA } from './salas-defensa.js';
+import { SALAS_SCRIPTING } from './salas-scripting.js';
 import { REFUERZOS_1 } from './refuerzos-1.js';
 import { REFUERZOS_2 } from './refuerzos-2.js';
 
@@ -345,7 +346,7 @@ const SALA_BASH_APLICADO = {
 };
 
 const NORMALIZADAS = MODULOS.map(normalizarModulo);
-const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES_CERO, ...SALAS_REDES, ...SALAS_PENTESTING, ...SALAS_OFENSIVA, ...SALAS_DEFENSA];
+const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES_CERO, ...SALAS_REDES, ...SALAS_PENTESTING, ...SALAS_OFENSIVA, ...SALAS_DEFENSA, ...SALAS_SCRIPTING];
 
 export const RUTAS = [
   { id: 'linux-cero', academia: 'linux', nombre: 'Empieza desde cero', descripcion: 'Terminal, identidad y primeros hábitos', nivel: 'Inicial', salas: ['cero-absoluto', 'inicio'] },
@@ -359,6 +360,8 @@ export const RUTAS = [
   { id: 'redes-diagnostico', academia: 'redes', nombre: 'Diagnóstico avanzado', descripcion: 'Conexiones, latencia, rutas y servicios a mano', nivel: 'Intermedio', salas: ['trafico'] },
   { id: 'bash-base', academia: 'bash', nombre: 'Bash fundamental', descripcion: 'Variables, condiciones, bucles y funciones', nivel: 'Fácil', salas: ['bash1', 'bash2'] },
   { id: 'bash-proyectos', academia: 'bash', nombre: 'Automatización aplicada', descripcion: 'Scripts ejecutables y proyectos de operación', nivel: 'Intermedio', salas: ['bash-aplicado'] },
+  { id: 'scripting-python', academia: 'scripting', nombre: 'Python desde cero', descripcion: 'Del primer print a leer archivos y crear tus herramientas', nivel: 'Inicial', salas: ['python-cero', 'python-sistema'] },
+  { id: 'scripting-lua', academia: 'scripting', nombre: 'Lua desde cero', descripcion: 'El lenguaje embebido de Nginx, Redis y Neovim', nivel: 'Principiante', salas: ['lua-cero'] },
   { id: 'ofensiva-cimientos', academia: 'ofensiva', nombre: 'Pentesting desde cero', descripcion: 'Qué se contrata, qué se firma y qué se entrega', nivel: 'Inicial', salas: ['pentest-cero'] },
   { id: 'ofensiva-base', academia: 'ofensiva', nombre: 'Hacking ético', descripcion: 'Criptografía práctica y metodología autorizada', nivel: 'Intermedio', salas: ['cifrado', 'etico'] },
   { id: 'ofensiva-metodologia', academia: 'ofensiva', nombre: 'Metodología de auditoría', descripcion: 'Reconocimiento, enumeración, acceso y escalada', nivel: 'Avanzado', salas: ['recon', 'enumeracion', 'acceso', 'escalada'] },
@@ -374,6 +377,7 @@ export const ACADEMIAS = [
   { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-cimientos', 'redes-linux', 'redes-servicios', 'redes-diagnostico'] },
   { id: 'bash', nombre: 'Bash y automatización', descripcion: 'Convierte comandos en herramientas repetibles', objetivo: 'Automatizas lo que hacías a mano', color: 'magenta', icono: '{}', rutas: ['bash-base', 'bash-proyectos'] },
   { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', objetivo: 'Auditas una máquina de principio a fin', color: 'red', icono: '#!', rutas: ['ofensiva-cimientos', 'ofensiva-base', 'ofensiva-metodologia', 'ofensiva-aplicaciones'] },
+  { id: 'scripting', nombre: 'Scripting', descripcion: 'Programa desde cero en Python y en Lua, sin saber programar', objetivo: 'Escribes tus propios programas', color: 'amber', icono: '</>', rutas: ['scripting-python', 'scripting-lua'] },
   { id: 'defensa', nombre: 'Defensa y forense', descripcion: 'Protege, investiga y explica lo ocurrido', objetivo: 'Detectas un ataque y lo explicas', color: 'blue', icono: '[]', rutas: ['defensa-base', 'defensa-operacion'] },
 ];
 

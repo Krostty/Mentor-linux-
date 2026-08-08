@@ -13,6 +13,8 @@ const CATALOGO = [
   ['servicios', 'Servicios del sistema', 'administracion'],
   ['redes', 'Diagnóstico de red', 'redes'],
   ['bash', 'Sintaxis Bash', 'automatizacion'],
+  ['algoritmia', 'Lógica y algoritmos', 'automatizacion'],
+  ['estructuras', 'Listas, diccionarios y tablas', 'automatizacion'],
   ['metodologia', 'Metodología de seguridad', 'seguridad'],
   ...[
     'pwd','ls','cd','whoami','uname','man','help','which','history','echo','date','clear','type',
@@ -20,7 +22,7 @@ const CATALOGO = [
     'grep','find','sort','uniq','cut','tr','sed','awk','xargs','chmod','chown','id','sudo',
     'ps','top','kill','jobs','free','df','du','apt','dpkg','systemctl','journalctl','ssh','scp',
     'ip','ss','ping','dig','curl','wget','nc','nmap','tar','gzip','strings','sha256sum','base64',
-    'tmux','vim','git','export','printf','test','for'
+    'tmux','vim','git','export','printf','test','for','python3','lua'
   ].map((comando) => [comando, comando, 'comando']),
 ];
 
@@ -30,6 +32,7 @@ export const HABILIDAD_POR_ID = Object.fromEntries(HABILIDADES.map((h) => [h.id,
 const ALIASES = {
   'apt-get': 'apt', dnf: 'apt', yum: 'apt', pacman: 'apt', rpm: 'dpkg',
   locate: 'find', whereis: 'which', getcap: 'permisos', lsattr: 'permisos', chattr: 'permisos',
+  python: 'python3', luac: 'lua', lua5: 'lua',
 };
 
 function limpiar(token = '') {

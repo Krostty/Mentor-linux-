@@ -376,9 +376,9 @@ body::before {
   background: linear-gradient(180deg, transparent, rgba(6, 10, 18, .86));
 }
 
-/* La ilustración: un SVG dibujado en js/arte.js que ocupa la portada
-   entera. `slice` la recorta por los lados al pasar de 16/8 (catálogo) a
-   16/9 (cabecera a sangre) en vez de deformarla. */
+/* La ilustración ocupa la portada entera. En SVG, `slice` la recorta por los
+   lados al pasar de 16/8 (catálogo) a 16/9 (cabecera a sangre) en vez de
+   deformarla; en PNG hace lo mismo `object-fit: cover`. */
 .cubierta-arte {
   position: absolute;
   inset: 0;
@@ -387,6 +387,17 @@ body::before {
   height: 100%;
   display: block;
 }
+
+/* La portada rasterizada ya trae su propio fondo, así que siempre cubre el
+   marco entero: si se encogiera como el SVG, asomaría el degradado de
+   debajo y se vería una costura. */
+.cubierta-foto {
+  object-fit: cover;
+  object-position: center;
+}
+.cubierta[data-con-titulo] .cubierta-foto,
+.tarjeta-reto .cubierta-foto,
+.continuar-hoy .cubierta-foto { height: 100%; }
 
 /* Rótulo en mayúsculas que corona la portada, como en la referencia. */
 .cubierta-rotulo {
@@ -1104,3 +1115,209 @@ body::before {
 
 /* Una etiqueta larga nunca debe crecer hasta el rótulo central. */
 .cubierta-etiqueta { max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* =====================================================================
+   Perfil: cabecera compacta, vitrina de medallas y bloques plegados
+   ===================================================================== */
+
+.perfil-cabecera { display: grid; gap: 12px; }
+.perfil-identidad { display: flex; align-items: center; gap: 13px; }
+.perfil-avatar {
+  flex: 0 0 auto;
+  width: 54px; height: 54px;
+  display: grid; place-items: center;
+  border: 1px solid var(--line);
+  border-radius: 17px;
+  background: var(--panel-2);
+  font-size: 28px;
+}
+.perfil-quien { min-width: 0; }
+.perfil-quien h2 { margin: 2px 0 1px; font-size: 20px; letter-spacing: -.03em; }
+.perfil-quien p { margin: 0; color: var(--muted); font-size: 13px; }
+
+/* Cuatro cifras en una fila: ocupan lo que antes ocupaba una sola tarjeta. */
+.perfil-cifras {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  padding-top: 11px;
+  border-top: 1px solid var(--line);
+}
+.perfil-cifras span {
+  display: grid; gap: 1px;
+  color: var(--muted);
+  font: 600 10.5px var(--mono);
+  text-align: center;
+}
+.perfil-cifras b { color: var(--ink); font: 750 15px var(--mono); letter-spacing: -.03em; }
+
+/* --- vitrina --------------------------------------------------------- */
+
+.vitrina { display: grid; gap: 15px; padding: 15px 14px; }
+
+.vitrina-rangos { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 7px; }
+.rango-chip {
+  display: grid; justify-items: center; gap: 2px;
+  padding: 8px 4px 7px;
+  border: 1px solid var(--line);
+  border-radius: 13px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font: 600 9.5px var(--mono);
+  text-transform: uppercase; letter-spacing: .08em;
+}
+.rango-chip b { color: var(--ink); font: 750 13px var(--mono); }
+.rango-chip[data-rango="platino"] { border-color: rgba(61, 159, 198, .5); background: rgba(143, 215, 245, .14); }
+.rango-chip[data-rango="oro"] { border-color: rgba(185, 127, 19, .38); background: rgba(240, 183, 63, .13); }
+
+.vitrina-grupo { display: grid; gap: 9px; }
+.vitrina-titulo {
+  margin: 0;
+  color: var(--muted);
+  font: 700 10px var(--mono);
+  text-transform: uppercase; letter-spacing: .14em;
+}
+.vitrina-titulo[data-rango="platino"] { color: #2f7f9f; }
+.vitrina-titulo[data-rango="oro"] { color: #9a6a10; }
+.vitrina-titulo[data-rango="plata"] { color: #6b7885; }
+.vitrina-titulo[data-rango="bronce"] { color: #96602f; }
+
+.vitrina-rejilla { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 11px 7px; }
+
+.medalla-ficha { display: grid; justify-items: center; gap: 3px; text-align: center; }
+.medalla-cuna { position: relative; display: grid; place-items: center; }
+.medalla { display: block; filter: drop-shadow(0 3px 6px rgba(19, 32, 56, .22)); }
+.medalla-emoji {
+  position: absolute;
+  font-size: 19px; line-height: 1;
+}
+.medalla-ficha b { color: var(--ink); font: 700 10.5px/1.25 var(--mono); letter-spacing: -.02em; }
+.medalla-ficha small {
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden;
+  /* Altura fija de dos líneas: sin ella asoma un trozo de la tercera en los
+     navegadores que no recortan exacto. */
+  max-height: 2.6em;
+  color: var(--dim); font: 500 9.5px/1.3 var(--mono);
+}
+/* Bloqueada no significa irreconocible: se desatura y se apaga, pero el
+   metal sigue distinguiéndose para que se vea qué rango falta. */
+.medalla-ficha[data-bloqueado] .medalla { filter: saturate(.4) opacity(.62); }
+.medalla-ficha[data-bloqueado] .medalla-emoji { font-size: 15px; opacity: .6; }
+.medalla-ficha[data-bloqueado] b { color: var(--dim); }
+.medalla-ficha[data-bloqueado] small { color: var(--dim); opacity: .75; }
+
+/* El platino conseguido se anuncia: es el único que brilla. */
+.medalla-ficha:not([data-bloqueado]) .medalla[data-rango="platino"] {
+  filter: drop-shadow(0 0 10px rgba(111, 198, 234, .75)) drop-shadow(0 3px 6px rgba(19, 32, 56, .22));
+}
+
+/* --- bloques plegados del perfil ------------------------------------- */
+
+.bloque-cuerpo { padding: 0 14px 14px; }
+.bloque-cuerpo.comandos-grid,
+.bloque-cuerpo.temas-rejilla { padding: 0 12px 14px; }
+.bloque-cuerpo.dominio { display: grid; gap: 8px; }
+
+.temas-rejilla { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; }
+.tema-ficha {
+  display: grid; gap: 3px;
+  padding: 11px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: var(--panel);
+  text-align: left;
+}
+.tema-ficha b { color: var(--ink); font: 700 12.5px var(--mono); }
+.tema-ficha small { color: var(--muted); font: 500 10.5px/1.3 var(--mono); }
+.tema-ficha[data-activo] { border-color: var(--azul); box-shadow: 0 0 0 3px rgba(15, 143, 214, .16); }
+.tema-muestra {
+  display: grid; place-items: center;
+  width: 100%; height: 32px;
+  margin-bottom: 3px;
+  border-radius: 9px;
+  background: var(--muestra-fondo);
+  color: var(--muestra);
+  font: 700 13px var(--mono);
+}
+
+.nota-datos { margin: 16px 0 8px; color: var(--muted); font-size: 12.5px; text-align: center; }
+
+@media (min-width: 520px) {
+  .vitrina-rejilla { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 650px) {
+  .vitrina-rejilla { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+  .temas-rejilla { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
+
+/* =====================================================================
+   Repaso de contraste
+   El papel claro se leía plano: tarjetas casi del color del fondo, bordes
+   invisibles al sol y estados que solo cambiaban un gris por otro. Aquí se
+   refuerzan los tres límites que separan una cosa de otra: el borde de la
+   superficie, el color del estado y el foco del teclado.
+   ===================================================================== */
+
+/* 1. Superficies: el borde vuelve a verse y la sombra deja de ser el único
+      indicio de que hay una tarjeta. */
+.tarjeta, .metrica, .nodo, .bloque, .comando, .fase, .panel-lab,
+.sesion-hoy, .sala-card, .nivel-wargame, .mapa-habilidades,
+.dominio, .estado-vacio, .detalle-cabecera, .continuar-hoy, .hero {
+  border: 1px solid var(--line);
+}
+
+/* 2. Cabeceras de sección: el título manda, el subtítulo acompaña. */
+.seccion-titulo h2 { color: var(--ink); }
+.seccion-titulo p { color: var(--muted); }
+.contador { color: var(--muted); }
+
+/* 3. Filas de lección: cada estado tiene color propio y una franja lateral
+      que se ve incluso sin distinguir bien los tonos. */
+.fila-leccion {
+  border-color: rgba(15, 143, 214, .34);
+  background: #eaf5fd;
+  box-shadow: inset 3px 0 0 var(--azul);
+}
+.fila-leccion[data-estado="hecha"] {
+  border-color: rgba(18, 144, 90, .34);
+  background: #e9f8f0;
+  box-shadow: inset 3px 0 0 var(--lime);
+}
+.fila-leccion[data-estado="bloqueada"] {
+  border-color: var(--line);
+  background: var(--panel-2);
+  box-shadow: inset 3px 0 0 var(--line);
+}
+
+/* 4. Módulos plegables: cabecera blanca, cuerpo sobre papel y separación
+      clara entre los dos. */
+.bloque { background: var(--panel); }
+.bloque summary { background: var(--panel); }
+.bloque[open] summary { border-bottom: 1px solid var(--line); }
+.bloque-titulo small { color: var(--muted); }
+
+/* 5. Chips y etiquetas: fondo con más cuerpo y borde propio. */
+.chip, .stat-chip {
+  border: 1px solid var(--line);
+  background: var(--panel-2);
+  color: var(--ink);
+}
+.stat-xp { border-color: rgba(15, 143, 214, .4); background: rgba(15, 143, 214, .12); color: var(--azul-hondo); }
+
+/* 6. Barras de progreso: pista con borde para que el 0 % también se vea. */
+.barra { border: 1px solid var(--line); background: var(--panel-2); }
+.barra > i { background: var(--azul); }
+
+/* 7. Navegación inferior: la pestaña activa se distingue por fondo, color y
+      peso, no solo por el color del icono. */
+.pestana[data-activa] { color: var(--azul-hondo); }
+.pestanas { border-top: 1px solid var(--line); }
+
+/* 8. Foco visible en todo lo que se puede tabular: sin esto, la navegación
+      por teclado en papel claro es adivinar. */
+:where(button, a, summary, input, [tabindex]):focus-visible {
+  outline: 3px solid rgba(15, 143, 214, .55);
+  outline-offset: 2px;
+  border-radius: 10px;
+}

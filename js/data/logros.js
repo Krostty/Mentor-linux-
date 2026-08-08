@@ -1,58 +1,73 @@
 // Logros, títulos por nivel y temas desbloqueables.
 // Cada logro recibe el estado del progreso y decide si está conseguido.
+//
+// `rango` marca lo que cuesta conseguirlo y es lo que dibuja la medalla en el
+// perfil: bronce (primeros pasos), plata (constancia), oro (un bloque grande
+// terminado) y platino (los de verdad difíciles: terminarlo todo, 30 días
+// seguidos, las 12 máquinas, los 15 niveles del Wargame). Sin rango explícito
+// una medalla se trata como de bronce.
 
 const cantidad = (valor) => Array.isArray(valor) ? valor.length : 0;
+// Un progreso recién creado puede no traer todavía la lista, así que nunca se
+// llama a `.includes` directamente sobre ella.
+const contiene = (valor, id) => Array.isArray(valor) && valor.includes(id);
 
 export const LOGROS = [
-  { id: 'primer-comando', nombre: 'Primer contacto', desc: 'Ejecutaste tu primer comando', icono: '🌱', check: (p) => p.comandosEjecutados >= 1 },
-  { id: 'diez-retos', nombre: 'Cogiendo el ritmo', desc: '10 retos resueltos', icono: '⚡', check: (p) => p.retosCompletados.length >= 10 },
-  { id: 'cincuenta-retos', nombre: 'Manos en la terminal', desc: '50 retos resueltos', icono: '🔧', check: (p) => p.retosCompletados.length >= 50 },
-  { id: 'cien-retos', nombre: 'Veterano', desc: '100 retos resueltos', icono: '🏔️', check: (p) => p.retosCompletados.length >= 100 },
+  { id: 'primer-comando', nombre: 'Primer contacto', desc: 'Ejecutaste tu primer comando', icono: '🌱', rango: 'bronce', check: (p) => p.comandosEjecutados >= 1 },
+  { id: 'diez-retos', nombre: 'Cogiendo el ritmo', desc: '10 retos resueltos', icono: '⚡', rango: 'bronce', check: (p) => p.retosCompletados.length >= 10 },
+  { id: 'cincuenta-retos', nombre: 'Manos en la terminal', desc: '50 retos resueltos', icono: '🔧', rango: 'plata', check: (p) => p.retosCompletados.length >= 50 },
+  { id: 'cien-retos', nombre: 'Veterano', desc: '100 retos resueltos', icono: '🏔️', rango: 'oro', check: (p) => p.retosCompletados.length >= 100 },
 
-  { id: 'sin-pistas-10', nombre: 'Por mi cuenta', desc: '10 retos seguidos sin usar pistas', icono: '🎯', check: (p) => p.mejorCombo >= 10 },
-  { id: 'combo-20', nombre: 'Imparable', desc: 'Combo de 20 aciertos seguidos', icono: '🔥', check: (p) => p.mejorCombo >= 20 },
+  { id: 'sin-pistas-10', nombre: 'Por mi cuenta', desc: '10 retos seguidos sin usar pistas', icono: '🎯', rango: 'plata', check: (p) => p.mejorCombo >= 10 },
+  { id: 'combo-20', nombre: 'Imparable', desc: 'Combo de 20 aciertos seguidos', icono: '🔥', rango: 'oro', check: (p) => p.mejorCombo >= 20 },
 
-  { id: 'racha-3', nombre: 'Constancia', desc: '3 días seguidos practicando', icono: '📅', check: (p) => p.mejorRacha >= 3 },
-  { id: 'racha-7', nombre: 'Una semana entera', desc: '7 días seguidos', icono: '🗓️', check: (p) => p.mejorRacha >= 7 },
-  { id: 'racha-30', nombre: 'Disciplina', desc: '30 días seguidos', icono: '💎', check: (p) => p.mejorRacha >= 30 },
+  { id: 'racha-3', nombre: 'Constancia', desc: '3 días seguidos practicando', icono: '📅', rango: 'bronce', check: (p) => p.mejorRacha >= 3 },
+  { id: 'racha-7', nombre: 'Una semana entera', desc: '7 días seguidos', icono: '🗓️', rango: 'plata', check: (p) => p.mejorRacha >= 7 },
+  { id: 'racha-30', nombre: 'Disciplina', desc: '30 días seguidos', icono: '💎', rango: 'platino', check: (p) => p.mejorRacha >= 30 },
 
-  { id: 'modulo-1', nombre: 'Primeros pasos', desc: 'Completaste tu primer módulo', icono: '🚪', check: (p) => p.modulosCompletados.length >= 1 },
-  { id: 'ruta-fundamentos', nombre: 'Base sólida', desc: 'Completaste la ruta de Fundamentos', icono: '🧱', check: (p) => p.rutasCompletadas.includes('fundamentos') },
-  { id: 'ruta-admin', nombre: 'Administrador', desc: 'Completaste la ruta de Administración', icono: '⚙️', check: (p) => p.rutasCompletadas.includes('administracion') },
-  { id: 'ruta-seguridad', nombre: 'Guardián', desc: 'Completaste la ruta de Scripting y seguridad', icono: '🛡️', check: (p) => p.rutasCompletadas.includes('seguridad') },
-  { id: 'todo', nombre: 'Mentor Linux', desc: 'Completaste los 20 módulos', icono: '👑', check: (p) => p.modulosCompletados.length >= 20 },
+  { id: 'modulo-1', nombre: 'Primeros pasos', desc: 'Completaste tu primer módulo', icono: '🚪', rango: 'bronce', check: (p) => p.modulosCompletados.length >= 1 },
+  { id: 'ruta-fundamentos', nombre: 'Base sólida', desc: 'Completaste la ruta de Fundamentos', icono: '🧱', rango: 'oro', check: (p) => p.rutasCompletadas.includes('fundamentos') },
+  { id: 'ruta-admin', nombre: 'Administrador', desc: 'Completaste la ruta de Administración', icono: '⚙️', rango: 'oro', check: (p) => p.rutasCompletadas.includes('administracion') },
+  { id: 'ruta-seguridad', nombre: 'Guardián', desc: 'Completaste la ruta de Scripting y seguridad', icono: '🛡️', rango: 'oro', check: (p) => p.rutasCompletadas.includes('seguridad') },
+  { id: 'todo', nombre: 'Mentor Linux', desc: 'Completaste los 20 módulos', icono: '👑', rango: 'platino', check: (p) => p.modulosCompletados.length >= 20 },
 
-  { id: 'permisos', nombre: 'Domador de permisos', desc: 'Superaste el módulo de permisos sin pistas', icono: '🔐', check: (p) => p.modulosSinPistas.includes('permisos') },
-  { id: 'grep', nombre: 'Maestro de grep', desc: 'Superaste el módulo de búsqueda sin pistas', icono: '🔎', check: (p) => p.modulosSinPistas.includes('busqueda') },
-  { id: 'pipes', nombre: 'Fontanero', desc: 'Superaste el módulo de pipes sin pistas', icono: '🔗', check: (p) => p.modulosSinPistas.includes('pipes') },
+  { id: 'permisos', nombre: 'Domador de permisos', desc: 'Superaste el módulo de permisos sin pistas', icono: '🔐', rango: 'plata', check: (p) => p.modulosSinPistas.includes('permisos') },
+  { id: 'grep', nombre: 'Maestro de grep', desc: 'Superaste el módulo de búsqueda sin pistas', icono: '🔎', rango: 'plata', check: (p) => p.modulosSinPistas.includes('busqueda') },
+  { id: 'pipes', nombre: 'Fontanero', desc: 'Superaste el módulo de pipes sin pistas', icono: '🔗', rango: 'plata', check: (p) => p.modulosSinPistas.includes('pipes') },
 
-  { id: 'incidente-1', nombre: 'Primera guardia', desc: 'Resolviste tu primer incidente', icono: '🚨', check: (p) => p.incidentesResueltos.length >= 1 },
-  { id: 'incidente-todos', nombre: 'Equipo de crisis', desc: 'Resolviste todos los incidentes', icono: '🎖️', check: (p) => p.incidentesResueltos.length >= 5 },
-  { id: 'incidente-rapido', nombre: 'Reflejos', desc: 'Resolviste un incidente con más de la mitad del tiempo restante', icono: '⏱️', check: (p) => p.incidenteRapido },
+  { id: 'incidente-1', nombre: 'Primera guardia', desc: 'Resolviste tu primer incidente', icono: '🚨', rango: 'bronce', check: (p) => p.incidentesResueltos.length >= 1 },
+  { id: 'incidente-todos', nombre: 'Equipo de crisis', desc: 'Resolviste todos los incidentes', icono: '🎖️', rango: 'oro', check: (p) => p.incidentesResueltos.length >= 5 },
+  { id: 'incidente-rapido', nombre: 'Reflejos', desc: 'Resolviste un incidente con más de la mitad del tiempo restante', icono: '⏱️', rango: 'plata', check: (p) => p.incidenteRapido },
 
-  { id: 'examen-perfecto', nombre: 'Sobresaliente', desc: 'Sacaste un examen perfecto', icono: '💯', check: (p) => p.examenesPerfectos >= 1 },
-  { id: 'examenes-5', nombre: 'Buen expediente', desc: '5 exámenes perfectos', icono: '🎓', check: (p) => p.examenesPerfectos >= 5 },
+  { id: 'examen-perfecto', nombre: 'Sobresaliente', desc: 'Sacaste un examen perfecto', icono: '💯', rango: 'plata', check: (p) => p.examenesPerfectos >= 1 },
+  { id: 'examenes-5', nombre: 'Buen expediente', desc: '5 exámenes perfectos', icono: '🎓', rango: 'oro', check: (p) => p.examenesPerfectos >= 5 },
 
-  { id: 'explorador', nombre: 'Explorador', desc: 'Ejecutaste 500 comandos', icono: '🧭', check: (p) => p.comandosEjecutados >= 500 },
-  { id: 'chuletas', nombre: 'Consulta rápida', desc: 'Buscaste 25 veces en el chuletario', icono: '📖', check: (p) => p.busquedasChuletario >= 25 },
+  { id: 'explorador', nombre: 'Explorador', desc: 'Ejecutaste 500 comandos', icono: '🧭', rango: 'oro', check: (p) => p.comandosEjecutados >= 500 },
+  { id: 'chuletas', nombre: 'Consulta rápida', desc: 'Buscaste 25 veces en el chuletario', icono: '📖', rango: 'bronce', check: (p) => p.busquedasChuletario >= 25 },
 
   // v2: salas, máquinas y Wargame.
-  { id: 'ejercicio-1', nombre: 'Aprender haciendo', desc: 'Completaste tu primer ejercicio', icono: '✅', check: (p) => cantidad(p.ejerciciosCompletados) >= 1 },
-  { id: 'ejercicios-150', nombre: 'Media travesía', desc: '150 ejercicios completados', icono: '🧗', check: (p) => cantidad(p.ejerciciosCompletados) >= 150 },
-  { id: 'ejercicios-300', nombre: 'Dominio práctico', desc: 'Completaste los 300 ejercicios', icono: '🏆', check: (p) => cantidad(p.ejerciciosCompletados) >= 300 },
-  { id: 'sala-1', nombre: 'Primera sala', desc: 'Completaste una sala', icono: '🚪', check: (p) => cantidad(p.salasCompletadas) >= 1 },
-  { id: 'salas-10', nombre: 'Ruta en marcha', desc: 'Completaste 10 salas', icono: '🗺️', check: (p) => cantidad(p.salasCompletadas) >= 10 },
-  { id: 'salas-24', nombre: 'Currículo completo', desc: 'Completaste las 24 salas', icono: '🐧', check: (p) => cantidad(p.salasCompletadas) >= 24 },
-  { id: 'maquina-1', nombre: 'Primer foothold', desc: 'Completaste tu primera máquina simulada', icono: '🖥️', check: (p) => cantidad(p.maquinasCompletadas) >= 1 },
-  { id: 'maquinas-5', nombre: 'Operador', desc: 'Completaste 5 máquinas', icono: '🥷', check: (p) => cantidad(p.maquinasCompletadas) >= 5 },
-  { id: 'maquinas-12', nombre: 'Laboratorio dominado', desc: 'Completaste las 12 máquinas', icono: '👑', check: (p) => cantidad(p.maquinasCompletadas) >= 12 },
-  { id: 'primera-user-flag', nombre: 'User owned', desc: 'Capturaste tu primera user.txt', icono: '🚩', check: (p) => p.flagsUser >= 1 },
-  { id: 'primera-root-flag', nombre: 'Root owned', desc: 'Capturaste tu primera root.txt', icono: '🏴', check: (p) => p.flagsRoot >= 1 },
-  { id: 'wargame-1', nombre: 'Primera contraseña', desc: 'Superaste un nivel Wargame', icono: '🔑', check: (p) => cantidad(p.wargameCompletados) >= 1 },
-  { id: 'wargame-5', nombre: 'Cazador de secretos', desc: 'Superaste 5 niveles Wargame', icono: '🕵️', check: (p) => cantidad(p.wargameCompletados) >= 5 },
-  { id: 'wargame-15', nombre: 'Bandit de Mentor', desc: 'Superaste los 15 niveles Wargame', icono: '🗝️', check: (p) => cantidad(p.wargameCompletados) >= 15 },
-  { id: 'sin-pistas-50', nombre: 'Mente afilada', desc: 'Combo de 50 ejercicios sin pistas', icono: '🧠', check: (p) => p.mejorCombo >= 50 },
-  { id: 'seis-bloques', nombre: 'Linux integral', desc: 'Completaste los seis bloques de contenido', icono: '🌐', check: (p) => cantidad(p.bloquesCompletados) >= 6 },
+  { id: 'ejercicio-1', nombre: 'Aprender haciendo', desc: 'Completaste tu primer ejercicio', icono: '✅', rango: 'bronce', check: (p) => cantidad(p.ejerciciosCompletados) >= 1 },
+  { id: 'ejercicios-150', nombre: 'Media travesía', desc: '150 ejercicios completados', icono: '🧗', rango: 'oro', check: (p) => cantidad(p.ejerciciosCompletados) >= 150 },
+  { id: 'ejercicios-300', nombre: 'Dominio práctico', desc: 'Completaste los 300 ejercicios', icono: '🏆', rango: 'platino', check: (p) => cantidad(p.ejerciciosCompletados) >= 300 },
+  { id: 'sala-1', nombre: 'Primera sala', desc: 'Completaste una sala', icono: '🚪', rango: 'bronce', check: (p) => cantidad(p.salasCompletadas) >= 1 },
+  { id: 'salas-10', nombre: 'Ruta en marcha', desc: 'Completaste 10 salas', icono: '🗺️', rango: 'plata', check: (p) => cantidad(p.salasCompletadas) >= 10 },
+  { id: 'salas-24', nombre: 'Currículo completo', desc: 'Completaste las 24 salas', icono: '🐧', rango: 'platino', check: (p) => cantidad(p.salasCompletadas) >= 24 },
+  { id: 'maquina-1', nombre: 'Primer foothold', desc: 'Completaste tu primera máquina simulada', icono: '🖥️', rango: 'plata', check: (p) => cantidad(p.maquinasCompletadas) >= 1 },
+  { id: 'maquinas-5', nombre: 'Operador', desc: 'Completaste 5 máquinas', icono: '🥷', rango: 'oro', check: (p) => cantidad(p.maquinasCompletadas) >= 5 },
+  { id: 'maquinas-12', nombre: 'Laboratorio dominado', desc: 'Completaste las 12 máquinas', icono: '👑', rango: 'platino', check: (p) => cantidad(p.maquinasCompletadas) >= 12 },
+  { id: 'primera-user-flag', nombre: 'User owned', desc: 'Capturaste tu primera user.txt', icono: '🚩', rango: 'plata', check: (p) => p.flagsUser >= 1 },
+  { id: 'primera-root-flag', nombre: 'Root owned', desc: 'Capturaste tu primera root.txt', icono: '🏴', rango: 'oro', check: (p) => p.flagsRoot >= 1 },
+  { id: 'wargame-1', nombre: 'Primera contraseña', desc: 'Superaste un nivel Wargame', icono: '🔑', rango: 'plata', check: (p) => cantidad(p.wargameCompletados) >= 1 },
+  { id: 'wargame-5', nombre: 'Cazador de secretos', desc: 'Superaste 5 niveles Wargame', icono: '🕵️', rango: 'oro', check: (p) => cantidad(p.wargameCompletados) >= 5 },
+  { id: 'wargame-15', nombre: 'Bandit de Mentor', desc: 'Superaste los 15 niveles Wargame', icono: '🗝️', rango: 'platino', check: (p) => cantidad(p.wargameCompletados) >= 15 },
+  { id: 'sin-pistas-50', nombre: 'Mente afilada', desc: 'Combo de 50 ejercicios sin pistas', icono: '🧠', rango: 'platino', check: (p) => p.mejorCombo >= 50 },
+  // Scripting: programar de verdad, en dos lenguajes distintos.
+  { id: 'python-1', nombre: 'Hola, mundo', desc: 'Completaste «Python desde cero»', icono: '🐍', rango: 'plata', check: (p) => contiene(p.salasCompletadas, 'python-cero') },
+  { id: 'python-sistema', nombre: 'Herramienta propia', desc: 'Completaste «Python en el sistema»', icono: '🧰', rango: 'oro', check: (p) => contiene(p.salasCompletadas, 'python-sistema') },
+  { id: 'lua-1', nombre: 'Empotrado', desc: 'Completaste «Lua desde cero»', icono: '🌙', rango: 'oro', check: (p) => contiene(p.salasCompletadas, 'lua-cero') },
+  { id: 'dos-lenguajes', nombre: 'Bilingüe', desc: 'Terminaste la academia de Scripting entera', icono: '⚙️', rango: 'platino', check: (p) => ['python-cero', 'python-sistema', 'lua-cero'].every((id) => contiene(p.salasCompletadas, id)) },
+
+  { id: 'seis-bloques', nombre: 'Linux integral', desc: 'Completaste los seis bloques de contenido', icono: '🌐', rango: 'platino', check: (p) => cantidad(p.bloquesCompletados) >= 6 },
 ];
 
 // Nivel a partir del XP. Cada nivel cuesta un poco más que el anterior.

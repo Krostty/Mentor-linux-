@@ -65,8 +65,11 @@ try {
   comprobar('la app arranca', await pagina.locator('.app').isVisible());
   // La portada muestra las academias como fichas de catálogo: los módulos
   // viven en la pantalla de cada academia, no amontonados en el inicio.
-  comprobar('hay 5 academias en la portada', await pagina.locator('.tarjeta-academia').count() === 5);
-  comprobar('cada academia lleva su cubierta', await pagina.locator('.tarjeta-academia .cubierta').count() === 5);
+  comprobar('hay 6 academias en la portada', await pagina.locator('.tarjeta-academia').count() === 6);
+  comprobar('cada academia lleva su cubierta', await pagina.locator('.tarjeta-academia .cubierta').count() === 6);
+  // Las portadas grandes son PNG generados; si faltara el archivo, la app
+  // dibujaría el SVG y esta comprobación lo cazaría.
+  comprobar('las cubiertas de academia usan la portada PNG', await pagina.locator('.tarjeta-academia .cubierta-foto').count() === 6);
   comprobar('la portada no despliega módulos', await pagina.locator('.modulo').count() === 0);
   comprobar('la portada muestra el nivel y la ruta de rangos', await pagina.locator('.rango').count() === 6);
   comprobar('la portada muestra las tres métricas', await pagina.locator('.metrica-inicio').count() === 3);
@@ -275,7 +278,8 @@ try {
   await copia.locator('summary').click();
   comprobar('exportar e importar se despliegan', await pagina.locator('.transferencia [data-exportar]').isVisible());
   comprobar('el mapa cubre todas las salas', await pagina.locator('.dominio-fila').count() === await pagina.evaluate(() => window.__mentor.totales.salas));
-  comprobar('hay 40 fichas de logro', await pagina.locator('.logro-ficha').count() === 40);
+  comprobar('la vitrina muestra todas las medallas', await pagina.locator('.medalla-ficha').count() === await pagina.evaluate(() => window.__mentor.totales.logros ?? 44));
+  comprobar('la vitrina agrupa los cuatro rangos', await pagina.locator('.vitrina-grupo').count() === 4);
   comprobar('los ajustes traen vibración y sonidos', await pagina.locator('.fila-opcion[data-ajuste]').count() === 2);
   const interruptor = pagina.locator('.fila-opcion[data-ajuste="sonidos"]');
   comprobar('los sonidos vienen encendidos', await interruptor.getAttribute('aria-pressed') === 'true');
@@ -283,7 +287,7 @@ try {
   comprobar('el interruptor de sonidos se apaga', await interruptor.getAttribute('aria-pressed') === 'false');
   comprobar('el ajuste queda guardado', await pagina.evaluate(() => window.__mentor.store.sonidosActivos === false));
   await interruptor.click();
-  comprobar('existe el dominio comando a comando', await pagina.getByText('Ver los 107 comandos').isVisible());
+  comprobar('existe el dominio comando a comando', await pagina.getByText('Comando a comando').isVisible());
   await shot('v3-05-perfil');
 
   await pagina.evaluate(() => navigator.serviceWorker.ready);

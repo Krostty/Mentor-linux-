@@ -39,14 +39,17 @@ function ejecutar({ nombreSnapshot, comandos, user = 'user', cwd, hostname = 'me
 }
 
 console.log('\n▸ Contrato de contenido v3');
-test('hay exactamente 5 academias', ACADEMIAS.length === 5, String(ACADEMIAS.length));
+test('hay exactamente 6 academias', ACADEMIAS.length === 6, String(ACADEMIAS.length));
 test('cada academia tiene al menos una ruta', ACADEMIAS.every((a) => a.rutas.length > 0), String(RUTAS.length));
 test('hay al menos 28 salas', TOTAL_SALAS >= 28, String(TOTAL_SALAS));
 test('hay al menos 140 tareas', TOTAL_TAREAS >= 140, String(TOTAL_TAREAS));
 test('hay al menos 500 ejercicios', TOTAL_EJERCICIOS >= 500, String(TOTAL_EJERCICIOS));
 test('hay exactamente 12 máquinas', MAQUINAS.length === 12, String(MAQUINAS.length));
 test('hay exactamente 15 niveles Wargame', WARGAME.length === 15, String(WARGAME.length));
-test('hay exactamente 40 logros', LOGROS.length === 40, String(LOGROS.length));
+test('hay exactamente 44 logros', LOGROS.length === 44, String(LOGROS.length));
+// Cada logro declara su rareza: es lo que dibuja la medalla del perfil.
+test('cada logro declara un rango válido', LOGROS.every((l) => ['bronce', 'plata', 'oro', 'platino'].includes(l.rango)),
+  String(LOGROS.filter((l) => !l.rango).map((l) => l.id)));
 test('existe la Sala 0 absoluta', SALAS.some((s) => s.n === 0 && s.id === 'cero-absoluto'));
 
 const idsSala = new Set();
@@ -175,13 +178,16 @@ const raiz = resolve(new URL('..', import.meta.url).pathname.replace(/^\/([A-Za-
 const sw = readFileSync(resolve(raiz, 'sw.js'), 'utf8');
 const recursos = [...sw.matchAll(/'([^']+)'/g)].map((m) => m[1]).filter((x) => /^(?:\.\/|index|manifest|css\/|js\/|assets\/)/.test(x));
 for (const recurso of recursos.filter((x) => x !== './')) test(`recurso offline ${recurso} existe`, existsSync(resolve(raiz, recurso)), recurso);
-for (const requerido of ['js/data/salas.js', 'js/data/habilidades.js', 'js/data/maquinas.js', 'js/data/wargame.js', 'js/engine/commands/advanced.js']) test(`PWA precachea ${requerido}`, recursos.includes(requerido));
+for (const requerido of ['js/data/salas.js', 'js/data/habilidades.js', 'js/data/maquinas.js', 'js/data/wargame.js', 'js/engine/commands/advanced.js', 'js/data/salas-scripting.js', 'js/engine/scripting.js', 'assets/portadas/codigo-amber.png']) test(`PWA precachea ${requerido}`, recursos.includes(requerido));
 const manifest = JSON.parse(readFileSync(resolve(raiz, 'manifest.webmanifest'), 'utf8'));
 // El manifest pinta la pantalla de arranque: si no coincide con el
 // `theme-color` del HTML, la app abre con un destello del color viejo.
 const temaHtml = readFileSync(resolve(raiz, 'index.html'), 'utf8').match(/name="theme-color" content="([^"]+)"/)?.[1];
 test('manifest y html comparten el color de tema', manifest.theme_color === temaHtml, `${manifest.theme_color} vs ${temaHtml}`);
-test('manifest arranca sobre el papel claro', manifest.background_color === '#f1f3f6', manifest.background_color);
+// El fondo del arranque tiene que ser el mismo `--void` de la app; si se
+// sube el contraste del papel y aquí no, la app abre con un salto de color.
+const papel = readFileSync(resolve(raiz, 'css/base.css'), 'utf8').match(/--void:\s*(#[0-9a-f]{6})/i)?.[1];
+test('manifest arranca sobre el papel claro', manifest.background_color === papel, `${manifest.background_color} vs ${papel}`);
 test('manifest abre Aprender', manifest.start_url.includes('#aprender'));
 
 console.log(`\n${pasadas} pruebas v3 pasadas, ${fallidas} fallidas`);

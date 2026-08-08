@@ -10,38 +10,42 @@
 :root {
   color-scheme: light;
 
-  /* Superficies: el fondo es gris papel y las tarjetas, blancas. */
-  --void: #f1f3f6;
-  --deep: #f6f8fa;
+  /* Superficies. El fondo baja un escalón más y las tarjetas se quedan en
+     blanco puro: así la tarjeta se separa del papel por diferencia de tono
+     y no solo por una sombra, que en pantallas con brillo bajo o en la
+     calle desaparece. */
+  --void: #e6eaf0;
+  --deep: #eef1f6;
   --panel: #ffffff;
-  --panel-2: #f2f5f8;
-  --panel-3: #e7ecf1;
-  --line: #dfe4ea;
-  --line-soft: rgba(24, 39, 68, .09);
+  --panel-2: #eef2f7;
+  --panel-3: #dde4ec;
+  --line: #c9d2dd;
+  --line-soft: rgba(24, 39, 68, .14);
 
   /* Acentos. --cyan es el azul de marca (estado en curso, enlaces, datos)
      y --lime pasa a ser el verde de «hecho»: en papel blanco el lima de
      fósforo no se lee, el verde sí. */
-  --azul: #17a7ef;
-  --azul-hondo: #0d8fd4;
-  --cyan: #0e86c7;
-  --lime: #1aa668;
-  --blue: #3b74e8;
-  --magenta: #a955d8;
-  --amber: #d9860a;
-  --red: #e14356;
-  --good: #1aa668;
+  --azul: #0f8fd6;
+  --azul-hondo: #0a72ad;
+  --cyan: #0a6f9f;
+  --lime: #12905a;
+  --blue: #2a5fd4;
+  --magenta: #8e3fc4;
+  --amber: #b96e05;
+  --red: #cf2f45;
+  --good: #12905a;
 
-  /* Texto */
-  --ink: #191d26;
-  --muted: #6f7885;
-  --dim: #98a1ad;
+  /* Texto. El secundario sube de contraste hasta pasar AA sobre blanco
+     (4.5:1) y el terciario deja de ser un gris que se pierde. */
+  --ink: #10141c;
+  --muted: #565f6d;
+  --dim: #757f8d;
 
   /* Sombras suaves: el relieve de esta interfaz lo dan las sombras, no
      los bordes. */
-  --sombra-1: 0 1px 2px rgba(19, 32, 56, .05), 0 6px 16px rgba(19, 32, 56, .06);
-  --sombra-2: 0 2px 5px rgba(19, 32, 56, .06), 0 14px 34px rgba(19, 32, 56, .09);
-  --sombra-azul: 0 6px 18px rgba(23, 167, 239, .32);
+  --sombra-1: 0 1px 2px rgba(19, 32, 56, .08), 0 6px 16px rgba(19, 32, 56, .09);
+  --sombra-2: 0 2px 6px rgba(19, 32, 56, .10), 0 16px 38px rgba(19, 32, 56, .13);
+  --sombra-azul: 0 6px 18px rgba(15, 143, 214, .34);
 
   /* La terminal conserva su mundo oscuro. */
   --term-fondo: #0d1330;

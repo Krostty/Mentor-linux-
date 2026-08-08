@@ -89,5 +89,64 @@ probar('ufw default deny se acepta', () => run(inc({ user: 'root' }), 'ufw defau
 probar('sudo iptables -L pasa la opción al comando', () => run(inc({ groupMap: { user: ['user', 'sudo'] } }), 'sudo iptables -L').output.includes('Chain'));
 probar('ss cuenta los servicios a la escucha', () => run(inc(), 'ss -tln | grep -c LISTEN').output.trim() === '4');
 
+console.log('\n▸ Python y Lua: intérpretes didácticos');
+const prog = (extra = {}) => shell('programacion', extra);
+// Cada prueba usa una shell nueva para que un script no herede el estado del
+// anterior, igual que ocurre en las salas.
+probar('python3 ejecuta un archivo', () => run(prog(), 'python3 ejemplos/hola.py').output.includes('Hola, mundo'));
+probar('lua ejecuta un archivo', () => run(prog(), 'lua ejemplos/hola.lua').output.includes('Hola, mundo'));
+probar('python3 -c ejecuta código suelto', () => run(prog(), `python3 -c 'print(2 + 3)'`).output.trim() === '5');
+probar('lua -e ejecuta código suelto', () => run(prog(), `lua -e 'print(2 + 3)'`).output.trim() === '5');
+probar('la división de Python da float', () => run(prog(), `python3 -c 'print(10 / 2, 10 // 3, 10 % 3)'`).output.trim() === '5.0 3 1');
+probar('la división de Lua da float', () => run(prog(), `lua -e 'print(10 / 2)'`).output.trim() === '5.0');
+probar('las f-strings interpolan y formatean', () => run(prog(), `python3 -c 'n = "mentor"; print(f"{n.upper()} tiene {len(n)} letras y pi es {3.14159:.2f}")'`).output.trim() === 'MENTOR tiene 6 letras y pi es 3.14');
+probar('el for de Python respeta la sangría', () => run(prog(), `python3 -c 'for i in range(1, 4): print(i)'`).output.trim().split('\n').join(',') === '1,2,3');
+probar('lo asignado dentro de un for sobrevive fuera', () => run(prog(), `python3 -c 't = 0
+for i in range(1, 5): t = t + i
+print(t)'`).output.trim() === '10');
+probar('las listas y los diccionarios funcionan', () => run(prog(), `python3 -c 'n = [3, 1, 2]; n.sort(); d = {"a": 1}; d["b"] = 2; print(n, len(d), d["b"])'`).output.trim() === '[1, 2, 3] 2 2');
+probar('las funciones devuelven valores', () => run(prog(), `python3 -c 'def m(x): return sum(x) / len(x)
+print(m([4, 6, 8]))'`).output.trim() === '6.0');
+probar('las tablas de Lua empiezan en 1', () => run(prog(), `lua -e 'local t = {10, 20}; print(t[1], #t)'`).output.trim() === '10\t2');
+probar('ipairs recorre en orden', () => run(prog(), `lua -e 'for i, v in ipairs({"a", "b"}) do print(i, v) end'`).output.includes('2\tb'));
+probar('table.sort y table.concat ordenan y unen', () => run(prog(), `lua -e 'local t = {5, 3, 9}; table.sort(t); print(table.concat(t, ","))'`).output.trim() === '3,5,9');
+probar('string.format aplica precisión', () => run(prog(), `lua -e 'print(string.format("%.2f", 3.14159))'`).output.trim() === '3.14');
+probar('los scripts leen del filesystem simulado', () => run(prog(), `python3 -c 'print(len(open("nombres.txt").readlines()))'`).output.trim() === '5');
+probar('los scripts escriben en el filesystem simulado', () => {
+  const sh = prog();
+  run(sh, `python3 -c 'f = open("salida.txt", "w"); f.write("hecho"); f.close()'`);
+  return run(sh, 'cat salida.txt').output.includes('hecho');
+});
+probar('sys.argv recibe los argumentos', () => {
+  const sh = prog();
+  run(sh, `printf '%s\\n' 'import sys' 'print(sys.argv[1])' > eco.py`);
+  return run(sh, 'python3 eco.py hola').output.trim() === 'hola';
+});
+probar('arg recibe los argumentos en Lua', () => {
+  const sh = prog();
+  run(sh, `echo 'print(arg[1])' > eco.lua`);
+  return run(sh, 'lua eco.lua hola').output.trim() === 'hola';
+});
+probar('el shebang elige el intérprete al ejecutar ./', () => {
+  const sh = prog();
+  run(sh, 'chmod +x ejemplos/hola.py');
+  return run(sh, './ejemplos/hola.py').output.includes('Hola, mundo');
+});
+probar('sin permiso de ejecución da Permission denied', () => run(prog(), './ejemplos/hola.py').output.includes('Permission denied'));
+probar('un error de Python nombra archivo, línea y tipo', () => {
+  const o = run(prog(), 'python3 ejemplos/roto.py').output;
+  return o.includes('empieza') && o.includes('NameError') && o.includes('roto.py');
+});
+probar('un error de Lua nombra archivo, línea y causa', () => {
+  const o = run(prog(), 'lua ejemplos/roto.lua').output;
+  return o.includes('roto.lua:2') && o.includes('attempt to perform arithmetic');
+});
+probar('un archivo inexistente da error del intérprete', () => run(prog(), 'python3 no-existe.py').code === 2);
+probar('un bucle infinito se corta en vez de colgar la app', () => {
+  const r = run(prog(), `lua -e 'while true do end'`);
+  return r.code === 1 && /no termina/.test(r.output);
+});
+probar('printf reutiliza el formato con varios argumentos', () => run(prog(), `printf '%s\\n' uno dos tres`).output === 'uno\ndos\ntres\n');
+
 console.log(`${ok} pruebas nuevas de shell pasadas, ${mal} fallidas`);
 process.exit(mal ? 1 : 0);

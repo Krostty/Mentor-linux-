@@ -45,13 +45,20 @@ export const files = {
   printf: (args, ctx) => {
     const [formato, ...resto] = args;
     if (formato == null) return err('printf: usage: printf format [arguments]');
-    let i = 0;
-    const texto = formato
+    const expandido = formato
       .replace(/\\n/g, '\n')
       .replace(/\\t/g, '\t')
-      .replace(/\\\\/g, '\\')
-      .replace(/%[sd]/g, () => (resto[i] != null ? resto[i++] : ''))
-      .replace(/%%/g, '%');
+      .replace(/\\\\/g, '\\');
+    const huecos = (expandido.match(/%[sdif]/g) || []).length;
+    let i = 0;
+    let texto = '';
+    // printf reutiliza el formato hasta agotar los argumentos: por eso
+    // `printf '%s\n' uno dos tres` escribe tres líneas, no una.
+    do {
+      texto += expandido
+        .replace(/%[sdif]/g, () => (resto[i] != null ? resto[i++] : ''))
+        .replace(/%%/g, '%');
+    } while (huecos > 0 && i < resto.length);
     return ok(texto);
   },
 

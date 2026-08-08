@@ -324,6 +324,40 @@ export class Shell {
     return joinPath(this.cwd, expandTilde(path, this.env.HOME));
   }
 
+  // Traduce `./script.py` en el comando que lo ejecuta. Devuelve `{ fn }` o
+  // `{ error }` con el mensaje exacto que daría bash.
+  programaDeRuta(nombre) {
+    const ruta = this.resolve(nombre);
+    let nodo;
+    try {
+      nodo = this.fs.lookup(ruta, this.ctx);
+    } catch (e) {
+      return { error: { stdout: '', stderr: `bash: ${nombre}: ${fsMessage(e)}\n`, code: 127 } };
+    }
+    if (nodo.type === S_DIR) {
+      return { error: { stdout: '', stderr: `bash: ${nombre}: Is a directory\n`, code: 126 } };
+    }
+    if (!this.fs.canExec(nodo, this.ctx.user, this.ctx.groups)) {
+      return { error: { stdout: '', stderr: `bash: ${nombre}: Permission denied\n`, code: 126 } };
+    }
+
+    // La primera línea manda: `#!/usr/bin/env python3` elige python3.
+    const primera = (nodo.content || '').split('\n', 1)[0];
+    let interprete = 'bash';
+    if (primera.startsWith('#!')) {
+      const partes = primera.slice(2).trim().split(/\s+/);
+      const ultimo = partes[partes.length - 1] || '';
+      interprete = ultimo.split('/').pop() || 'bash';
+    }
+    const alias = { sh: 'bash', python: 'python3', python3: 'python3', lua: 'lua', lua5: 'lua', bash: 'bash' };
+    const comando = alias[interprete];
+    const fn = comando ? this.commands[comando] : null;
+    if (!fn) {
+      return { error: { stdout: '', stderr: `bash: ${nombre}: ${interprete}: bad interpreter: No such file or directory\n`, code: 126 } };
+    }
+    return { fn };
+  }
+
   // Ejecuta una línea completa. Devuelve { output, code } donde output ya
   // mezcla stdout y stderr en el orden en que se produjeron.
   run(line) {
@@ -456,14 +490,24 @@ export class Shell {
       }
     }
 
-    const fn = this.commands[name];
+    // Un nombre con barra no es un comando del PATH: es un programa del
+    // filesystem. `./copia.sh`, `./informe.py`, `bin/tarea.lua`… Se comprueba
+    // el permiso de ejecución y se elige intérprete por la línea `#!`.
+    let fn = this.commands[name];
+    let args2 = args;
+    if (!fn && name.includes('/')) {
+      const programa = this.programaDeRuta(name);
+      if (programa.error) return programa.error;
+      fn = programa.fn;
+      args2 = [name, ...args];
+    }
     if (!fn) {
       return { stdout: '', stderr: `bash: ${name}: command not found\n`, code: 127 };
     }
 
     let result;
     try {
-      result = fn(args, this.ctx, input) || {};
+      result = fn(args2, this.ctx, input) || {};
     } catch (e) {
       if (e instanceof FSError) {
         result = { stderr: `${name}: ${e.path}: ${e.message}\n`, code: 1 };

@@ -242,11 +242,38 @@ const laboratorio = () => `
     <circle cx="4" cy="-4" r="2" fill="${ACENTO}" opacity=".45"/>
   </g>`;
 
+// Editor con dos lenguajes a la vez: la portada de Scripting.
+const codigo = () => `
+  ${ventana(28, 24, 264, 118, { titulo: 'analiza.py — mentor' })}
+  <rect x="28" y="40" width="264" height="1" fill="rgba(255,255,255,.08)"/>
+  <g>
+    <rect x="36" y="46" width="52" height="13" rx="4" fill="${ACENTO}" opacity=".22"/>
+    <text x="44" y="55" font-family="${MONO}" font-size="6.4" fill="${ACENTO}">python</text>
+    <rect x="92" y="46" width="40" height="13" rx="4" fill="rgba(255,255,255,.08)"/>
+    <text x="99" y="55" font-family="${MONO}" font-size="6.4" fill="rgba(255,255,255,.45)">lua</text>
+  </g>
+  <rect x="28" y="66" width="20" height="76" fill="rgba(255,255,255,.05)"/>
+  ${Array.from({ length: 7 }, (_, i) => `<text x="34" y="${79 + i * 10}" font-family="${MONO}" font-size="5" fill="rgba(255,255,255,.26)">${i + 1}</text>`).join('')}
+  <text x="56" y="79" font-family="${MONO}" font-size="6.4" fill="${ACENTO}">def</text>
+  ${barras(74, 74, [26, 16], { color: 'rgba(255,255,255,.55)' })}
+  ${barras(66, 84, [18, 30, 12])}
+  <text x="66" y="99" font-family="${MONO}" font-size="6.4" fill="${ACENTO}">for</text>
+  ${barras(84, 94, [14, 22, 18])}
+  ${barras(76, 104, [24, 34], { color: 'rgba(255,255,255,.3)' })}
+  <text x="56" y="119" font-family="${MONO}" font-size="6.4" fill="${ACENTO}">return</text>
+  ${barras(86, 114, [20, 14])}
+  ${barras(56, 124, [30, 18, 26], { color: 'rgba(255,255,255,.2)' })}
+  <g transform="translate(246 108)">
+    <circle cx="0" cy="0" r="20" fill="#0d1526" stroke="${ACENTO}" stroke-width="1.6"/>
+    <text x="0" y="4" text-anchor="middle" font-family="${MONO}" font-size="12" font-weight="700" fill="${ACENTO}">{ }</text>
+  </g>
+  <text x="30" y="152" font-family="${MONO}" font-size="6" fill="rgba(255,255,255,.28)">python3 analiza.py · lua analiza.lua</text>`;
+
 // --- catálogo --------------------------------------------------------
 
 export const ESCENAS = {
   terminal, red, script, encapuchado, escudo,
-  acceso, servidor, llaves, binario, banderas, laboratorio,
+  acceso, servidor, llaves, binario, banderas, laboratorio, codigo,
 };
 
 // Qué escena y qué rótulo lleva cada academia. El rótulo en mayúsculas es
@@ -255,6 +282,7 @@ export const PORTADA_ACADEMIA = {
   linux: { escena: 'terminal', rotulo: 'TERMINAL & SHELL' },
   redes: { escena: 'red', rotulo: 'NETWORKING' },
   bash: { escena: 'script', rotulo: 'BASH SCRIPTING' },
+  scripting: { escena: 'codigo', rotulo: 'PYTHON & LUA' },
   ofensiva: { escena: 'encapuchado', rotulo: 'ETHICAL HACKING' },
   defensa: { escena: 'escudo', rotulo: 'BLUE TEAM & FORENSICS' },
 };
@@ -281,6 +309,36 @@ const POR_TEMA = [
 ];
 const RUEDA = ['terminal', 'acceso', 'servidor', 'llaves', 'script', 'escudo'];
 
+// --- portadas rasterizadas -------------------------------------------
+//
+// `tools/portadas.mjs` genera un PNG por cada pareja escena+color de esta
+// lista. La app usa el PNG cuando existe y el SVG cuando no, así que añadir
+// una escena nueva nunca rompe nada: como mucho, se ve dibujada.
+
+// Solo se rasterizan las portadas grandes: las de academia y las de las
+// secciones, que ocupan el ancho completo y son la primera impresión de cada
+// pantalla. Las tarjetas pequeñas de los retos siguen dibujándose en SVG,
+// porque a ese tamaño no se distingue y evita cargar veintitantas imágenes.
+export const PORTADAS = [
+  { escena: 'terminal', color: 'lime' },        // Linux
+  { escena: 'red', color: 'cyan' },             // Redes
+  { escena: 'script', color: 'magenta' },       // Bash
+  { escena: 'codigo', color: 'amber' },         // Scripting
+  { escena: 'encapuchado', color: 'red' },      // Ofensiva
+  { escena: 'escudo', color: 'blue' },          // Defensa
+  { escena: 'servidor', color: 'cyan' },        // Máquinas
+  { escena: 'banderas', color: 'magenta' },     // Wargame
+  { escena: 'laboratorio', color: 'lime' },     // Laboratorio
+  { escena: 'acceso', color: 'red' },           // Retos
+];
+
+const CON_PNG = new Set(PORTADAS.map((p) => `${p.escena}-${p.color}`));
+
+// Ruta del PNG de una portada, o null si esa pareja no está generada.
+export function rutaPortada(escena, color) {
+  return CON_PNG.has(`${escena}-${color}`) ? `assets/portadas/${escena}-${color}.png` : null;
+}
+
 export function escenaDe(texto = '', id = '') {
   for (const [patron, escena] of POR_TEMA) if (patron.test(texto)) return escena;
   let suma = 0;
@@ -288,9 +346,71 @@ export function escenaDe(texto = '', id = '') {
   return RUEDA[suma % RUEDA.length];
 }
 
-// Devuelve el SVG de una escena, listo para incrustar dentro de `.cubierta`.
-export function ilustracion(nombre) {
+// Devuelve la portada lista para incrustar dentro de `.cubierta`.
+//
+// Si existe el PNG de esa pareja escena+color se usa la imagen: está
+// compuesta con su fondo, su rejilla y su halo, y el navegador la decodifica
+// una vez para todas las tarjetas. Si no existe —una escena nueva, un color
+// sin generar—, se dibuja el SVG, que se colorea con la variable de la
+// academia. La app funciona igual en los dos casos.
+export function ilustracion(nombre, color = '') {
+  const png = rutaPortada(nombre, color);
+  if (png) {
+    return `<img class="cubierta-arte cubierta-foto" src="${png}" alt="" aria-hidden="true"
+      width="800" height="400" loading="lazy" decoding="async">`;
+  }
   const escena = ESCENAS[nombre] || ESCENAS.terminal;
   return `<svg class="cubierta-arte" viewBox="0 0 320 160" preserveAspectRatio="xMidYMid slice"
     aria-hidden="true" focusable="false">${escena()}</svg>`;
+}
+
+// --- medallas de logro ------------------------------------------------
+//
+// Un emoji dentro de un círculo gris no distingue «ejecutaste tu primer
+// comando» de «terminaste las doce máquinas». La medalla sí: cada rango
+// tiene su metal, su cinta y su corona de puntas, y el platino además gira
+// un halo. Se dibuja en SVG —no hay archivo que cargar— y el emoji del logro
+// se conserva en el centro, porque es lo que lo hace reconocible.
+
+const METALES = {
+  bronce: { claro: '#e0a06a', medio: '#c07a41', oscuro: '#8a5024', borde: '#a5652f', puntas: 0 },
+  plata: { claro: '#e8eef4', medio: '#b9c6d4', oscuro: '#8593a4', borde: '#a9b7c6', puntas: 4 },
+  oro: { claro: '#ffdf8a', medio: '#f0b73f', oscuro: '#b97f13', borde: '#dda32b', puntas: 6 },
+  platino: { claro: '#dff3ff', medio: '#8fd7f5', oscuro: '#3d9fc6', borde: '#6fc6ea', puntas: 8 },
+};
+
+export const RANGOS_LOGRO = ['bronce', 'plata', 'oro', 'platino'];
+
+export function nombreRango(rango) {
+  return { bronce: 'Bronce', plata: 'Plata', oro: 'Oro', platino: 'Platino' }[rango] || 'Bronce';
+}
+
+// `conseguido` a false devuelve la misma silueta apagada: se ve qué medalla
+// falta y de qué rango es, que es justo lo que empuja a ir a por ella.
+export function medalla(rango = 'bronce', { conseguido = true, tamaño = 56 } = {}) {
+  const m = METALES[rango] || METALES.bronce;
+  const id = `m-${rango}-${conseguido ? 'on' : 'off'}`;
+  const puntas = Array.from({ length: m.puntas }, (_, i) => {
+    const angulo = (360 / m.puntas) * i;
+    return `<path d="M0-45l4.2 9.5H-4.2z" transform="rotate(${angulo})" fill="url(#${id})" opacity=".95"/>`;
+  }).join('');
+
+  return `<svg class="medalla" data-rango="${rango}" ${conseguido ? '' : 'data-bloqueada'}
+    viewBox="-50 -50 100 100" width="${tamaño}" height="${tamaño}" aria-hidden="true" focusable="false">
+    <defs>
+      <linearGradient id="${id}" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stop-color="${m.claro}"/>
+        <stop offset=".55" stop-color="${m.medio}"/>
+        <stop offset="1" stop-color="${m.oscuro}"/>
+      </linearGradient>
+    </defs>
+    <g ${conseguido ? '' : 'opacity=".42"'}>
+      ${puntas}
+      <circle r="34" fill="url(#${id})"/>
+      <circle r="34" fill="none" stroke="${m.borde}" stroke-width="2.5"/>
+      <circle r="26" fill="rgba(255,255,255,.55)"/>
+      <circle r="26" fill="none" stroke="rgba(0,0,0,.12)" stroke-width="1.5"/>
+      ${rango === 'platino' ? '<circle r="45" fill="none" stroke="rgba(143,215,245,.6)" stroke-width="2" stroke-dasharray="5 7"/>' : ''}
+    </g>
+  </svg>`;
 }
