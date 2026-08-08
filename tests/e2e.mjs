@@ -170,6 +170,27 @@ try {
   await pagina.locator('.leccion-salir').click();
   comprobar('salir devuelve a la lista de lecciones', await pagina.locator('.nodo[data-leccion]').count() === 5);
 
+  // Terminal de varios comandos: un comando suelto no debe gritar «incompleto».
+  // Se abre una sala con reto de terminal multi-paso y se comprueba el silencio.
+  await pagina.goto(`${BASE}#leccion/diag-parte`, { waitUntil: 'domcontentloaded' });
+  await pagina.waitForSelector('.leccion');
+  for (let i = 0; i < 12 && await pagina.locator('.paso-ejercicio .consola-input:visible').count() === 0; i++) {
+    await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  }
+  await comando('ls');
+  comprobar('un comando suelto no marca el reto multi-paso como incompleto',
+    (await pagina.locator('.leccion-pie .feedback').innerText()).trim() === 'Escribe el comando y pulsa Intro.');
+  // Con el teclado abierto, la terminal cabe sin desbordar ni tapar el pie.
+  await pagina.evaluate(() => { document.documentElement.toggleAttribute('data-teclado', true); document.documentElement.style.setProperty('--alto-visible', '430px'); });
+  await pagina.waitForTimeout(120);
+  comprobar('con el teclado la terminal no desborda el cuerpo', await pagina.evaluate(() => {
+    const c = document.querySelector('.leccion-cuerpo');
+    return c.scrollHeight <= c.clientHeight + 2;
+  }));
+  comprobar('con el teclado la ficha del comando se retira', await pagina.evaluate(() => !document.querySelector('.ficha-comando')?.offsetHeight));
+  await pagina.evaluate(() => { document.documentElement.toggleAttribute('data-teclado', false); document.documentElement.style.removeProperty('--alto-visible'); });
+  await pagina.locator('.leccion-salir').click();
+
   // Los accesos rápidos abren la lección en el ejercicio concreto, no la
   // sala entera: era otra forma de perderse.
   await pagina.locator('[data-pestana="aprender"]').click();

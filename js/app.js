@@ -643,6 +643,11 @@ function completarEjercicio(tarea, ejercicio) {
 function iniciarTerminalEjercicio(tarea, sala, ejercicio) {
   const contenedor = document.getElementById('terminal-ejercicio');
   if (!contenedor || ejercicio.tipo !== 'terminal') return;
+  // Cuántos comandos pide la solución. En los retos de varios pasos, cada
+  // comando intermedio NO debe gritar «incompleto»: se calla hasta que el
+  // usuario ha escrito al menos tantos comandos como la solución necesita.
+  const pasosSolucion = String(ejercicio.solucion || '').split('\n').filter(Boolean).length || 1;
+  let ejecutados = 0;
   terminalActiva = new Terminal(contenedor, {
     snapshot: ejercicio.snapshot || sala.snapshot || 'inicio', autoFocus: true,
     alEjecutar: (ctx) => {
@@ -650,7 +655,12 @@ function iniciarTerminalEjercicio(tarea, sala, ejercicio) {
       let correcto = false;
       try { correcto = ejercicio.check(ctx) === true; } catch { correcto = false; }
       if (correcto) return completarEjercicio(tarea, ejercicio);
-      // Explorar no cuenta como fallo: en la terminal se prueba y se falla.
+      ejecutados++;
+      // Antes de completar los pasos: silencio. La propia salida de la
+      // terminal (un error, un «not found») ya orienta; para más ayuda está
+      // el botón de pista. Solo cuando ya escribió suficientes comandos y aún
+      // no cuadra el estado, se ofrece un diagnóstico concreto.
+      if (ejecutados < pasosSolucion) return;
       feedback(ejercicio.id, diagnosticoTerminal(ejercicio, ctx), false);
     },
   });

@@ -555,9 +555,11 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
    importa es ver la consola y lo que estás escribiendo.
    ===================================================================== */
 
+/* Sin transición de altura: al animarse el teclado, el `visualViewport`
+   dispara muchos cambios seguidos y una transición los convierte en un
+   temblor. La altura sigue al viewport de golpe, sin distorsión. */
 .app {
   height: var(--alto-visible, 100dvh);
-  transition: height .18s ease;
 }
 
 :root[data-teclado] .pestanas { display: none; }
@@ -566,6 +568,26 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
 
 /* Con el teclado fuera, la consola aprovecha todo el alto disponible. */
 :root[data-teclado] .consola-salida { min-height: 90px; }
+
+/* Terminal dentro de una lección, con el teclado abierto: se retira todo lo
+   que no es la consola (enunciado, chips, ficha) para que quepa sin apretar
+   ni desbordar. Al cerrar el teclado, vuelve todo. Es el patrón de las apps
+   de móvil: mientras escribes, solo importa dónde escribes. */
+:root[data-teclado] .paso-ejercicio .ejercicio-cabecera,
+:root[data-teclado] .paso-ejercicio .skill-chips,
+:root[data-teclado] .paso-ejercicio .ficha-comando { display: none; }
+:root[data-teclado] .paso-ejercicio .paso-enunciado {
+  margin: 0 0 8px;
+  font-size: 14px;
+  max-height: 2.9em;
+  overflow: hidden;
+  color: var(--muted);
+}
+:root[data-teclado] .paso-ejercicio .ejercicio-terminal { margin-top: 0; }
+:root[data-teclado] .paso-ejercicio .ejercicio-terminal .terminal-zona,
+:root[data-teclado] .terminal-zona { min-height: 0; }
+:root[data-teclado] .consola { min-height: 0; }
+:root[data-teclado] .paso-ejercicio .ejercicio-terminal .acciones { display: none; }
 
 
 /* =====================================================================
