@@ -5,7 +5,9 @@ import { MODULOS } from './modules.js';
 import * as k from './checks.js';
 import { habilidadesDeEjercicio } from './habilidades.js';
 import { quiz, respuesta, terminal, ordenar, completar, barajar } from './piezas.js';
+import { SALAS_REDES_CERO } from './salas-redes-cero.js';
 import { SALAS_REDES } from './salas-redes.js';
+import { SALAS_PENTESTING } from './salas-pentesting.js';
 import { SALAS_OFENSIVA } from './salas-ofensiva.js';
 import { SALAS_DEFENSA } from './salas-defensa.js';
 import { REFUERZOS_1 } from './refuerzos-1.js';
@@ -343,7 +345,7 @@ const SALA_BASH_APLICADO = {
 };
 
 const NORMALIZADAS = MODULOS.map(normalizarModulo);
-const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES, ...SALAS_OFENSIVA, ...SALAS_DEFENSA];
+const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES_CERO, ...SALAS_REDES, ...SALAS_PENTESTING, ...SALAS_OFENSIVA, ...SALAS_DEFENSA];
 
 export const RUTAS = [
   { id: 'linux-cero', academia: 'linux', nombre: 'Empieza desde cero', descripcion: 'Terminal, identidad y primeros hábitos', nivel: 'Inicial', salas: ['cero-absoluto', 'inicio'] },
@@ -351,12 +353,16 @@ export const RUTAS = [
   { id: 'linux-filesystem', academia: 'linux', nombre: 'Filesystem y datos', descripcion: 'Permisos, búsquedas, pipelines y formatos', nivel: 'Fácil', salas: ['permisos', 'busqueda', 'pipes', 'archivos-avanzados'] },
   { id: 'linux-admin', academia: 'linux', nombre: 'Administración Linux', descripcion: 'Procesos, paquetes, descriptores y servicios', nivel: 'Intermedio', salas: ['procesos', 'paquetes', 'descriptores', 'especiales', 'systemd'] },
   { id: 'linux-profesional', academia: 'linux', nombre: 'Flujo profesional', descripcion: 'Git, tmux, editor y diagnóstico cotidiano', nivel: 'Intermedio', salas: ['herramientas-profesionales'] },
+  { id: 'redes-cimientos', academia: 'redes', nombre: 'Redes desde cero', descripcion: 'Direcciones, subredes y cómo viaja un paquete', nivel: 'Inicial', salas: ['redes-cero', 'subredes'] },
   { id: 'redes-linux', academia: 'redes', nombre: 'Redes desde Linux', descripcion: 'Interfaces, DNS, servicios y acceso remoto', nivel: 'Fácil', salas: ['redes', 'ssh'] },
   { id: 'redes-servicios', academia: 'redes', nombre: 'Servicios y diagnóstico', descripcion: 'DNS, puertos, HTTP y el método capa a capa', nivel: 'Intermedio', salas: ['dns', 'puertos', 'http', 'diagnostico-red'] },
+  { id: 'redes-diagnostico', academia: 'redes', nombre: 'Diagnóstico avanzado', descripcion: 'Conexiones, latencia, rutas y servicios a mano', nivel: 'Intermedio', salas: ['trafico'] },
   { id: 'bash-base', academia: 'bash', nombre: 'Bash fundamental', descripcion: 'Variables, condiciones, bucles y funciones', nivel: 'Fácil', salas: ['bash1', 'bash2'] },
   { id: 'bash-proyectos', academia: 'bash', nombre: 'Automatización aplicada', descripcion: 'Scripts ejecutables y proyectos de operación', nivel: 'Intermedio', salas: ['bash-aplicado'] },
+  { id: 'ofensiva-cimientos', academia: 'ofensiva', nombre: 'Pentesting desde cero', descripcion: 'Qué se contrata, qué se firma y qué se entrega', nivel: 'Inicial', salas: ['pentest-cero'] },
   { id: 'ofensiva-base', academia: 'ofensiva', nombre: 'Hacking ético', descripcion: 'Criptografía práctica y metodología autorizada', nivel: 'Intermedio', salas: ['cifrado', 'etico'] },
   { id: 'ofensiva-metodologia', academia: 'ofensiva', nombre: 'Metodología de auditoría', descripcion: 'Reconocimiento, enumeración, acceso y escalada', nivel: 'Avanzado', salas: ['recon', 'enumeracion', 'acceso', 'escalada'] },
+  { id: 'ofensiva-aplicaciones', academia: 'ofensiva', nombre: 'Aplicaciones y contraseñas', descripcion: 'Fallos web y almacenamiento de credenciales', nivel: 'Avanzado', salas: ['web-vulns', 'hashes'] },
   { id: 'defensa-base', academia: 'defensa', nombre: 'Blue Team y análisis', descripcion: 'Hardening, evidencias y respuesta inicial', nivel: 'Intermedio', salas: ['hardening', 'analisis'] },
   { id: 'defensa-operacion', academia: 'defensa', nombre: 'Operación y respuesta', descripcion: 'Leer registros, cuentas, cortafuegos y respuesta a incidentes', nivel: 'Avanzado', salas: ['logs', 'cuentas', 'firewall', 'respuesta'] },
 ];
@@ -365,9 +371,9 @@ export const RUTAS = [
 // («Filesystem y datos») no orienta a quien empieza; una capacidad sí.
 export const ACADEMIAS = [
   { id: 'linux', nombre: 'Linux', descripcion: 'De tu primera terminal a administrar y diagnosticar sistemas', objetivo: 'Sobrevives en cualquier servidor', color: 'lime', icono: '$_', rutas: ['linux-cero', 'linux-esencial', 'linux-filesystem', 'linux-admin', 'linux-profesional'] },
-  { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-linux', 'redes-servicios'] },
+  { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-cimientos', 'redes-linux', 'redes-servicios', 'redes-diagnostico'] },
   { id: 'bash', nombre: 'Bash y automatización', descripcion: 'Convierte comandos en herramientas repetibles', objetivo: 'Automatizas lo que hacías a mano', color: 'magenta', icono: '{}', rutas: ['bash-base', 'bash-proyectos'] },
-  { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', objetivo: 'Auditas una máquina de principio a fin', color: 'red', icono: '#!', rutas: ['ofensiva-base', 'ofensiva-metodologia'] },
+  { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', objetivo: 'Auditas una máquina de principio a fin', color: 'red', icono: '#!', rutas: ['ofensiva-cimientos', 'ofensiva-base', 'ofensiva-metodologia', 'ofensiva-aplicaciones'] },
   { id: 'defensa', nombre: 'Defensa y forense', descripcion: 'Protege, investiga y explica lo ocurrido', objetivo: 'Detectas un ataque y lo explicas', color: 'blue', icono: '[]', rutas: ['defensa-base', 'defensa-operacion'] },
 ];
 

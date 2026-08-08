@@ -11,7 +11,9 @@ import { TODOS_COMANDOS, buscarComandos } from './data/comandos.js';
 import { LOGROS } from './data/logros.js';
 import { Terminal } from './engine/terminal.js';
 import { store } from './store.js';
-import { escapar, formato, brindis, celebrar, porcentaje, vibrar } from './ui.js';
+import { escapar, formato, brindis, celebrar, porcentaje, vibrar, permitirVibracion } from './ui.js';
+import { ilustracion, escenaDe, PORTADA_ACADEMIA, PORTADA_SECCION } from './arte.js';
+import { sonido } from './sonido.js';
 
 const vista = document.getElementById('vista');
 const pistasMostradas = new Map();
@@ -155,12 +157,18 @@ const RANGOS = [
   { nivel: 15, nombre: 'Mentor', icono: '👑' },
 ];
 
-// La cubierta de una academia: una portada dibujada con CSS a partir de su
-// color y su símbolo. Sin imágenes, para que siga funcionando sin red.
-function cubierta(academia, { etiqueta = '', titulo = academia.nombre } = {}) {
-  return `<span class="cubierta" data-color="${escapar(academia.color)}">
-    <span class="cubierta-glifo" aria-hidden="true">${escapar(academia.icono)}</span>
+// La cubierta de una academia: fondo con su color, ilustración SVG propia,
+// rótulo en mayúsculas arriba y título abajo. Todo dibujado: ni una imagen,
+// para que la app siga entera sin red.
+function cubierta(academia, { etiqueta = '', titulo = academia.nombre, escena, rotulo, color, insignia = '' } = {}) {
+  const portada = PORTADA_ACADEMIA[academia?.id] || {};
+  const dibujo = escena || portada.escena || 'terminal';
+  const cabecera = rotulo !== undefined ? rotulo : portada.rotulo || '';
+  return `<span class="cubierta" data-color="${escapar(color || academia?.color || 'cyan')}" ${titulo ? 'data-con-titulo' : ''}>
+    ${ilustracion(dibujo)}
+    ${cabecera ? `<span class="cubierta-rotulo" aria-hidden="true">${escapar(cabecera)}</span>` : ''}
     ${etiqueta ? `<span class="cubierta-etiqueta">${escapar(etiqueta)}</span>` : ''}
+    ${insignia}
     ${titulo ? `<b class="cubierta-titulo">${escapar(titulo)}</b>` : ''}
   </span>`;
 }
@@ -212,7 +220,7 @@ function renderAprender() {
     ${renderAvisoInstalacion()}
 
     <section class="saludo">
-      <span class="saludo-figura" aria-hidden="true">${emojiNivel(nivel.nivel)}</span>
+      <span class="saludo-figura emoji-vivo" aria-hidden="true">${emojiNivel(nivel.nivel)}</span>
       <div>
         <h1>¡Hola, ${escapar(nivel.titulo)}!</h1>
         <p>${stats.tareas
@@ -223,17 +231,17 @@ function renderAprender() {
 
     <div class="metricas-inicio">
       <div class="metrica-inicio">
-        <span aria-hidden="true">⭐</span>
+        <span class="emoji-vivo" aria-hidden="true">⭐</span>
         <b>${porcentaje(stats.ejercicios / TOTAL_EJERCICIOS)}%</b>
         <small>Progreso global</small>
       </div>
       <div class="metrica-inicio">
-        <span aria-hidden="true">📘</span>
+        <span class="emoji-vivo" aria-hidden="true">📘</span>
         <b>${stats.salas}/${TOTAL_SALAS}</b>
         <small>Salas completadas</small>
       </div>
       <div class="metrica-inicio">
-        <span aria-hidden="true">🔥</span>
+        <span class="metrica-fuego" aria-hidden="true">🔥</span>
         <b>${stats.racha}</b>
         <small>Racha (días)</small>
       </div>
@@ -241,7 +249,7 @@ function renderAprender() {
 
     <section class="tarjeta-nivel">
       <div class="nivel-cabecera">
-        <span class="nivel-emoji" aria-hidden="true">${emojiNivel(nivel.nivel)}</span>
+        <span class="nivel-emoji emoji-vivo" aria-hidden="true">${emojiNivel(nivel.nivel)}</span>
         <div>
           <b>${escapar(nivel.titulo)}</b>
           <small>Nivel ${nivel.nivel}</small>
@@ -784,9 +792,14 @@ function conectarLeccion(tarea, sala, paso) {
 }
 
 function completarEjercicio(tarea, ejercicio) {
+  const nivelAntes = store.nivel.nivel;
   const resultado = store.completarEjercicio(ejercicio, { usoPista: (pistasMostradas.get(ejercicio.id) || 0) > 0 });
   actualizarCabecera();
   vibrar(18);
+  // Subir de nivel suena distinto de acertar: es la recompensa mayor.
+  if (store.nivel.nivel > nivelAntes) sonido.nivel();
+  else if (resultado.nuevosLogros?.length) sonido.logro();
+  else sonido.acierto();
   (resultado.nuevosLogros || []).forEach((l) => brindis(`${l.icono} **${l.nombre}** — ${l.desc}`));
   modoRepaso = false;
   ultimoAcierto = { id: ejercicio.id, xp: resultado.ganado || 0, repaso: !!resultado.repaso };
@@ -980,6 +993,7 @@ function feedback(id, mensaje, ok = false) {
   el.innerHTML = htmlSeguro(mensaje);
   el.toggleAttribute('data-ok', ok);
   el.toggleAttribute('data-error', !ok);
+  if (!ok) sonido.fallo();
 }
 
 function progresoMaquina(maquina) {
@@ -1183,44 +1197,121 @@ function conectarMaquina(maquina) {
   pintarMaquina(maquina);
 }
 
+// Pantalla de Retos (la pestaña «Practicar»). Antes era una sola columna
+// interminable; ahora arriba va lo que se usa —progreso, accesos y los retos
+// con su portada— y el resto queda plegado, que es lo que hace navegable una
+// pantalla de móvil.
 function renderPracticar() {
   const hechas = store.estado.misionesCompletadas || [];
   const repasos = store.ejerciciosParaRepasar(6);
   const debiles = store.puntosDebiles(6);
-  vista.innerHTML = `<div class="pagina">
-    <section class="hero"><span class="eyebrow">Práctica deliberada</span><h1>Repite. Experimenta.<br>Domina.</h1><p>Elige una misión corta, entra al Wargame encadenado o abre un sistema libre. Todo se restaura y funciona sin conexión.</p><div class="acciones"><button class="btn" data-laboratorio="libre">Abrir modo libre</button><button class="btn-secundario" data-wargame="bandit-0">Empezar Wargame</button></div></section>
-    <div class="seccion-titulo"><div><h2>Tus puntos débiles</h2><p>Lo que más te está costando, ordenado por dificultad</p></div>${debiles.length ? `<span class="contador">${debiles.length}</span>` : ''}</div>
-    ${debiles.length
-      ? `<div class="debiles">${debiles.map((d) => {
-          const ejercicio = store.ejercicioParaHabilidad(d.id);
-          const acierto = d.intentos ? Math.round((d.aciertos / d.intentos) * 100) : 0;
-          return `<div class="debil" data-nivel="${d.nivel}">
-            <span class="debil-icono">${NIVELES_DOMINIO[d.nivel].icono}</span>
-            <span class="debil-info">
-              <b>${escapar(nombreHabilidad(d.id))}</b>
-              <small>${d.fallos} ${d.fallos === 1 ? 'fallo' : 'fallos'} en ${d.intentos} ${d.intentos === 1 ? 'intento' : 'intentos'} · ${acierto}% de acierto</small>
-              <span class="debil-barra"><i style="width:${acierto}%"></i></span>
-            </span>
-            ${ejercicio ? `<button class="btn-secundario btn-mini" data-sala="${escapar(ejercicio.salaId)}" data-ejercicio="${escapar(ejercicio.id)}">Entrenar</button>` : ''}
-          </div>`;
-        }).join('')}</div>`
-      : '<p class="vacio-suave">Aún no hay datos suficientes. Cuando falles algún ejercicio aparecerá aquí, con un botón para entrenarlo directamente.</p>'}
+  const avanceRetos = MISIONES.length ? hechas.length / MISIONES.length : 0;
+  const wargameHechos = store.estado.wargameCompletados.length;
 
-    <div class="seccion-titulo"><div><h2>Repaso inteligente</h2><p>Habilidades que toca recuperar hoy</p></div><span class="contador">${repasos.length ? `${store.retosParaRepasar().length} pendientes` : 'al día ✓'}</span></div>
-    ${repasos.length ? `<div class="repasos-grid">${repasos.map((e) => `<button class="tarjeta repaso-card" data-repasar="${escapar(e.id)}"><div class="tarjeta-top"><span class="ejercicio-tipo">${tipoEjercicio(e.tipo)}</span><span class="modo-repaso">↻ toca hoy</span></div><h3>${escapar(SALA_POR_ID[e.salaId]?.nombre || 'Repaso')}</h3><p>${htmlSeguro(e.enunciado)}</p><div class="skill-chips">${(e.habilidades || []).map((id) => `<span class="skill-chip">${escapar(nombreHabilidad(id))}</span>`).join('')}</div></button>`).join('')}</div>` : '<div class="estado-vacio"><b>Memoria al día</b><span>Los ejercicios volverán cuando el intervalo de repaso termine.</span></div>'}
-    <div class="seccion-titulo"><div><h2>Misiones rápidas</h2><p>Objetivos de 2–5 minutos para ganar soltura</p></div><span class="contador">${hechas.length}/${MISIONES.length}</span></div>
-    <div class="rejilla">${MISIONES.map((m) => `<button class="tarjeta" data-laboratorio="${escapar(m.id)}"><div class="tarjeta-top"><span class="eyebrow">${escapar(m.dificultad)}</span><span class="ejercicio-xp">+${m.xp} XP</span></div><h3>${escapar(m.nombre)} ${hechas.includes(m.id) ? '✓' : ''}</h3><p>${htmlSeguro(m.objetivo)}</p></button>`).join('')}</div>
-    <div class="seccion-titulo"><div><h2>Wargame</h2><p>15 niveles; cada contraseña abre el siguiente</p></div><span class="contador">${store.estado.wargameCompletados.length}/15</span></div>
-    <div class="wargame-lista">${WARGAME.map((n) => {
-      const abierto = store.nivelWargameDesbloqueado(n.n);
-      const hecho = store.estado.wargameCompletados.includes(n.n);
-      return `<button class="nivel-wargame" data-wargame="${escapar(n.id)}" ${abierto ? '' : 'disabled'} ${hecho ? 'data-hecho' : ''}><b>${hecho ? '✓' : String(n.n).padStart(2, '0')}</b><small>${abierto ? escapar(n.nombre) : 'Bloqueado'}</small></button>`;
-    }).join('')}</div>
-    <div class="seccion-titulo"><div><h2>Chuletario de comandos</h2><p>Busca sintaxis y ejemplos sin salir del laboratorio</p></div><span class="contador">${TODOS_COMANDOS.length} comandos</span></div>
-    <div class="buscador"><input class="campo" id="buscar-comando" type="search" placeholder="Buscar: permisos, grep, red…" aria-label="Buscar comandos"></div><div class="comandos-grid" id="lista-comandos">${renderComandos(TODOS_COMANDOS.slice(0, 18))}</div>
+  vista.innerHTML = `<div class="pagina">
+    <section class="tarjeta panel-retos">
+      <span class="eyebrow">Retos</span>
+      <h1>Practica con retos</h1>
+      <p>Objetivos cortos que se comprueban por el estado del sistema, no por el texto que escribes.</p>
+      <span class="panel-retos-emoji emoji-vivo" aria-hidden="true">⚔️</span>
+      <div class="linea-avance"><b>${hechas.length} de ${MISIONES.length} completados</b><span>${porcentaje(avanceRetos)}%</span></div>
+      <span class="barra"><i style="width:${porcentaje(avanceRetos)}%"></i></span>
+    </section>
+
+    <div class="accesos">
+      ${filaAcceso('🧪', 'Modo libre', 'Una terminal sin objetivo, restaurable', 'data-laboratorio="libre"')}
+      ${filaAcceso('🏴', 'Wargame', `${wargameHechos}/15 niveles encadenados por contraseña`, 'data-wargame="bandit-0"')}
+      ${filaAcceso('📖', 'Chuletario', `${TODOS_COMANDOS.length} comandos con sintaxis y ejemplo`, 'data-abrir="chuletario"')}
+    </div>
+
+    <div class="seccion-titulo"><div><h2>Retos</h2><p>De la orientación básica al escaneo de un servicio</p></div></div>
+    <div class="retos">${MISIONES.map((m) => renderTarjetaReto(m, hechas.includes(m.id))).join('')}</div>
+
+    <details class="plegable" ${debiles.length ? 'open' : ''}>
+      <summary><span class="plegable-emoji emoji-vivo" aria-hidden="true">🎯</span><b>Tus puntos débiles</b><span class="plegable-cuenta">${debiles.length || '—'}</span><i class="modulo-flecha" aria-hidden="true">▾</i></summary>
+      <div class="plegable-cuerpo">
+        ${debiles.length
+          ? `<div class="debiles">${debiles.map((d) => {
+              const ejercicio = store.ejercicioParaHabilidad(d.id);
+              const acierto = d.intentos ? Math.round((d.aciertos / d.intentos) * 100) : 0;
+              return `<div class="debil" data-nivel="${d.nivel}">
+                <span class="debil-icono">${NIVELES_DOMINIO[d.nivel].icono}</span>
+                <span class="debil-info">
+                  <b>${escapar(nombreHabilidad(d.id))}</b>
+                  <small>${d.fallos} ${d.fallos === 1 ? 'fallo' : 'fallos'} en ${d.intentos} ${d.intentos === 1 ? 'intento' : 'intentos'} · ${acierto}% de acierto</small>
+                  <span class="debil-barra"><i style="width:${acierto}%"></i></span>
+                </span>
+                ${ejercicio ? `<button class="btn-secundario btn-mini" data-sala="${escapar(ejercicio.salaId)}" data-ejercicio="${escapar(ejercicio.id)}">Entrenar</button>` : ''}
+              </div>`;
+            }).join('')}</div>`
+          : '<p class="vacio-suave">Aún no hay datos suficientes. Cuando falles algún ejercicio aparecerá aquí, con un botón para entrenarlo directamente.</p>'}
+      </div>
+    </details>
+
+    <details class="plegable" ${repasos.length ? 'open' : ''}>
+      <summary><span class="plegable-emoji emoji-vivo" aria-hidden="true">↻</span><b>Repaso de hoy</b><span class="plegable-cuenta">${repasos.length || 'al día'}</span><i class="modulo-flecha" aria-hidden="true">▾</i></summary>
+      <div class="plegable-cuerpo">
+        ${repasos.length
+          ? `<div class="repasos-grid">${repasos.map((e) => `<button class="tarjeta repaso-card" data-repasar="${escapar(e.id)}"><div class="tarjeta-top"><span class="ejercicio-tipo">${tipoEjercicio(e.tipo)}</span><span class="modo-repaso">↻ toca hoy</span></div><h3>${escapar(SALA_POR_ID[e.salaId]?.nombre || 'Repaso')}</h3><p>${htmlSeguro(e.enunciado)}</p></button>`).join('')}</div>`
+          : '<div class="estado-vacio"><b>Memoria al día</b><span>Los ejercicios volverán cuando el intervalo de repaso termine.</span></div>'}
+      </div>
+    </details>
+
+    <details class="plegable">
+      <summary><span class="plegable-emoji emoji-vivo" aria-hidden="true">🏴</span><b>Wargame</b><span class="plegable-cuenta">${wargameHechos}/15</span><i class="modulo-flecha" aria-hidden="true">▾</i></summary>
+      <div class="plegable-cuerpo">
+        <p class="plegable-nota">Cada nivel esconde la contraseña del siguiente.</p>
+        <div class="wargame-lista">${WARGAME.map((n) => {
+          const abierto = store.nivelWargameDesbloqueado(n.n);
+          const hecho = store.estado.wargameCompletados.includes(n.n);
+          return `<button class="nivel-wargame" data-wargame="${escapar(n.id)}" ${abierto ? '' : 'disabled'} ${hecho ? 'data-hecho' : ''}><b>${hecho ? '✓' : String(n.n).padStart(2, '0')}</b><small>${abierto ? escapar(n.nombre) : 'Bloqueado'}</small></button>`;
+        }).join('')}</div>
+      </div>
+    </details>
+
+    <details class="plegable" id="chuletario">
+      <summary><span class="plegable-emoji emoji-vivo" aria-hidden="true">📖</span><b>Chuletario de comandos</b><span class="plegable-cuenta">${TODOS_COMANDOS.length}</span><i class="modulo-flecha" aria-hidden="true">▾</i></summary>
+      <div class="plegable-cuerpo">
+        <div class="buscador"><input class="campo" id="buscar-comando" type="search" placeholder="Buscar: permisos, grep, red…" aria-label="Buscar comandos"></div>
+        <div class="comandos-grid" id="lista-comandos">${renderComandos(TODOS_COMANDOS.slice(0, 18))}</div>
+      </div>
+    </details>
   </div>`;
+
   const buscador = document.getElementById('buscar-comando');
   buscador.addEventListener('input', () => { store.contarBusqueda(); const lista = buscador.value.trim() ? buscarComandos(buscador.value).slice(0, 30) : TODOS_COMANDOS.slice(0, 18); document.getElementById('lista-comandos').innerHTML = renderComandos(lista); });
+}
+
+// Fila de acceso: icono, nombre, explicación y flecha. Sustituye a las
+// tarjetas grandes que estiraban la pantalla.
+function filaAcceso(emoji, titulo, nota, atributos = '') {
+  return `<button class="fila-acceso" ${atributos}>
+    <span class="fila-acceso-emoji emoji-vivo" aria-hidden="true">${emoji}</span>
+    <span class="fila-texto"><b>${escapar(titulo)}</b><small>${escapar(nota)}</small></span>
+    <i aria-hidden="true">›</i>
+  </button>`;
+}
+
+// Tarjeta de reto: portada ilustrada con su insignia de dificultad, el
+// objetivo y un botón grande. Misma anatomía que las academias.
+function renderTarjetaReto(mision, hecho) {
+  const nivel = nivelDificultad(mision.dificultad);
+  const escena = escenaDe(`${mision.nombre} ${mision.objetivo}`, mision.id);
+  const insignia = `<span class="insignia-dificultad" data-nivel="${nivel}">
+    <i aria-hidden="true"><b></b><b></b><b></b></i>${escapar(mision.dificultad.toUpperCase())}
+  </span>`;
+  return `<article class="tarjeta tarjeta-reto">
+    <button class="cubierta-boton" data-laboratorio="${escapar(mision.id)}" aria-label="Abrir el reto ${escapar(mision.nombre)}">
+      ${cubierta(null, { escena, rotulo: 'CHALLENGE', titulo: mision.nombre, color: nivel === 'facil' ? 'lime' : nivel === 'media' ? 'amber' : 'red', etiqueta: hecho ? 'Completado' : '', insignia })}
+    </button>
+    <div class="academia-cuerpo">
+      <p>${htmlSeguro(mision.objetivo)}</p>
+      <div class="reto-meta"><span class="chip">+${mision.xp} XP</span><span class="chip">${hecho ? 'Resuelto ✓' : 'Sin resolver'}</span></div>
+    </div>
+    <div class="academia-pie">
+      <button class="btn" data-laboratorio="${escapar(mision.id)}">${hecho ? '↻ Repetir el reto' : '▶ Empezar reto'}</button>
+    </div>
+  </article>`;
 }
 
 function renderComandos(lista) {
@@ -1229,7 +1320,7 @@ function renderComandos(lista) {
 
 function renderLaboratorio(id = 'libre') {
   const mision = MISIONES.find((m) => m.id === id);
-  vista.innerHTML = `<div class="pagina pagina-terminal"><button class="enlace-volver" data-ir="practicar">← Volver a Practicar</button><header class="detalle-cabecera"><span class="eyebrow">${mision ? `Misión rápida · ${escapar(mision.dificultad)}` : 'Modo libre · sistema restaurable'}</span><h1>${escapar(mision?.nombre || 'Laboratorio Linux')}</h1><p>${mision ? htmlSeguro(mision.objetivo) : 'Explora la terminal sin objetivo ni riesgo. Escribe `help` para ver los comandos disponibles.'}</p>${mision ? `<div class="chips"><span class="chip">+${mision.xp} XP</span><span class="chip">Solución por estado, no por texto</span></div>` : ''}</header><section class="panel-lab" style="margin-top:15px"><div class="terminal-zona" id="terminal-laboratorio"></div><div class="acciones"><button class="btn-fantasma btn-mini" data-reiniciar-lab>Restaurar sistema</button>${mision ? '<button class="btn-fantasma btn-mini" data-solucion-lab>Ver solución</button>' : ''}</div><div class="feedback" data-feedback-lab></div></section></div>`;
+  vista.innerHTML = `<div class="pagina pagina-terminal"><button class="enlace-volver" data-ir="practicar">← Volver a Retos</button><header class="detalle-cabecera"><span class="eyebrow">${mision ? `Misión rápida · ${escapar(mision.dificultad)}` : 'Modo libre · sistema restaurable'}</span><h1>${escapar(mision?.nombre || 'Laboratorio Linux')}</h1><p>${mision ? htmlSeguro(mision.objetivo) : 'Explora la terminal sin objetivo ni riesgo. Escribe `help` para ver los comandos disponibles.'}</p>${mision ? `<div class="chips"><span class="chip">+${mision.xp} XP</span><span class="chip">Solución por estado, no por texto</span></div>` : ''}</header><section class="panel-lab" style="margin-top:15px"><div class="terminal-zona" id="terminal-laboratorio"></div><div class="acciones"><button class="btn-fantasma btn-mini" data-reiniciar-lab>Restaurar sistema</button>${mision ? '<button class="btn-fantasma btn-mini" data-solucion-lab>Ver solución</button>' : ''}</div><div class="feedback" data-feedback-lab></div></section></div>`;
   terminalActiva = new Terminal(document.getElementById('terminal-laboratorio'), {
     snapshot: mision?.snapshot || 'profesional', autoFocus: true,
     alEjecutar: (ctx) => {
@@ -1240,7 +1331,7 @@ function renderLaboratorio(id = 'libre') {
       if (!ok) return;
       const ganado = store.completarMision(mision);
       actualizarCabecera();
-      celebrar({ marca: '⚡', titulo: 'Misión completada', texto: 'Objetivo verificado en el sistema simulado.', xp: ganado, botones: [{ texto: 'Más misiones', accion: () => ir('practicar') }, { texto: 'Seguir explorando', principal: false, accion: () => {} }] });
+      celebrar({ marca: '⚡', titulo: 'Misión completada', texto: 'Objetivo verificado en el sistema simulado.', xp: ganado, botones: [{ texto: 'Más retos', accion: () => ir('practicar') }, { texto: 'Seguir explorando', principal: false, accion: () => {} }] });
     },
   });
   vista.querySelector('[data-reiniciar-lab]').addEventListener('click', () => terminalActiva.reiniciar());
@@ -1284,18 +1375,56 @@ function renderPerfil() {
   const habilidades = Object.keys(store.estado.habilidades).map((id) => ({ id, nivel: store.nivelHabilidad(id), datos: store.estado.habilidades[id] })).sort((a, b) => b.nivel - a.nivel || b.datos.aciertos - a.datos.aciertos);
   vista.innerHTML = `<div class="pagina">
     ${renderAvisoInstalacion()}
-    <section class="tarjeta perfil-hero"><div class="avatar">${emojiNivel(s.nivel.nivel)}</div><div><span class="eyebrow">Nivel ${s.nivel.nivel}</span><h1>${escapar(s.nivel.titulo)}</h1><p>${s.nivel.siguiente ? `${s.nivel.faltan} XP para ${escapar(s.nivel.siguiente.titulo)}` : 'Rango máximo alcanzado'}</p><div class="barra" style="margin-top:9px"><i style="width:${porcentaje(s.nivel.progreso)}%"></i></div></div></section>
+    <h1 class="titulo-pantalla">Mi perfil</h1>
+    <section class="tarjeta perfil-hero">
+      <div class="avatar emoji-vivo">${emojiNivel(s.nivel.nivel)}</div>
+      <div>
+        <span class="eyebrow">Nivel ${s.nivel.nivel}</span>
+        <h2>${escapar(s.nivel.titulo)}</h2>
+        <p>${s.nivel.siguiente ? `${s.nivel.faltan} XP para ${escapar(s.nivel.siguiente.titulo)}` : 'Rango máximo alcanzado'}</p>
+        <div class="barra" style="margin-top:9px"><i style="width:${porcentaje(s.nivel.progreso)}%"></i></div>
+      </div>
+      <span class="perfil-porcentaje">${porcentaje(s.nivel.progreso)}%</span>
+    </section>
     <div class="metricas"><div class="metrica"><b>${s.xp}</b><span>XP total</span></div><div class="metrica"><b>${s.racha}</b><span>racha actual</span></div><div class="metrica"><b>${s.maquinas}/${s.totalMaquinas}</b><span>máquinas</span></div><div class="metrica"><b>${s.logros}/${s.totalLogros}</b><span>logros</span></div></div>
     <div class="seccion-titulo"><div><h2>Memoria de habilidades</h2><p>El dominio exige aciertos sin pista, contextos diferentes y repasos en días distintos</p></div><span class="contador">${s.habilidadesDominadas}/${s.habilidades} dominadas</span></div>
-    <section class="tarjeta mapa-habilidades">${habilidades.length ? habilidades.map((h) => `<div class="habilidad-fila"><span class="habilidad-icono" data-nivel="${h.nivel}">${NIVELES_DOMINIO[h.nivel].icono}</span><div><b>${escapar(nombreHabilidad(h.id))}</b><small>${NIVELES_DOMINIO[h.nivel].nombre} · ${h.datos.sinPista || 0} aciertos sin pista · ${(h.datos.fechas || []).length} días</small></div><span class="contador">Nv ${h.nivel}/6</span></div>`).join('') : '<p class="muted">Completa tu primera práctica para empezar el mapa.</p>'}</section>
+    <section class="tarjeta mapa-habilidades">${habilidades.length ? habilidades.map((h) => `<div class="habilidad-fila"><span class="habilidad-icono" data-nivel="${h.nivel}">${NIVELES_DOMINIO[h.nivel].icono}</span><div><b>${escapar(nombreHabilidad(h.id))}</b><small>${NIVELES_DOMINIO[h.nivel].nombre} · ${h.datos.sinPista || 0} ${(h.datos.sinPista || 0) === 1 ? 'acierto' : 'aciertos'} sin pista · ${(h.datos.fechas || []).length} ${(h.datos.fechas || []).length === 1 ? 'día' : 'días'}</small></div><span class="contador">Nv ${h.nivel}/6</span></div>`).join('') : '<p class="muted">Completa tu primera práctica para empezar el mapa.</p>'}</section>
     <div class="seccion-titulo"><div><h2>Mapa de dominio</h2><p>Avance sala por sala</p></div></div><section class="tarjeta dominio">${s.dominio.map((d) => `<div class="dominio-fila"><span>${escapar(d.nombre)}</span><span class="barra"><i style="width:${porcentaje(d.progreso)}%"></i></span><span class="contador">${porcentaje(d.progreso)}%</span></div>`).join('')}</section>
     <div class="seccion-titulo"><div><h2>Comando a comando</h2><p>Frecuencia real en tus terminales</p></div><span class="contador">${s.comandos} ejecuciones</span></div><details class="bloque"><summary><span class="bloque-icono">$_</span><span class="bloque-titulo"><b>Ver los ${dominioComandos.length} comandos</b><small>Ordenados por uso</small></span><span class="chevron">⌄</span></summary><div class="comandos-grid" style="padding:0 12px 14px">${dominioComandos.map((c) => `<div class="comando"><b>${escapar(c.n)}</b><p>${escapar(c.q)}</p><span class="contador">${c.usos} usos</span></div>`).join('')}</div></details>
     <div class="seccion-titulo"><div><h2>Temas de terminal</h2><p>El actual es ${escapar(tema.nombre)}</p></div></div><div class="rejilla">${store.temasDisponibles.map((t) => `<button class="tarjeta" data-tema="${escapar(t.id)}"><div class="tarjeta-top"><h3>${escapar(t.nombre)}</h3><span style="width:17px;height:17px;border-radius:50%;background:${t.colores.acento}"></span></div><p>${escapar(t.desc)}</p>${t.id === tema.id ? '<span class="chip chip-dificultad">Activo</span>' : ''}</button>`).join('')}</div>
     <details class="bloque"><summary><span class="bloque-icono">💾</span><span class="bloque-titulo"><b>Copia de seguridad</b><small>Expórtala antes de instalar la app o cambiar de navegador</small></span><span class="chevron">⌄</span></summary><div class="transferencia" style="padding:0 12px 14px"><button class="btn" data-exportar>Exportar progreso</button><button class="btn-secundario" data-importar>Importar copia</button><button class="btn-fantasma" data-copiar>Copia al portapapeles</button><input class="oculto" id="archivo-importar" type="file" accept="application/json,.json"></div></details>
-    <div class="seccion-titulo"><div><h2>Logros</h2><p>40 hitos de aprendizaje y práctica</p></div><span class="contador">${s.logros}/${LOGROS.length}</span></div><div class="logros">${LOGROS.map((l) => { const conseguido = store.estado.logros.includes(l.id); return `<article class="logro" ${conseguido ? '' : 'data-bloqueado'}><span class="logro-icono">${conseguido ? escapar(l.icono) : '◌'}</span><b>${escapar(l.nombre)}</b><small>${escapar(l.desc)}</small></article>`; }).join('')}</div>
-    <div class="seccion-titulo"><div><h2>Zona de datos</h2><p>La cuenta es local: tú controlas la copia</p></div></div><button class="btn-fantasma btn-peligro" data-reiniciar-progreso>Reiniciar todo el progreso</button>
+    <div class="seccion-titulo"><div><h2>Logros</h2><p>${LOGROS.length} hitos de aprendizaje y práctica</p></div><span class="contador">${s.logros}/${LOGROS.length}</span></div>
+    <section class="tarjeta panel-logros">
+      <p class="panel-logros-cuenta">${s.logros} de ${LOGROS.length} desbloqueados</p>
+      <div class="logros-rejilla">${LOGROS.map((l) => {
+        const conseguido = store.estado.logros.includes(l.id);
+        return `<article class="logro-ficha" ${conseguido ? '' : 'data-bloqueado'} title="${escapar(l.desc)}">
+          <span class="logro-emoji ${conseguido ? 'emoji-vivo' : ''}" aria-hidden="true">${conseguido ? escapar(l.icono) : '🔒'}</span>
+          <b>${escapar(l.nombre)}</b>
+        </article>`;
+      }).join('')}</div>
+    </section>
+
+    <div class="seccion-titulo"><div><h2>Opciones</h2><p>Ajustes de este dispositivo</p></div></div>
+    <div class="opciones">
+      ${filaInterruptor('vibracion', '📳', 'Vibración', store.vibracionActiva)}
+      ${filaInterruptor('sonidos', '🔊', 'Sonidos', store.sonidosActivos)}
+    </div>
+
+    <div class="seccion-titulo"><div><h2>Tus datos</h2><p>Todo es local: no hay cuenta ni servidor</p></div></div>
+    <button class="btn-fantasma btn-peligro" data-reiniciar-progreso>Reiniciar todo el progreso</button>
   </div>`;
   conectarPerfil();
+}
+
+// Interruptor de ajustes: emoji, nombre y palanca. Es un botón real con
+// `aria-pressed` para que el lector de pantalla anuncie el estado.
+function filaInterruptor(ajuste, emoji, titulo, activo) {
+  return `<button class="fila-opcion" data-ajuste="${escapar(ajuste)}" aria-pressed="${activo ? 'true' : 'false'}">
+    <span class="fila-acceso-emoji emoji-vivo" aria-hidden="true">${emoji}</span>
+    <span class="fila-texto"><b>${escapar(titulo)}</b></span>
+    <i class="palanca" aria-hidden="true"></i>
+  </button>`;
 }
 
 function descargarProgreso() {
@@ -1330,11 +1459,32 @@ function conectarPerfil() {
     catch (e) { brindis(e.message || 'No se pudo importar ese archivo'); }
   });
   vista.querySelectorAll('[data-tema]').forEach((b) => b.addEventListener('click', () => { if (store.elegirTema(b.dataset.tema)) { aplicarTema(); renderPerfil(); brindis('Tema aplicado'); } }));
+  vista.querySelectorAll('[data-ajuste]').forEach((b) => b.addEventListener('click', () => {
+    const activo = store.alternarAjuste(b.dataset.ajuste);
+    b.setAttribute('aria-pressed', activo ? 'true' : 'false');
+    if (b.dataset.ajuste === 'sonidos') {
+      sonido.configurar(activo);
+      // Al encenderlo, que se oiga: es la confirmación del propio ajuste.
+      if (activo) sonido.acierto();
+    } else {
+      permitirVibracion(activo);
+      if (activo) vibrar(18);
+    }
+  }));
   vista.querySelector('[data-reiniciar-progreso]').addEventListener('click', () => {
     if (!confirm('¿Borrar todo el progreso local? Esta acción no se puede deshacer.')) return;
     store.reiniciar(); aplicarTema(); actualizarCabecera(); ir('aprender'); brindis('Progreso local reiniciado');
   });
 }
+
+// Un solo toque para todo lo que navega. Va antes que el reparto de rutas
+// porque el sonido acompaña al gesto, no al resultado.
+document.addEventListener('pointerdown', (evento) => {
+  const objetivo = evento.target.closest('button, .fila-leccion, .cubierta-boton, [data-pestana]');
+  if (!objetivo || objetivo.disabled) return;
+  if (objetivo.classList.contains('tecla') || objetivo.classList.contains('consola-ejecutar')) sonido.tecla();
+  else sonido.toque();
+}, { passive: true });
 
 document.addEventListener('click', (evento) => {
   const volver = evento.target.closest('[data-ir]');
@@ -1358,6 +1508,17 @@ document.addEventListener('click', (evento) => {
   if (nivel && !nivel.disabled) return ir('wargame', { id: nivel.dataset.wargame });
   const lab = evento.target.closest('[data-laboratorio]');
   if (lab) return ir('laboratorio', { id: lab.dataset.laboratorio });
+  // Accesos que solo despliegan una sección de la misma pantalla.
+  const abrir = evento.target.closest('[data-abrir]');
+  if (abrir) {
+    const seccion = document.getElementById(abrir.dataset.abrir);
+    if (seccion) {
+      seccion.open = true;
+      seccion.scrollIntoView({ block: 'start', behavior: 'smooth' });
+      seccion.querySelector('input')?.focus({ preventScroll: true });
+    }
+    return;
+  }
   const cerrar = evento.target.closest('[data-cerrar-aviso]');
   if (cerrar) { store.marcarAvisoSafari(); progresoPrevioDetectado = false; return render(); }
   if (evento.target.closest('[data-preparar-instalacion]')) return copiarProgreso();
@@ -1380,6 +1541,8 @@ function cargarRuta(guardar = false) {
 
 progresoPrevioDetectado = document.cookie.includes('mentor_linux_progress=1') && store.xp === 0;
 store.registrarActividad();
+sonido.configurar(store.sonidosActivos);
+permitirVibracion(store.vibracionActiva);
 aplicarTema();
 cargarRuta(false);
 
@@ -1398,6 +1561,14 @@ function vigilarTeclado() {
   if (!vv) return;
   const raiz = document.documentElement;
 
+  // Safari desplaza el DOCUMENTO entero para enseñar el campo enfocado. Como
+  // la app mide exactamente la ventana, ese desplazamiento la saca de cuadro:
+  // se veía la barra de acciones arriba y un hueco vacío debajo. La app nunca
+  // debe scrollear a nivel de página; lo que scrollea es `.vista`.
+  const anclar = () => {
+    if (window.scrollY !== 0 || window.scrollX !== 0) window.scrollTo(0, 0);
+  };
+
   const ajustar = () => {
     // Lo que tapa el teclado es la diferencia entre la ventana y lo visible.
     const tapado = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
@@ -1409,6 +1580,7 @@ function vigilarTeclado() {
 
     // Con el teclado abierto la salida de la consola debe seguir a la vista.
     if (abierto) {
+      anclar();
       const salida = document.querySelector('.consola-salida');
       if (salida) salida.scrollTop = salida.scrollHeight;
     }
@@ -1416,16 +1588,24 @@ function vigilarTeclado() {
 
   vv.addEventListener('resize', ajustar);
   vv.addEventListener('scroll', ajustar);
+  window.addEventListener('scroll', () => { if (raiz.hasAttribute('data-teclado')) anclar(); }, { passive: true });
   ajustar();
 
-  // Al enfocar la línea de comandos, asegurar que queda por encima del teclado.
+  // Al enfocar la línea de comandos, dejarla justo encima del teclado. Se
+  // desplaza el contenedor `.vista`, no la página, y sin animación: con
+  // `smooth` el desplazamiento competía con el del teclado y quedaba a medias.
   document.addEventListener('focusin', (e) => {
     if (!e.target.classList?.contains('consola-input')) return;
-    setTimeout(() => {
-      e.target.closest('.consola')?.scrollIntoView({ block: 'end', behavior: 'smooth' });
+    const acercar = () => {
+      anclar();
+      e.target.closest('.consola')?.scrollIntoView({ block: 'nearest', behavior: 'auto' });
       const salida = document.querySelector('.consola-salida');
       if (salida) salida.scrollTop = salida.scrollHeight;
-    }, 260);
+    };
+    // Dos pasadas: una en cuanto el teclado empieza a subir y otra cuando ya
+    // terminó de animarse, que es cuando `visualViewport` da la altura buena.
+    setTimeout(acercar, 120);
+    setTimeout(acercar, 380);
   });
 }
 

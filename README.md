@@ -6,8 +6,10 @@ La v4 conserva el contenido y lo sirve **una cosa por pantalla**: cada tarea es 
 
 ## Qué incluye
 
-- **24 salas** organizadas en 5 academias y 10 rutas: Linux, Redes, Bash, Seguridad ofensiva y Defensa.
-- **146 lecciones y 563 ejercicios** con decisión, recuperación, completar, construcción de comandos y terminal.
+- **42 salas** organizadas en 5 academias y 17 rutas: Linux, Redes, Bash, Seguridad ofensiva y Defensa.
+- **236 lecciones y 1.110 ejercicios** con decisión, recuperación, completar, construcción de comandos y terminal.
+- **Redes desde cero**: cómo viaja un paquete, direcciones y subredes, y diagnóstico de conexiones, latencia y rutas.
+- **Pentesting desde cero**: qué se contrata y qué se firma, familias de vulnerabilidades web y almacenamiento de contraseñas.
 - **Reproductor paso a paso**: un bloque de teoría o un ejercicio por pantalla, barra de progreso por lección, saltar y repescar, y pantalla de cierre con el resumen.
 - **Sala 0 intensiva** con 37 interacciones para practicar repetidamente `pwd`, `ls`, `cd`, ayuda y errores.
 - **12 máquinas simuladas** — 5 fáciles, 4 medias y 3 difíciles— con reconocimiento, enumeración, acceso, escalada, `user.txt`, `root.txt` y writeup.
@@ -16,8 +18,9 @@ La v4 conserva el contenido y lo sirve **una cosa por pantalla**: cada tarea es 
 - **107 fichas de chuletario**, 154 comandos/builtins disponibles en el motor y búsqueda offline.
 - **40 logros**, 15 rangos, racha, combos, temas y dominio real por habilidad.
 - **PWA offline** instalable en iOS, Android y escritorio.
+- **Portadas ilustradas** dibujadas en SVG y **sonidos sintetizados** con WebAudio: ni una imagen ni un archivo de audio, así que la app sigue entera sin conexión.
 
-La navegación principal tiene cuatro áreas: **Aprender · Máquinas · Practicar · Perfil**.
+La navegación principal tiene cuatro áreas: **Aprender · Máquinas · Retos · Perfil**.
 
 Dentro de Aprender la jerarquía es: **academia → sala → lección → paso**. Una academia agrupa
 salas, una sala enumera sus lecciones y una lección se recorre pantalla a pantalla.
@@ -71,14 +74,14 @@ python3 -m http.server 8123
 ```bash
 node tests/shell.test.mjs        # 180 pruebas heredadas del motor
 node tests/content.test.mjs      # 1.991 comprobaciones del contenido original
-node tests/v2-shell.test.mjs     # 12 pruebas de herramientas nuevas
-node tests/v2-content.test.mjs   # 2.480 comprobaciones v2 y resolución integral
-node tests/e2e.mjs               # 32 flujos en móvil, persistencia y offline
+node tests/v2-shell.test.mjs     # 67 pruebas de herramientas nuevas
+node tests/v2-content.test.mjs   # 8.915 comprobaciones y resolución de los 1.110 ejercicios
+node tests/e2e.mjs               # 88 comprobaciones en móvil, persistencia y offline
 ```
 
 `v2-content.test.mjs` resuelve todos los ejercicios de terminal con su solución de referencia, completa las cuatro fases y ambas flags de cada máquina, encadena los 15 niveles y comprueba migración, debounce y precaché PWA.
 
-`e2e.mjs` requiere el servidor local en el puerto 8123. Recorre una sala, una máquina completa, Wargame, laboratorio, perfil y offline a 390×844; deja las capturas en `.capturas/`.
+`e2e.mjs` requiere el servidor local en el puerto 8123. Recorre una sala, una máquina completa, Wargame, retos, perfil y offline a 390×844; deja las capturas en `.capturas/`.
 
 ## Estructura
 
@@ -91,15 +94,21 @@ css/
   terminal.css             la consola, única isla oscura de la app
 js/
   app.js                   cuatro áreas y flujos interactivos
+  arte.js                  ilustraciones SVG de las portadas, sin imágenes
+  sonido.js                avisos sintetizados con WebAudio, sin archivos
   store.js                 progreso v3, dominio, repaso, migración y copias
   engine/                  filesystem, shell, terminal y comandos
   data/
     modulos-1..4.js        contenido original conservado
     salas.js               academias, rutas, ampliaciones y Sala 0
+    salas-redes-cero.js    redes desde cero, subredes y diagnóstico
+    salas-pentesting.js    auditoría, vulnerabilidades web y contraseñas
     habilidades.js         catálogo, inferencia y niveles de dominio
     maquinas.js            12 laboratorios por fases
     wargame.js             15 niveles encadenados
     snapshots.js           sistemas virtuales reproducibles
+tools/
+  iconos.html              arte fuente de los iconos: los PNG son capturas suyas
 tests/                     motor, contenido y E2E móvil
 sw.js                      precaché y funcionamiento offline
 manifest.webmanifest       instalación PWA

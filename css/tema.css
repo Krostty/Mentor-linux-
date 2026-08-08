@@ -371,28 +371,47 @@ body::before {
 .cubierta::after {
   content: "";
   position: absolute;
-  inset: 40% 0 0;
-  background: linear-gradient(180deg, transparent, rgba(6, 10, 18, .82));
+  z-index: 2;
+  inset: 34% 0 0;
+  background: linear-gradient(180deg, transparent, rgba(6, 10, 18, .86));
 }
 
-.cubierta-glifo {
+/* La ilustración: un SVG dibujado en js/arte.js que ocupa la portada
+   entera. `slice` la recorta por los lados al pasar de 16/8 (catálogo) a
+   16/9 (cabecera a sangre) en vez de deformarla. */
+.cubierta-arte {
   position: absolute;
-  right: 4%;
-  top: 46%;
+  inset: 0;
   z-index: 1;
-  transform: translateY(-50%) rotate(-7deg);
-  color: color-mix(in srgb, var(--acento-academia, var(--azul)) 60%, transparent);
-  font: 800 clamp(58px, 20vw, 108px)/1 var(--mono);
-  letter-spacing: -.08em;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+/* Rótulo en mayúsculas que corona la portada, como en la referencia. */
+.cubierta-rotulo {
+  position: absolute;
+  left: 50%;
+  top: 11px;
+  z-index: 3;
+  transform: translateX(-50%);
+  max-width: 88%;
+  overflow: hidden;
+  color: rgba(255, 255, 255, .92);
+  font: 700 clamp(9.5px, 2.9vw, 12px) var(--mono);
+  letter-spacing: .2em;
+  text-align: center;
+  text-transform: uppercase;
   white-space: nowrap;
-  text-shadow: 0 0 44px color-mix(in srgb, var(--acento-academia, var(--azul)) 45%, transparent);
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 10px rgba(0, 0, 0, .6);
 }
 
 .cubierta-etiqueta {
   position: absolute;
-  left: 16px;
-  top: 14px;
-  z-index: 3;
+  right: 14px;
+  top: 13px;
+  z-index: 4;
   padding: 4px 9px;
   border-radius: 999px;
   background: rgba(255, 255, 255, .14);
@@ -408,7 +427,7 @@ body::before {
   left: 16px;
   right: 16px;
   bottom: 13px;
-  z-index: 3;
+  z-index: 4;
   display: block;
   color: #fff;
   font: 800 clamp(19px, 5.4vw, 25px)/1.15 var(--mono);
@@ -422,6 +441,7 @@ body::before {
 [data-color="magenta"] { --acento-academia: #c05ce8; }
 [data-color="red"]     { --acento-academia: #f2564a; }
 [data-color="blue"]    { --acento-academia: #4d84ff; }
+[data-color="amber"]   { --acento-academia: #f0a63a; }
 
 /* =====================================================================
    8. Portada
@@ -697,7 +717,7 @@ body::before {
   backdrop-filter: blur(8px);
 }
 /* Con la flecha flotando arriba a la izquierda, la etiqueta se aparta. */
-.cabecera-cubierta .cubierta-etiqueta { left: 60px; top: 19px; }
+.cabecera-cubierta .cubierta-etiqueta { top: 19px; }
 .titulo-detalle { margin: 16px 0 6px; font-size: clamp(23px, 6.4vw, 31px); line-height: 1.12; }
 .texto-detalle { margin: 0 0 4px; color: var(--muted); font-size: 14.5px; line-height: 1.55; }
 
@@ -845,3 +865,233 @@ body::before {
   .stat-chip:nth-child(2) { display: inline-block; }
   .marca { font-size: 14px; }
 }
+
+/* =====================================================================
+   11. Emojis con vida
+   Los emojis son la única «ilustración» de la interfaz fuera de las
+   portadas, así que respiran: flotan muy poco y muy despacio. La
+   animación se desfasa por posición para que no latan todos al unísono,
+   y desaparece entera si el sistema pide menos movimiento.
+   ===================================================================== */
+
+@keyframes flotar-emoji {
+  0%, 100% { transform: translateY(0) rotate(0deg); }
+  35%      { transform: translateY(-2.5px) rotate(-4deg); }
+  70%      { transform: translateY(1px) rotate(3deg); }
+}
+@keyframes latir-emoji {
+  0%, 100% { transform: scale(1); }
+  45%      { transform: scale(1.13); }
+}
+
+.emoji-vivo {
+  display: inline-block;
+  animation: flotar-emoji 3.6s ease-in-out infinite;
+  transform-origin: 50% 85%;
+  will-change: transform;
+}
+.emoji-vivo:nth-child(2n) { animation-duration: 4.4s; animation-delay: -.9s; }
+.emoji-vivo:nth-child(3n) { animation-duration: 5.1s; animation-delay: -1.8s; }
+
+/* La racha late en vez de flotar: es un fuego. */
+.metrica-inicio:last-child > span:first-child,
+.metrica-fuego { animation: latir-emoji 1.9s ease-in-out infinite; }
+
+/* Al completarse una fila, su marca da un salto corto. */
+@keyframes pop-emoji {
+  0%   { transform: scale(1); }
+  40%  { transform: scale(1.35) rotate(-8deg); }
+  100% { transform: scale(1); }
+}
+.fila-leccion[data-estado="hecha"] .fila-icono { animation: pop-emoji .5s ease-out; }
+
+@media (prefers-reduced-motion: reduce) {
+  .emoji-vivo,
+  .metrica-inicio:last-child > span:first-child,
+  .metrica-fuego,
+  .fila-leccion[data-estado="hecha"] .fila-icono { animation: none; }
+}
+
+/* =====================================================================
+   12. Retos (pestaña Practicar)
+   ===================================================================== */
+
+.titulo-pantalla { margin: 4px 0 14px; font: 800 clamp(26px, 8vw, 33px)/1.1 var(--mono); letter-spacing: -.05em; }
+
+.panel-retos { position: relative; padding: 17px 18px 18px; }
+.panel-retos h1 { margin: 2px 0 6px; font: 800 clamp(21px, 6.2vw, 27px)/1.15 var(--mono); letter-spacing: -.045em; }
+.panel-retos p { margin: 0 76px 14px 0; color: var(--muted); font-size: 13.5px; }
+.panel-retos-emoji { position: absolute; right: 18px; top: 42px; font-size: 34px; }
+.linea-avance { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 8px; }
+.linea-avance b { color: var(--muted); font: 700 12.5px var(--mono); }
+.linea-avance span { color: var(--ink); font: 800 13px var(--mono); }
+
+/* Accesos: filas compactas en vez de tarjetas grandes. */
+.accesos, .opciones { display: grid; gap: 10px; margin: 14px 0 4px; }
+.fila-acceso, .fila-opcion {
+  width: 100%;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 16px;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  text-align: left;
+  box-shadow: var(--sombra-1);
+}
+.fila-acceso:active, .fila-opcion:active { transform: scale(.99); }
+.fila-acceso-emoji { font-size: 25px; line-height: 1; }
+.fila-acceso .fila-texto b, .fila-opcion .fila-texto b { display: block; color: var(--ink); font: 800 15px var(--mono); letter-spacing: -.03em; }
+.fila-acceso .fila-texto small { display: block; margin-top: 2px; color: var(--muted); font-size: 12.5px; }
+.fila-acceso > i { color: var(--dim); font: 800 19px var(--mono); font-style: normal; }
+
+/* Palanca de los ajustes. */
+.palanca {
+  width: 50px;
+  height: 30px;
+  position: relative;
+  flex: none;
+  border-radius: 999px;
+  background: var(--panel-3);
+  transition: background .18s ease;
+}
+.palanca::after {
+  content: "";
+  position: absolute;
+  left: 3px;
+  top: 3px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(19, 32, 56, .25);
+  transition: transform .18s ease;
+}
+.fila-opcion[aria-pressed="true"] .palanca { background: var(--azul); }
+.fila-opcion[aria-pressed="true"] .palanca::after { transform: translateX(20px); }
+
+/* Tarjetas de reto: misma anatomía que las academias. */
+.retos { display: grid; gap: 16px; }
+.tarjeta-reto { overflow: hidden; padding: 0; }
+.tarjeta-reto .academia-cuerpo { padding: 15px 16px 4px; }
+.tarjeta-reto .academia-cuerpo p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.reto-meta { display: flex; gap: 7px; margin-top: 11px; }
+.tarjeta-reto .academia-pie { padding: 13px 16px 16px; }
+.tarjeta-reto .academia-pie .btn { width: 100%; }
+
+/* Insignia de dificultad sobre la portada, con sus barritas de señal. */
+.insignia-dificultad {
+  position: absolute;
+  left: 16px;
+  bottom: 15px;
+  z-index: 4;
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 11px 5px 9px;
+  border: 1px solid rgba(255, 255, 255, .22);
+  border-radius: 999px;
+  background: rgba(10, 15, 26, .6);
+  color: #fff;
+  font: 700 10px var(--mono);
+  letter-spacing: .13em;
+  backdrop-filter: blur(6px);
+}
+.insignia-dificultad i { display: flex; align-items: flex-end; gap: 1.6px; height: 10px; }
+.insignia-dificultad b { width: 2.6px; border-radius: 1px; background: rgba(255, 255, 255, .28); }
+.insignia-dificultad b:nth-child(1) { height: 4px; }
+.insignia-dificultad b:nth-child(2) { height: 7px; }
+.insignia-dificultad b:nth-child(3) { height: 10px; }
+.insignia-dificultad[data-nivel="facil"] b:nth-child(1),
+.insignia-dificultad[data-nivel="media"] b:nth-child(-n+2),
+.insignia-dificultad[data-nivel="dificil"] b { background: var(--acento-academia, var(--azul)); }
+
+/* Con insignia abajo a la izquierda, el título de la portada sube. */
+.tarjeta-reto .cubierta-titulo { bottom: 46px; }
+
+/* =====================================================================
+   13. Secciones plegables
+   Lo que antes era una columna infinita ahora se abre solo si lo pides.
+   ===================================================================== */
+
+.plegable {
+  margin: 14px 0;
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: var(--sombra-1);
+}
+.plegable > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto auto;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 16px;
+  cursor: pointer;
+  list-style: none;
+}
+.plegable > summary::-webkit-details-marker { display: none; }
+.plegable-emoji { font-size: 21px; line-height: 1; }
+.plegable > summary b { color: var(--ink); font: 800 15.5px var(--mono); letter-spacing: -.03em; }
+.plegable-cuenta { color: var(--muted); font: 700 12px var(--mono); }
+.plegable[open] > summary { border-bottom: 1px solid var(--line); }
+.plegable[open] > summary .modulo-flecha { transform: rotate(180deg); }
+.plegable-cuerpo { padding: 15px 16px 17px; }
+.plegable-cuerpo > :first-child { margin-top: 0; }
+.plegable-nota { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
+
+/* =====================================================================
+   14. Perfil
+   ===================================================================== */
+
+.perfil-hero { position: relative; align-items: center; gap: 15px; padding: 18px; }
+.perfil-hero h2 { margin: 1px 0 3px; font: 800 21px var(--mono); letter-spacing: -.04em; }
+.perfil-hero p { margin: 0; color: var(--muted); font-size: 13px; }
+.perfil-hero .avatar {
+  width: 62px;
+  height: 62px;
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: linear-gradient(160deg, rgba(23, 167, 239, .18), rgba(23, 167, 239, .07));
+  font-size: 31px;
+}
+.perfil-porcentaje {
+  position: absolute;
+  right: 16px;
+  top: 16px;
+  padding: 6px 11px;
+  border-radius: 999px;
+  background: rgba(23, 167, 239, .12);
+  color: var(--cyan);
+  font: 800 12.5px var(--mono);
+}
+
+.panel-logros { padding: 16px; }
+.panel-logros-cuenta { margin: 0 0 14px; color: var(--muted); font: 700 13px var(--mono); }
+.logros-rejilla { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 8px; }
+.logro-ficha { display: grid; justify-items: center; gap: 6px; text-align: center; }
+.logro-emoji { font-size: 30px; line-height: 1.1; }
+.logro-ficha b { color: var(--ink); font: 700 10.5px/1.25 var(--mono); letter-spacing: -.02em; }
+.logro-ficha[data-bloqueado] { opacity: .55; }
+.logro-ficha[data-bloqueado] b { color: var(--dim); }
+
+@media (min-width: 650px) {
+  .retos { grid-template-columns: repeat(2, 1fr); }
+  .logros-rejilla { grid-template-columns: repeat(6, minmax(0, 1fr)); }
+}
+
+/* Cuando la portada lleva título encima, la ilustración se retira hacia
+   arriba y el velo empieza más alto: así el texto cae siempre sobre fondo
+   oscuro limpio en vez de encima del dibujo. */
+.cubierta[data-con-titulo] .cubierta-arte { height: 82%; }
+.cubierta[data-con-titulo]::after { inset: 50% 0 0; background: linear-gradient(180deg, transparent, rgba(6, 10, 18, .93)); }
+
+/* Los retos llevan título Y insignia, así que necesitan más zona limpia. */
+.tarjeta-reto .cubierta { aspect-ratio: 16 / 10.5; }
+.tarjeta-reto .cubierta-arte { height: 72%; }
+.tarjeta-reto .cubierta::after { inset: 44% 0 0; }

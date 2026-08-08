@@ -2,7 +2,7 @@
 // Estrategia: cache-first para los recursos propios, con actualización en
 // segundo plano. Como todo es estático, no hay nada que pedir a la red.
 
-const VERSION = 'mentor-linux-v5-rework-claro';
+const VERSION = 'mentor-linux-v6-portadas-sonido-contenido';
 
 const RECURSOS = [
   './',
@@ -14,6 +14,8 @@ const RECURSOS = [
   'css/terminal.css',
   'js/app.js',
   'js/ui.js',
+  'js/arte.js',
+  'js/sonido.js',
   'js/store.js',
   'js/engine/fs.js',
   'js/engine/shell.js',
@@ -44,6 +46,8 @@ const RECURSOS = [
   'js/data/salas.js',
   'js/data/piezas.js',
   'js/data/salas-redes.js',
+  'js/data/salas-redes-cero.js',
+  'js/data/salas-pentesting.js',
   'js/data/salas-ofensiva.js',
   'js/data/salas-defensa.js',
   'js/data/refuerzos-2.js',

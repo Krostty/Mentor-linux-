@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>Iconos de Mentor Linux</title>
+<!--
+  Arte fuente de los iconos de la app. No hay proceso de compilación: los PNG
+  de assets/icons/ son capturas de estos cuadrados a su tamaño exacto.
+
+  Para regenerarlos a mano: abre este archivo, amplía hasta que el cuadrado
+  mida los píxeles que quieras y captura solo el cuadrado. Con Playwright o
+  Puppeteer, captura el elemento por su id (#i180, #i192, #i512, #imask).
+-->
+<style>
+  body { margin: 0; display: flex; flex-wrap: wrap; gap: 24px; padding: 24px; background: #e9edf2; font: 13px ui-monospace, Menlo, monospace; }
+  figure { margin: 0; }
+  figcaption { margin-top: 6px; color: #59626f; }
+
+  .icono {
+    position: relative;
+    display: grid;
+    place-items: center;
+    overflow: hidden;
+    background: linear-gradient(150deg, #26303f 0%, #151b25 55%, #0e131b 100%);
+  }
+  /* Resplandor azul de marca en una esquina, como en las portadas. */
+  .icono::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(70% 62% at 16% 10%, rgba(23,167,239,.52), transparent 64%),
+      radial-gradient(52% 52% at 90% 94%, rgba(110,240,143,.2), transparent 62%);
+  }
+  /* Trama de rejilla finísima: da textura sin ensuciar a tamaño pequeño. */
+  .icono::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(255,255,255,.032) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(255,255,255,.032) 1px, transparent 1px);
+    background-size: 20% 20%, 20% 20%;
+  }
+  .marca {
+    position: relative;
+    z-index: 1;
+    display: flex;
+    align-items: baseline;
+    gap: .06em;
+    color: #6ef08f;
+    font: 800 1em/1 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    letter-spacing: -.06em;
+    text-shadow: 0 0 .28em rgba(110,240,143,.45);
+  }
+  /* El cursor: un bloque, como el de una terminal esperando. */
+  .cursor { width: .46em; height: .62em; background: #6ef08f; box-shadow: 0 0 .3em rgba(110,240,143,.5); }
+
+  #i180  { width: 180px; height: 180px; font-size: 96px; }
+  #i192  { width: 192px; height: 192px; font-size: 102px; }
+  #i512  { width: 512px; height: 512px; font-size: 272px; }
+  /* Maskable: el sistema recorta hasta un 20% por cada lado, así que la
+     marca vive dentro del 60% central y el fondo llega a los bordes. */
+  #imask { width: 512px; height: 512px; font-size: 190px; }
+</style>
+
+<figure><div class="icono" id="i180"><span class="marca">$<i class="cursor"></i></span></div><figcaption>icono-180</figcaption></figure>
+<figure><div class="icono" id="i192"><span class="marca">$<i class="cursor"></i></span></div><figcaption>icono-192</figcaption></figure>
+<figure><div class="icono" id="i512"><span class="marca">$<i class="cursor"></i></span></div><figcaption>icono-512</figcaption></figure>
+<figure><div class="icono" id="imask"><span class="marca">$<i class="cursor"></i></span></div><figcaption>icono-maskable-512</figcaption></figure>

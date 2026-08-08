@@ -241,8 +241,13 @@ try {
 
   console.log('▸ Wargame y laboratorio');
   await pagina.locator('[data-pestana="practicar"]').click();
-  comprobar('hay 8 misiones rápidas', await pagina.locator('[data-laboratorio]:not([data-laboratorio="libre"])').count() === 8);
-  comprobar('hay 15 niveles Wargame', await pagina.locator('[data-wargame]').count() === 16); // 15 niveles + CTA hero
+  comprobar('hay 8 tarjetas de reto', await pagina.locator('.tarjeta-reto').count() === 8);
+  comprobar('cada reto lleva su portada ilustrada', await pagina.locator('.tarjeta-reto .cubierta-arte').count() === 8);
+  comprobar('cada reto lleva su insignia de dificultad', await pagina.locator('.insignia-dificultad').count() === 8);
+  comprobar('los accesos rápidos son tres filas', await pagina.locator('.fila-acceso').count() === 3);
+  const wargame = pagina.locator('details.plegable').filter({ hasText: 'Wargame' }).first();
+  await wargame.locator('summary').click();
+  comprobar('hay 15 niveles Wargame', await pagina.locator('.wargame-lista [data-wargame]').count() === 15);
   await pagina.locator('[data-wargame="bandit-0"]').last().click();
   await comando('cat README');
   await pagina.getByLabel('Contraseña del siguiente nivel').fill('linux-opens-the-door');
@@ -251,13 +256,14 @@ try {
   await pagina.locator('.celebracion [data-boton="0"]').click();
   comprobar('se abre Bandit 1', await pagina.getByText('Wargame · Nivel 01 de 14').isVisible());
   await pagina.locator('[data-pestana="practicar"]').click();
-  await pagina.locator('[data-laboratorio="lab-orientacion"]').click();
+  await pagina.locator('.tarjeta-reto .btn[data-laboratorio="lab-orientacion"]').click();
   for (const cmd of ['whoami', 'pwd', 'uname -a']) await comando(cmd);
   comprobar('misión rápida valida el estado', await pagina.getByRole('heading', { name: 'Misión completada', exact: true }).isVisible());
   await shot('v3-04-laboratorio');
-  await pagina.getByRole('button', { name: 'Más misiones', exact: true }).click();
+  await pagina.getByRole('button', { name: 'Más retos', exact: true }).click();
 
   comprobar('el panel de puntos débiles existe', await pagina.locator('.debiles, .vacio-suave').count() > 0);
+  comprobar('las secciones largas quedan plegadas', await pagina.locator('details.plegable').count() === 4);
 
   console.log('▸ Perfil y offline');
   await pagina.locator('[data-pestana="perfil"]').click();
@@ -269,7 +275,14 @@ try {
   await copia.locator('summary').click();
   comprobar('exportar e importar se despliegan', await pagina.locator('.transferencia [data-exportar]').isVisible());
   comprobar('el mapa cubre todas las salas', await pagina.locator('.dominio-fila').count() === await pagina.evaluate(() => window.__mentor.totales.salas));
-  comprobar('hay 40 tarjetas de logro', await pagina.locator('.logro').count() === 40);
+  comprobar('hay 40 fichas de logro', await pagina.locator('.logro-ficha').count() === 40);
+  comprobar('los ajustes traen vibración y sonidos', await pagina.locator('.fila-opcion[data-ajuste]').count() === 2);
+  const interruptor = pagina.locator('.fila-opcion[data-ajuste="sonidos"]');
+  comprobar('los sonidos vienen encendidos', await interruptor.getAttribute('aria-pressed') === 'true');
+  await interruptor.click();
+  comprobar('el interruptor de sonidos se apaga', await interruptor.getAttribute('aria-pressed') === 'false');
+  comprobar('el ajuste queda guardado', await pagina.evaluate(() => window.__mentor.store.sonidosActivos === false));
+  await interruptor.click();
   comprobar('existe el dominio comando a comando', await pagina.getByText('Ver los 107 comandos').isVisible());
   await shot('v3-05-perfil');
 

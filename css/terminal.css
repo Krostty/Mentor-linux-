@@ -13,6 +13,10 @@
   --line: #31456b;
   --line-soft: rgba(168, 190, 240, .22);
 
+  /* Sin esto el color heredado es el del papel claro: texto casi negro
+     sobre fondo casi negro. Lo que se escribe en la línea de comandos
+     desaparecía. */
+  color: var(--ink);
   width: 100%;
   min-width: 0;
   display: flex;
@@ -30,7 +34,7 @@
   padding: 9px 12px;
   border-bottom: 1px solid rgba(255,255,255,.09);
   background: linear-gradient(90deg, rgba(82,231,255,.055), transparent);
-  color: #7e8caf;
+  color: #a9b7d6;
   font: 10px var(--mono);
   letter-spacing: .08em;
 }
@@ -43,7 +47,7 @@
   -webkit-overflow-scrolling: touch;
 }
 .consola-linea { color: var(--ink); white-space: pre-wrap; overflow-wrap: anywhere; }
-.consola-nota { color: var(--dim); font-style: italic; }
+.consola-nota { color: #a9b7d6; font-style: italic; }
 .consola-entrada {
   display: flex;
   align-items: center;
@@ -53,7 +57,8 @@
   background: rgba(255,255,255,.045);
 }
 .consola-prompt { flex: none; color: var(--term-prompt); font: 12.5px var(--mono); white-space: nowrap; }
-.consola-input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; caret-color: var(--term-acento); font-family: var(--mono); }
+.consola-input { min-width: 0; flex: 1; border: 0; outline: 0; background: transparent; color: var(--ink); caret-color: var(--term-acento); font: 12.5px var(--mono); }
+.consola-input::placeholder { color: #7383a6; opacity: 1; }
 .consola-ejecutar { width: 40px; height: 36px; flex: none; padding: 0; border: 1px solid color-mix(in srgb, var(--term-acento) 42%, transparent); border-radius: 9px; background: color-mix(in srgb, var(--term-acento) 12%, transparent); color: var(--term-acento); font: 850 18px var(--mono); box-shadow: 0 0 18px color-mix(in srgb, var(--term-acento) 8%, transparent); }
 .consola-ejecutar:active { background: var(--term-acento); color: var(--term-fondo); }
 .t-prompt { color: var(--term-prompt); }

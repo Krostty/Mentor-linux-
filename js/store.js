@@ -52,6 +52,10 @@ function estadoInicial() {
     repaso: {},
     creado: hoy(),
     avisoSafariVisto: false,
+    // Ajustes del dispositivo. Van en el progreso para que sobrevivan a la
+    // reinstalación igual que todo lo demás.
+    sonidos: true,
+    vibracion: true,
     // Campos legados conservados para importaciones y logros v1.
     retosCompletados: [],
     retosConPista: [],
@@ -419,6 +423,18 @@ export class Store {
     this.revisarLogros();
     this.guardar();
     return ganado;
+  }
+
+  // Interruptores de Perfil. `!== false` para que un progreso antiguo, que no
+  // tenía estos campos, arranque con ambos encendidos.
+  get sonidosActivos() { return this.estado.sonidos !== false; }
+  get vibracionActiva() { return this.estado.vibracion !== false; }
+
+  alternarAjuste(nombre) {
+    const clave = nombre === 'sonidos' ? 'sonidos' : 'vibracion';
+    this.estado[clave] = this.estado[clave] === false;
+    this.guardar();
+    return this.estado[clave];
   }
 
   elegirTema(id) {

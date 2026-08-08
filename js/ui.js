@@ -1,5 +1,7 @@
 // Ayudantes de interfaz: formato de texto, avisos y celebraciones.
 
+import { sonido } from './sonido.js';
+
 export function escapar(s) {
   return String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 }
@@ -68,6 +70,7 @@ function lanzarChispas(contenedor) {
 export function celebrar({ marca = '🎉', titulo, texto = '', xp = 0, combo = 0, logros = [], botones = [] }) {
   const cont = document.getElementById('celebracion');
   if (!cont) return;
+  sonido.logro();
 
   const logrosHtml = logros
     .map(
@@ -128,7 +131,13 @@ export function porcentaje(fraccion) {
   return Math.round(Math.max(0, Math.min(1, fraccion)) * 100);
 }
 
+// El interruptor de Perfil vive en el progreso; aquí solo se guarda su valor
+// para no meter una dependencia de `store` dentro de la capa de presentación.
+let vibracionPermitida = true;
+export function permitirVibracion(activa) { vibracionPermitida = activa !== false; }
+
 export function vibrar(ms = 12) {
+  if (!vibracionPermitida) return;
   if (navigator.vibrate) {
     try {
       navigator.vibrate(ms);
