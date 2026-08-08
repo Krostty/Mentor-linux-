@@ -125,7 +125,9 @@ export const perms = {
   },
 
   sudo: (args, ctx) => {
-    const { operands, has } = parseArgs(args, { withValue: ['u'] });
+    // `stopAtFirstOperand` deja que las opciones del comando envuelto
+    // (`sudo iptables -L`) lleguen intactas: sin esto, sudo se comía el `-L`.
+    const { operands, has } = parseArgs(args, { withValue: ['u'], stopAtFirstOperand: true });
     // `sudo -l` lista qué puedes ejecutar como root: primera parada de
     // cualquier enumeración local.
     if (has('-l', '--list')) return sudoList(ctx);

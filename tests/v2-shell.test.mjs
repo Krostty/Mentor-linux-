@@ -71,5 +71,23 @@ probar('una ruta protegida del host responde 403', () => run(aud(), 'curl -I htt
 probar('base64 codifica y -d recupera', () => { const sh = aud(); const cod = run(sh, 'base64 alcance.txt').output.trim().split('\n')[0]; return /^[A-Za-z0-9+/=]+$/.test(cod); });
 probar('sha256sum produce un hash de 64 hex', () => /[0-9a-f]{64}/.test(run(aud(), 'sha256sum alcance.txt').output));
 
+console.log('\n▸ Defensa: registros, cuentas e incidente');
+const inc = (extra = {}) => shell('incidente', extra);
+probar('auth.log muestra los intentos fallidos', () => run(inc(), 'grep Failed /var/log/auth.log').output.includes('45.12.9.3'));
+probar('grep -c cuenta los fallidos', () => run(inc(), 'grep -c Failed /var/log/auth.log').output.trim() === '4');
+probar('los accesos con éxito aparecen', () => run(inc(), 'grep Accepted /var/log/auth.log').output.includes('deploy'));
+probar('el registro delata la cuenta creada', () => run(inc(), 'grep useradd /var/log/auth.log').output.includes('backupsvc'));
+probar('la cuenta rogue está en /etc/passwd', () => run(inc(), 'grep backupsvc /etc/passwd').output.includes('1050'));
+probar('cut extrae nombre y UID', () => run(inc(), 'cut -d: -f1,3 /etc/passwd').output.includes('backupsvc:1050'));
+probar('find -newer señala solo lo posterior al incidente', () => { const o = run(inc(), 'find /home -mindepth 1 -maxdepth 1 -newer /var/log/incidente.inicio').output; return o.includes('backupsvc') && !o.includes('/home/ana'); });
+probar('ls -la revela el binario oculto en /tmp', () => run(inc(), 'ls -la /tmp').output.includes('.sysupd'));
+probar('strings saca la IP del implante', () => run(inc(), 'strings /tmp/.sysupd').output.includes('45.12.9.3'));
+probar('sha256sum del artefacto es un hash de 64 hex', () => /[0-9a-f]{64}/.test(run(inc(), 'sha256sum /tmp/.sysupd').output));
+probar('el crontab expone la persistencia', () => run(inc(), 'cat /etc/crontab').output.includes('.sysupd'));
+probar('ufw allow añade una regla', () => run(inc({ user: 'root' }), 'ufw allow 22/tcp').code === 0);
+probar('ufw default deny se acepta', () => run(inc({ user: 'root' }), 'ufw default deny incoming').code === 0);
+probar('sudo iptables -L pasa la opción al comando', () => run(inc({ groupMap: { user: ['user', 'sudo'] } }), 'sudo iptables -L').output.includes('Chain'));
+probar('ss cuenta los servicios a la escucha', () => run(inc(), 'ss -tln | grep -c LISTEN').output.trim() === '4');
+
 console.log(`${ok} pruebas nuevas de shell pasadas, ${mal} fallidas`);
 process.exit(mal ? 1 : 0);

@@ -53,6 +53,7 @@ export const misc = {
         case '-type': tests.push({ k: 'type', v: args[++i] }); break;
         case '-size': tests.push({ k: 'size', v: args[++i] }); break;
         case '-perm': tests.push({ k: 'perm', v: args[++i] }); break;
+        case '-newer': tests.push({ k: 'newer', v: args[++i] }); break;
         case '-user': tests.push({ k: 'user', v: args[++i] }); break;
         case '-group': tests.push({ k: 'group', v: args[++i] }); break;
         case '-empty': tests.push({ k: 'empty' }); break;
@@ -89,6 +90,12 @@ export const misc = {
           if (t.k === 'type') {
             const want = t.v === 'd' ? S_DIR : t.v === 'l' ? S_LINK : S_FILE;
             if (node.type !== want) return;
+          }
+          if (t.k === 'newer') {
+            // Los mtime son cadenas «AAAA-MM-DD HH:MM», comparables en orden.
+            let ref;
+            try { ref = ctx.fs.lookup(ctx.shell.resolve(t.v), ctx).mtime; } catch { return; }
+            if (!(String(node.mtime) > String(ref))) return;
           }
           if (t.k === 'user' && node.owner !== t.v) return;
           if (t.k === 'group' && node.group !== t.v) return;

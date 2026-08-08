@@ -7,6 +7,7 @@ import { habilidadesDeEjercicio } from './habilidades.js';
 import { quiz, respuesta, terminal, ordenar, completar, barajar } from './piezas.js';
 import { SALAS_REDES } from './salas-redes.js';
 import { SALAS_OFENSIVA } from './salas-ofensiva.js';
+import { SALAS_DEFENSA } from './salas-defensa.js';
 import { REFUERZOS_1 } from './refuerzos-1.js';
 import { REFUERZOS_2 } from './refuerzos-2.js';
 
@@ -342,7 +343,7 @@ const SALA_BASH_APLICADO = {
 };
 
 const NORMALIZADAS = MODULOS.map(normalizarModulo);
-const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES, ...SALAS_OFENSIVA];
+const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES, ...SALAS_OFENSIVA, ...SALAS_DEFENSA];
 
 export const RUTAS = [
   { id: 'linux-cero', academia: 'linux', nombre: 'Empieza desde cero', descripcion: 'Terminal, identidad y primeros hábitos', nivel: 'Inicial', salas: ['cero-absoluto', 'inicio'] },
@@ -357,6 +358,7 @@ export const RUTAS = [
   { id: 'ofensiva-base', academia: 'ofensiva', nombre: 'Hacking ético', descripcion: 'Criptografía práctica y metodología autorizada', nivel: 'Intermedio', salas: ['cifrado', 'etico'] },
   { id: 'ofensiva-metodologia', academia: 'ofensiva', nombre: 'Metodología de auditoría', descripcion: 'Reconocimiento, enumeración, acceso y escalada', nivel: 'Avanzado', salas: ['recon', 'enumeracion', 'acceso', 'escalada'] },
   { id: 'defensa-base', academia: 'defensa', nombre: 'Blue Team y análisis', descripcion: 'Hardening, evidencias y respuesta inicial', nivel: 'Intermedio', salas: ['hardening', 'analisis'] },
+  { id: 'defensa-operacion', academia: 'defensa', nombre: 'Operación y respuesta', descripcion: 'Leer registros, cuentas, cortafuegos y respuesta a incidentes', nivel: 'Avanzado', salas: ['logs', 'cuentas', 'firewall', 'respuesta'] },
 ];
 
 // `objetivo` dice qué sabrás HACER al terminar la academia. Un nombre técnico
@@ -366,7 +368,7 @@ export const ACADEMIAS = [
   { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-linux', 'redes-servicios'] },
   { id: 'bash', nombre: 'Bash y automatización', descripcion: 'Convierte comandos en herramientas repetibles', objetivo: 'Automatizas lo que hacías a mano', color: 'magenta', icono: '{}', rutas: ['bash-base', 'bash-proyectos'] },
   { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', objetivo: 'Auditas una máquina de principio a fin', color: 'red', icono: '#!', rutas: ['ofensiva-base', 'ofensiva-metodologia'] },
-  { id: 'defensa', nombre: 'Defensa y forense', descripcion: 'Protege, investiga y explica lo ocurrido', objetivo: 'Detectas un ataque y lo explicas', color: 'blue', icono: '[]', rutas: ['defensa-base'] },
+  { id: 'defensa', nombre: 'Defensa y forense', descripcion: 'Protege, investiga y explica lo ocurrido', objetivo: 'Detectas un ataque y lo explicas', color: 'blue', icono: '[]', rutas: ['defensa-base', 'defensa-operacion'] },
 ];
 
 export const RUTA_POR_ID = Object.fromEntries(RUTAS.map((r) => [r.id, r]));
