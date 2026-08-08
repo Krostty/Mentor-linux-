@@ -84,7 +84,11 @@ node tests/e2e.mjs               # 32 flujos en móvil, persistencia y offline
 
 ```text
 index.html                 aplicación y navegación
-css/                       base, componentes y terminal responsive
+css/
+  base.css                 paleta clara, tipografía monoespaciada y tokens
+  ui.css                   estructura de los componentes
+  tema.css                 piel clara: tarjetas, cubiertas, módulos y filas
+  terminal.css             la consola, única isla oscura de la app
 js/
   app.js                   cuatro áreas y flujos interactivos
   store.js                 progreso v3, dominio, repaso, migración y copias

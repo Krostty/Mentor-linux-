@@ -1,0 +1,847 @@
+/* =====================================================================
+   Piel clara
+   ui.css define la estructura (rejillas, tamaños, estados); este archivo
+   define el aspecto: papel blanco, sombras suaves, azul de marca y las
+   piezas nuevas de la portada (saludo, métricas, rangos y cubiertas).
+   Va después de ui.css a propósito: aquí se corrigen los colores que
+   ui.css trae escritos a mano para el tema oscuro.
+   ===================================================================== */
+
+/* =====================================================================
+   1. Cabecera y barra de pestañas
+   ===================================================================== */
+
+.topbar {
+  position: relative;
+  justify-content: flex-end;
+  padding: calc(10px + var(--safe-top)) 14px 10px;
+  border-bottom: 1px solid var(--line);
+  background: rgba(255, 255, 255, .88);
+  box-shadow: 0 1px 12px rgba(19, 32, 56, .04);
+  backdrop-filter: blur(18px) saturate(1.1);
+}
+
+/* La marca va centrada como en un encabezado de app, y las fichas de
+   progreso quedan a la derecha en formato compacto. */
+.marca {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transform: translate(-50%, -50%);
+  color: var(--ink);
+  font: 800 16px var(--mono);
+  letter-spacing: -.06em;
+  white-space: nowrap;
+}
+.marca span { color: var(--cyan); }
+.marca .marca-prompt {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  border-radius: 8px;
+  background: linear-gradient(150deg, #232a36, #12161d);
+  color: #6ef08f;
+  font: 800 15px var(--mono);
+  animation: none;
+}
+
+.estado-global { gap: 5px; }
+.stat-chip {
+  padding: 4px 8px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--muted);
+  font: 700 10.5px var(--mono);
+  box-shadow: none;
+}
+.stat-xp { color: var(--cyan); background: rgba(23, 167, 239, .1); border-color: rgba(23, 167, 239, .22); }
+
+/* Barra inferior flotante: la propia barra es una pastilla gris clara y la
+   pestaña activa, una pastilla blanca dentro. */
+.pestanas {
+  gap: 4px;
+  margin: 0 12px calc(10px + var(--safe-bottom));
+  padding: 6px;
+  border-top: 0;
+  border-radius: 20px;
+  background: var(--panel-3);
+  box-shadow: inset 0 1px 2px rgba(19, 32, 56, .05);
+  backdrop-filter: none;
+}
+.pestana {
+  min-height: 52px;
+  border-radius: 15px;
+  background: transparent;
+  color: var(--dim);
+  font: 700 11px var(--mono);
+  letter-spacing: -.02em;
+}
+.pestana[data-activa] {
+  background: #fff;
+  color: var(--azul);
+  box-shadow: var(--sombra-1);
+}
+
+/* =====================================================================
+   2. Botones
+   ===================================================================== */
+
+.btn, .btn-secundario, .btn-fantasma, .icon-btn {
+  border-radius: 14px;
+  font-weight: 800;
+  letter-spacing: -.02em;
+}
+.btn {
+  background: linear-gradient(180deg, var(--azul), var(--azul-hondo));
+  color: #fff;
+  box-shadow: var(--sombra-azul);
+}
+.btn-secundario {
+  border-color: rgba(23, 167, 239, .28);
+  background: rgba(23, 167, 239, .1);
+  color: var(--cyan);
+}
+.btn-fantasma, .icon-btn {
+  border-color: var(--line);
+  background: #fff;
+  color: var(--ink);
+  box-shadow: var(--sombra-1);
+}
+.btn:hover, .btn-secundario:hover, .btn-fantasma:hover { transform: translateY(-1px); filter: none; }
+.btn:hover { box-shadow: 0 8px 22px rgba(23, 167, 239, .4); }
+.btn-peligro { color: var(--red); border-color: rgba(225, 67, 86, .32); }
+.enlace-volver { color: var(--cyan); font-weight: 800; }
+
+/* =====================================================================
+   3. Superficies: todo lo que era panel oscuro pasa a tarjeta blanca
+   ===================================================================== */
+
+.tarjeta, .metrica, .nodo, .bloque, .comando, .logro, .fase, .panel-lab,
+.sesion-hoy, .sala-card, .debil, .nivel-wargame, .mapa-habilidades,
+.dominio, .estado-vacio, .detalle-cabecera, .continuar-hoy, .hero {
+  border-color: var(--line);
+  background: var(--panel);
+  box-shadow: var(--sombra-1);
+}
+.tarjeta { border-radius: var(--r-lg); }
+.metrica { border-radius: 18px; }
+.metrica b { color: var(--ink); }
+.metrica span { color: var(--muted); }
+.bloque, .detalle-cabecera { border-radius: var(--r-lg); }
+.bloque summary { background: #fff; }
+.sesion-hoy { background: var(--panel); }
+.sesion-paso > span { border-color: var(--line); background: var(--panel-2); color: var(--muted); }
+.sesion-paso[data-activo] > span { border-color: rgba(23, 167, 239, .35); background: rgba(23, 167, 239, .1); color: var(--cyan); box-shadow: none; }
+button.tarjeta:hover, .sala-card:hover, .nodo:hover:not([disabled]) { border-color: rgba(23, 167, 239, .45); }
+.sala-card:hover { background: #fff; }
+.hero { background: var(--panel); }
+.hero::before, .hero::after { display: none; }
+.hero h1 em { color: var(--cyan); text-shadow: none; }
+.eyebrow { color: var(--cyan); letter-spacing: .14em; }
+
+/* Barras de progreso: pista gris clara y relleno azul. */
+.barra { height: 9px; background: var(--panel-3); }
+.barra > i { background: var(--azul); box-shadow: none; }
+.mini-barra { background: var(--panel-3); }
+.debil-barra { background: var(--panel-3); }
+
+/* Chips y etiquetas */
+.chip { border-color: var(--line); background: var(--panel-2); color: var(--muted); }
+.chip-dificultad { color: var(--cyan); background: rgba(23, 167, 239, .1); border-color: rgba(23, 167, 239, .2); }
+.migas { color: var(--dim); }
+.migas i { color: var(--line); }
+.migas b { color: var(--cyan); }
+.habilidades-sala span { background: var(--panel-2); color: var(--muted); }
+.dificultad { background: rgba(26, 166, 104, .12); color: var(--lime); }
+.dificultad[data-nivel="media"] { background: rgba(217, 134, 10, .13); color: var(--amber); }
+.dificultad[data-nivel="dificil"] { background: rgba(225, 67, 86, .12); color: var(--red); }
+.contador { color: var(--dim); }
+.seccion-titulo p { color: var(--muted); }
+.modo-repaso { border-color: rgba(217, 134, 10, .3); background: rgba(217, 134, 10, .1); color: var(--amber); }
+.skill-chip { border-color: var(--line); background: var(--panel-2); color: var(--muted); }
+.vacio-suave, .estado-vacio { border-color: var(--line); color: var(--muted); }
+
+/* =====================================================================
+   4. El camino de salas
+   ===================================================================== */
+
+.tramo::before { background: var(--panel-3); }
+.tramo-nombre { color: var(--dim); }
+.nodo { border-radius: 16px; }
+.nodo-punto { border-color: var(--line); background: #fff; color: var(--dim); }
+.nodo[data-estado="hecha"] .nodo-punto { background: rgba(26, 166, 104, .12); }
+.nodo[data-estado="curso"] {
+  border-color: rgba(23, 167, 239, .4);
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(23, 167, 239, .12), var(--sombra-1);
+}
+.nodo[data-estado="curso"] .nodo-punto { background: rgba(23, 167, 239, .14); box-shadow: none; }
+.nodo[data-estado="lista"] .nodo-punto { color: var(--muted); }
+.nodo[data-estado="bloqueada"] { opacity: .62; box-shadow: none; }
+.nodo-info small { color: var(--muted); }
+
+/* =====================================================================
+   5. Lección: cabecera, pasos y pie
+   ===================================================================== */
+
+.leccion-top { border-bottom-color: var(--line); background: rgba(255, 255, 255, .9); }
+.leccion-salir { border-color: var(--line); background: #fff; color: var(--muted); box-shadow: var(--sombra-1); }
+.leccion-progreso span { background: var(--panel-3); box-shadow: none; }
+.leccion-progreso span[data-estado="aqui"] { background: var(--azul); box-shadow: none; }
+.leccion-cuerpo { background: transparent; }
+.paso-sub, .paso-fin > p, .fin-siguiente { color: var(--muted); }
+
+.teoria-bloque { border: 1px solid var(--line); background: #fff; box-shadow: var(--sombra-1); }
+.teoria-bloque h3 { color: var(--ink); }
+.teoria-bloque, .teoria-bloque p { color: #3f4753; }
+.teoria-codigo {
+  border-color: #21304d;
+  background: #101a33;
+  color: #dbe9ff;
+  box-shadow: var(--sombra-1);
+}
+.teoria-nota { border-left-color: var(--amber); background: rgba(217, 134, 10, .09); color: #7a5410; }
+.teoria-tabla td { border-bottom-color: var(--line); }
+.teoria-tabla td:first-child { color: var(--cyan); }
+
+.ejercicio {
+  border-color: var(--line);
+  background: #fff;
+  box-shadow: inset 3px 0 var(--azul), var(--sombra-1);
+}
+.ejercicio[data-completo] { border-color: rgba(26, 166, 104, .3); background: rgba(26, 166, 104, .05); box-shadow: inset 3px 0 var(--good), var(--sombra-1); }
+.ejercicio[data-repaso] { border-color: rgba(217, 134, 10, .32); box-shadow: inset 3px 0 var(--amber), var(--sombra-1); }
+.ejercicio-tipo { color: var(--cyan); }
+.ejercicio-xp { color: var(--amber); }
+.ejercicio p { color: var(--ink); }
+.paso-explicacion { border-left-color: var(--azul); background: rgba(23, 167, 239, .08); color: #3f4753; }
+.paso-explicacion b { color: var(--cyan); }
+
+.opcion { border-color: var(--line); background: #fff; box-shadow: var(--sombra-1); }
+.opcion span { border-color: var(--line); background: var(--panel-2); color: var(--cyan); }
+.opcion:hover { border-color: rgba(23, 167, 239, .45); }
+.campo { border-color: var(--line); background: #fff; color: var(--ink); box-shadow: inset 0 1px 2px rgba(19, 32, 56, .05); }
+.campo::placeholder { color: var(--dim); }
+.ficha { border-color: var(--line); background: #fff; color: var(--ink); box-shadow: var(--sombra-1); }
+.ficha:hover { border-color: rgba(23, 167, 239, .45); }
+.fichas .ficha:disabled { opacity: .34; }
+.plantilla-comando { border-color: rgba(23, 167, 239, .3); background: rgba(23, 167, 239, .07); color: var(--cyan); }
+.constructor-salida { border-color: rgba(23, 167, 239, .32); background: var(--panel-2); }
+.pista { background: rgba(217, 134, 10, .1); color: #7a5410; }
+.feedback { color: var(--muted); }
+.feedback[data-error] { color: var(--red); }
+.feedback-completo { background: rgba(26, 166, 104, .1); }
+
+.ficha-comando { border-color: var(--line); background: var(--panel-2); }
+.ficha-comando summary { color: var(--muted); }
+.ficha-cuerpo p { color: var(--ink); }
+.ficha-cuerpo pre { background: #101a33; color: #9fe8ff; }
+
+.fin-marca {
+  background: radial-gradient(circle at 50% 35%, rgba(26, 166, 104, .2), rgba(26, 166, 104, .05));
+  box-shadow: 0 0 0 2px rgba(26, 166, 104, .28), 0 14px 34px rgba(26, 166, 104, .16);
+  color: var(--lime);
+}
+.paso-fin:not([data-completa]) .fin-marca {
+  background: radial-gradient(circle at 50% 35%, rgba(217, 134, 10, .2), rgba(217, 134, 10, .05));
+  box-shadow: 0 0 0 2px rgba(217, 134, 10, .28);
+}
+.fin-datos div { border-color: var(--line); background: #fff; box-shadow: var(--sombra-1); }
+.fin-datos b { color: var(--lime); }
+
+.leccion-pie {
+  border-top-color: var(--line);
+  background: rgba(255, 255, 255, .94);
+  box-shadow: 0 -6px 20px rgba(19, 32, 56, .05);
+}
+.leccion-pie[data-estado="ok"] {
+  border-top-color: rgba(26, 166, 104, .38);
+  background: linear-gradient(180deg, rgba(26, 166, 104, .12), rgba(255, 255, 255, .96));
+}
+@keyframes acierto { from { background-color: rgba(26, 166, 104, .24); } }
+.leccion-xp { color: var(--lime); }
+
+/* =====================================================================
+   6. Máquinas, laboratorio y perfil
+   ===================================================================== */
+
+.maquina-guia-texto { background: rgba(225, 67, 86, .07); color: #57414a; }
+.maquina-desarrollo { border-color: rgba(217, 134, 10, .35); background: rgba(217, 134, 10, .07); }
+.maquina-desarrollo pre { background: #101a33; color: #b6ff5c; }
+.maquina-desarrollo p { color: var(--muted); }
+.maquina-card::after { background: rgba(23, 167, 239, .07); }
+.maquina-host { color: var(--cyan); }
+.fase[data-activa] { border-color: rgba(23, 167, 239, .45); }
+.fase[data-hecha] { border-color: rgba(26, 166, 104, .4); }
+.fase-num { background: var(--panel-2); color: var(--cyan); }
+.fase p { color: var(--muted); }
+.etica { border-color: rgba(217, 134, 10, .28); background: rgba(217, 134, 10, .08); color: #7a5410; }
+.writeup { border-color: rgba(26, 166, 104, .3); background: rgba(26, 166, 104, .06); }
+.writeup li { color: #3f4753; }
+.buscador { background: var(--void); }
+.nivel-wargame b { color: var(--cyan); }
+.comando b { color: var(--cyan); }
+.comando pre { color: var(--cyan); }
+.avatar { border-color: rgba(23, 167, 239, .5); background: var(--panel-2); box-shadow: none; }
+.habilidad-icono { border-color: var(--line); background: #fff; color: var(--dim); }
+.habilidad-icono[data-nivel="3"], .habilidad-icono[data-nivel="4"] { border-color: rgba(23, 167, 239, .4); color: var(--cyan); }
+.habilidad-icono[data-nivel="5"], .habilidad-icono[data-nivel="6"] { border-color: rgba(26, 166, 104, .45); color: var(--lime); box-shadow: none; }
+.habilidad-fila { border-bottom-color: var(--line); }
+.habilidad-fila small { color: var(--dim); }
+.logro small { color: var(--muted); }
+/* El aviso de Safari es informativo y de una sola vez: no debe comerse la
+   primera pantalla. */
+.aviso-safari {
+  padding: 12px 13px;
+  border-color: rgba(217, 134, 10, .35);
+  border-radius: 16px;
+  background: #fffaee;
+  color: #7a5410;
+  font-size: 13px;
+}
+.aviso-safari b { font-size: 13.5px; }
+.aviso-safari p { margin: 4px 0 10px; font-size: 12.5px; line-height: 1.45; }
+.aviso-safari .btn-mini { min-height: 38px; }
+
+.brindis-item {
+  border-color: var(--line);
+  background: #1d2430;
+  color: #f4f7fb;
+  box-shadow: 0 14px 34px rgba(19, 32, 56, .28);
+}
+.celebracion { background: rgba(24, 34, 52, .55); }
+.celebracion-tarjeta { border-color: var(--line); background: #fff; box-shadow: 0 26px 70px rgba(19, 32, 56, .25); }
+.celebracion-tarjeta p { color: var(--muted); }
+.celebracion-xp, .celebracion-combo { background: rgba(26, 166, 104, .12); color: var(--lime); }
+.logro-nuevo { background: var(--panel-2); }
+.logro-nuevo small { color: var(--muted); }
+
+/* El fondo animado se queda, pero en tinta clarísima: da profundidad sin
+   ensuciar el papel. */
+body::before {
+  background:
+    radial-gradient(38% 32% at 18% 10%, rgba(23, 167, 239, .10), transparent 70%),
+    radial-gradient(34% 30% at 86% 18%, rgba(169, 85, 216, .07), transparent 70%),
+    radial-gradient(40% 34% at 60% 96%, rgba(26, 166, 104, .07), transparent 72%);
+}
+
+/* =====================================================================
+   7. Cubiertas ilustradas
+   Cada academia lleva una portada propia dibujada con CSS: base oscura,
+   resplandor de su color, trama de circuito y su símbolo de fondo. Es lo
+   que da a la lista el aire de catálogo de cursos, sin pesar un byte de
+   imagen (la app funciona sin red).
+   ===================================================================== */
+
+.cubierta {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 16 / 8;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background:
+    radial-gradient(120% 90% at 12% 8%, color-mix(in srgb, var(--acento-academia, var(--azul)) 42%, transparent), transparent 62%),
+    radial-gradient(90% 80% at 92% 96%, color-mix(in srgb, var(--acento-academia, var(--azul)) 26%, transparent), transparent 60%),
+    linear-gradient(150deg, #16203a 0%, #0d1424 55%, #090d18 100%);
+  isolation: isolate;
+}
+
+/* Trama: rejilla fina + puntos, como un circuito visto de lejos. */
+.cubierta::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255, 255, 255, .07) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, .07) 1px, transparent 1px),
+    radial-gradient(circle, color-mix(in srgb, var(--acento-academia, var(--azul)) 55%, transparent) 1.4px, transparent 1.6px);
+  background-size: 26px 26px, 26px 26px, 52px 52px;
+  background-position: 0 0, 0 0, 13px 13px;
+  mask-image: linear-gradient(115deg, #000 10%, transparent 78%);
+  -webkit-mask-image: linear-gradient(115deg, #000 10%, transparent 78%);
+}
+
+/* Velo inferior para que el título siempre se lea. */
+.cubierta::after {
+  content: "";
+  position: absolute;
+  inset: 40% 0 0;
+  background: linear-gradient(180deg, transparent, rgba(6, 10, 18, .82));
+}
+
+.cubierta-glifo {
+  position: absolute;
+  right: 4%;
+  top: 46%;
+  z-index: 1;
+  transform: translateY(-50%) rotate(-7deg);
+  color: color-mix(in srgb, var(--acento-academia, var(--azul)) 60%, transparent);
+  font: 800 clamp(58px, 20vw, 108px)/1 var(--mono);
+  letter-spacing: -.08em;
+  white-space: nowrap;
+  text-shadow: 0 0 44px color-mix(in srgb, var(--acento-academia, var(--azul)) 45%, transparent);
+}
+
+.cubierta-etiqueta {
+  position: absolute;
+  left: 16px;
+  top: 14px;
+  z-index: 3;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, .14);
+  color: #fff;
+  font: 700 9.5px var(--mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  backdrop-filter: blur(6px);
+}
+
+.cubierta-titulo {
+  position: absolute;
+  left: 16px;
+  right: 16px;
+  bottom: 13px;
+  z-index: 3;
+  display: block;
+  color: #fff;
+  font: 800 clamp(19px, 5.4vw, 25px)/1.15 var(--mono);
+  letter-spacing: -.045em;
+  text-shadow: 0 2px 14px rgba(0, 0, 0, .55);
+}
+
+/* Colores de academia disponibles en cualquier contenedor con data-color. */
+[data-color="lime"]    { --acento-academia: #2fd07f; }
+[data-color="cyan"]    { --acento-academia: #24b5f2; }
+[data-color="magenta"] { --acento-academia: #c05ce8; }
+[data-color="red"]     { --acento-academia: #f2564a; }
+[data-color="blue"]    { --acento-academia: #4d84ff; }
+
+/* =====================================================================
+   8. Portada
+   ===================================================================== */
+
+.pagina { padding: 12px 14px 26px; }
+
+/* --- saludo --------------------------------------------------------- */
+
+.saludo {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 12px;
+  padding: 18px 18px 18px 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  box-shadow: var(--sombra-1);
+}
+.saludo-figura {
+  width: 62px;
+  height: 62px;
+  display: grid;
+  place-items: center;
+  border-radius: 20px;
+  background: radial-gradient(circle at 40% 30%, rgba(23, 167, 239, .2), rgba(23, 167, 239, .06));
+  font-size: 32px;
+}
+.saludo h1 { margin: 0; font-size: clamp(20px, 5.6vw, 26px); line-height: 1.15; }
+.saludo p { margin: 4px 0 0; color: var(--muted); font-size: 13.5px; line-height: 1.4; }
+
+/* --- tres métricas -------------------------------------------------- */
+
+.metricas-inicio {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 12px;
+}
+.metrica-inicio {
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  padding: 16px 8px 14px;
+  border: 1px solid var(--line);
+  border-radius: 20px;
+  background: var(--panel);
+  box-shadow: var(--sombra-1);
+  text-align: center;
+}
+.metrica-inicio > span:first-child { font-size: 27px; line-height: 1.1; }
+.metrica-inicio b { margin-top: 6px; color: var(--ink); font: 800 21px var(--mono); letter-spacing: -.05em; }
+.metrica-inicio small { color: var(--muted); font-size: 11.5px; line-height: 1.25; }
+
+/* --- nivel y ruta de rangos ----------------------------------------- */
+
+.tarjeta-nivel {
+  margin-bottom: 12px;
+  padding: 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  box-shadow: var(--sombra-1);
+}
+.nivel-cabecera {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.nivel-emoji { font-size: 31px; }
+.nivel-cabecera b { display: block; font-size: 19px; letter-spacing: -.04em; }
+.nivel-cabecera small { display: block; color: var(--muted); font-size: 12.5px; }
+.nivel-xp { color: var(--cyan); font: 800 13.5px var(--mono); white-space: nowrap; }
+.nivel-falta { margin: 9px 0 0; color: var(--muted); font-size: 13px; }
+
+.rangos-titulo {
+  margin: 15px 0 9px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line);
+  color: var(--dim);
+  font: 700 10px var(--mono);
+  letter-spacing: .17em;
+  text-transform: uppercase;
+}
+/* Los seis rangos caben siempre en la fila: sin scroll, la ruta completa
+   se ve de un vistazo. */
+.rangos {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 3px;
+  margin: 0 -2px;
+}
+.rango {
+  min-width: 0;
+  display: grid;
+  justify-items: center;
+  gap: 1px;
+  padding: 8px 2px 7px;
+  border-radius: 14px;
+  text-align: center;
+}
+.rango span { font-size: 20px; line-height: 1.2; filter: grayscale(.65); opacity: .75; }
+.rango b {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: 700 10px var(--mono);
+  letter-spacing: -.04em;
+  color: var(--muted);
+}
+.rango small { color: var(--dim); font-size: 9px; }
+.rango[data-estado="hecho"] { background: rgba(23, 167, 239, .12); }
+.rango[data-estado="hecho"] span { filter: none; opacity: 1; }
+.rango[data-estado="hecho"] b { color: var(--cyan); }
+.rango[data-estado="actual"] {
+  background: linear-gradient(180deg, var(--azul), var(--azul-hondo));
+  box-shadow: var(--sombra-azul);
+}
+.rango[data-estado="actual"] span { filter: none; opacity: 1; }
+.rango[data-estado="actual"] b { color: #fff; font-size: 10.5px; }
+.rango[data-estado="actual"] small { color: rgba(255, 255, 255, .8); }
+
+/* --- continuar donde lo dejaste ------------------------------------- */
+
+.continuar-hoy {
+  overflow: hidden;
+  margin-bottom: 22px;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  box-shadow: var(--sombra-1);
+}
+.continuar-hoy .cubierta { aspect-ratio: 16 / 7; }
+.continuar-cuerpo { padding: 15px 16px 16px; }
+.continuar-hoy .eyebrow { display: block; margin-bottom: 4px; }
+.continuar-hoy h1 { margin: 0 0 3px; font-size: 19px; line-height: 1.2; }
+.continuar-hoy p { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
+.continuar-hoy .acciones .btn { flex: 1 1 190px; min-height: 50px; }
+.continuar-hoy .acciones .btn-secundario { flex: 0 1 auto; min-height: 50px; }
+.continuar-progreso small { color: var(--dim); }
+
+/* --- tarjetas de academia con cubierta ------------------------------ */
+
+.academias { gap: 16px; }
+
+.tarjeta-academia {
+  display: block;
+  overflow: hidden;
+  width: 100%;
+  padding: 0;
+  border: 1px solid var(--line);
+  border-left: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: var(--panel);
+  box-shadow: var(--sombra-2);
+  text-align: left;
+}
+.tarjeta-academia[data-actual] {
+  border-color: rgba(23, 167, 239, .4);
+  box-shadow: 0 0 0 3px rgba(23, 167, 239, .12), var(--sombra-2);
+}
+.tarjeta-academia[data-bloqueada] { opacity: .55; }
+
+/* La cubierta entera es el botón de entrada a la academia. */
+.cubierta-boton {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  text-align: left;
+}
+.cubierta-boton:disabled { cursor: not-allowed; }
+
+.academia-cuerpo { padding: 14px 16px 16px; }
+.academia-cuerpo small {
+  display: block;
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.academia-avance {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 11px;
+  margin-bottom: 13px;
+}
+.academia-avance b { font: 800 13px var(--mono); color: var(--muted); }
+.academia-datos {
+  display: block;
+  margin: -4px 0 11px;
+  color: var(--dim);
+  font: 700 11.5px var(--mono);
+}
+.academia-pie { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 10px; }
+.academia-pie .btn { min-height: 52px; font-size: 15px; }
+.academia-pie .icon-btn {
+  width: 52px;
+  min-width: 52px;
+  padding: 0;
+  border-color: rgba(217, 134, 10, .3);
+  background: rgba(217, 134, 10, .1);
+  font-size: 21px;
+  box-shadow: none;
+}
+
+/* --- pantalla de una academia --------------------------------------- */
+
+.cabecera-academia { align-items: flex-end; }
+.academia-detalle .cubierta {
+  margin-bottom: 14px;
+  border-radius: var(--r-lg);
+}
+.academia-icono {
+  color: color-mix(in srgb, var(--acento-academia, var(--azul)) 78%, #0b1220);
+  background: color-mix(in srgb, var(--acento-academia, var(--azul)) 13%, #fff);
+  border-color: color-mix(in srgb, var(--acento-academia, var(--azul)) 32%, transparent);
+}
+.academia-detalle .barra > i,
+.academia-cuerpo .barra > i { background: color-mix(in srgb, var(--acento-academia, var(--azul)) 88%, #0b1220); }
+.academia-detalle .camino,
+.academia .camino { border-left-color: color-mix(in srgb, var(--acento-academia, var(--azul)) 30%, transparent); }
+.academia-detalle .tramo::before,
+.academia .tramo::before { background: color-mix(in srgb, var(--acento-academia, var(--azul)) 22%, var(--panel-3)); }
+.ruta-desc { color: var(--muted); font-size: 13px; }
+
+/* --- puntos débiles ------------------------------------------------- */
+
+.debil { border-radius: 16px; }
+.debil-icono { background: var(--panel-2); }
+.debil-info small { color: var(--muted); }
+
+/* =====================================================================
+   9. Interior: módulos plegables y filas de lección
+   Dentro de una academia el contenido se agrupa en tarjetas de módulo con
+   cabecera de terminal (los tres puntos), y cada lección es una fila que
+   dice de un vistazo si está hecha, en curso o aún cerrada. Nada está de
+   pago: lo único que cierra una lección es no haber hecho la anterior.
+   ===================================================================== */
+
+/* Cubierta a sangre: ocupa el ancho de la pantalla y la flecha de volver
+   flota encima, como en la ficha de un curso. */
+.cabecera-cubierta { position: relative; margin: -12px -14px 0; }
+.cabecera-cubierta .cubierta { aspect-ratio: 16 / 9; border-radius: 0; }
+.cabecera-cubierta .volver-flotante {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 4;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 12px;
+  background: rgba(12, 18, 30, .55);
+  color: #fff;
+  font-size: 18px;
+  backdrop-filter: blur(8px);
+}
+/* Con la flecha flotando arriba a la izquierda, la etiqueta se aparta. */
+.cabecera-cubierta .cubierta-etiqueta { left: 60px; top: 19px; }
+.titulo-detalle { margin: 16px 0 6px; font-size: clamp(23px, 6.4vw, 31px); line-height: 1.12; }
+.texto-detalle { margin: 0 0 4px; color: var(--muted); font-size: 14.5px; line-height: 1.55; }
+
+.modulos { display: grid; gap: 14px; }
+
+.modulo {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: 18px;
+  background: var(--panel);
+  box-shadow: var(--sombra-1);
+}
+.modulo > summary {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 13px;
+  padding: 14px 16px;
+  list-style: none;
+  cursor: pointer;
+  background: var(--panel-2);
+}
+.modulo > summary::-webkit-details-marker { display: none; }
+.modulo[open] > summary { border-bottom: 1px solid var(--line); }
+.modulo-nombre { min-width: 0; font: 800 15px var(--mono); letter-spacing: -.035em; }
+.modulo-flecha { color: var(--dim); font-size: 13px; transition: transform .2s ease; }
+.modulo[open] .modulo-flecha { transform: rotate(180deg); }
+
+/* Los tres puntos de una ventana de terminal, dibujados con una sombra. */
+.semaforo {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  margin-right: 26px;
+  border-radius: 50%;
+  background: #ff5f57;
+  box-shadow: 16px 0 0 #febc2e, 32px 0 0 #28c840;
+}
+
+.modulo-cuerpo { padding: 14px 16px 16px; }
+.modulo-etiqueta {
+  display: inline-block;
+  margin-bottom: 11px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  background: rgba(23, 167, 239, .12);
+  color: var(--cyan);
+  font: 700 10px var(--mono);
+  letter-spacing: .13em;
+  text-transform: uppercase;
+}
+.modulo-etiqueta[data-estado="hecho"] { background: rgba(26, 166, 104, .13); color: var(--lime); }
+.modulo-etiqueta[data-estado="cerrado"] { background: var(--panel-3); color: var(--dim); }
+.modulo-cuerpo > p { margin: 0 0 13px; color: #3f4753; font-size: 14.5px; line-height: 1.55; }
+.modulo-cuerpo .acciones { display: grid; gap: 9px; margin-top: 13px; }
+.modulo-cuerpo .acciones .btn,
+.modulo-cuerpo .acciones .btn-secundario { min-height: 52px; font-size: 15px; }
+.modulo-cuerpo .acciones .btn-secundario {
+  border-color: rgba(23, 167, 239, .45);
+  background: #fff;
+  box-shadow: var(--sombra-1);
+}
+
+.filas { display: grid; gap: 9px; }
+
+/* Una lección: icono de estado, título, y a la derecha la flecha. */
+.fila-leccion {
+  position: relative;
+  overflow: hidden;
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  border: 1px solid rgba(23, 167, 239, .18);
+  border-radius: 15px;
+  background: #f0f8fe;
+  color: inherit;
+  text-align: left;
+}
+.fila-icono { font-size: 23px; line-height: 1; }
+.fila-texto { min-width: 0; }
+.fila-texto b { display: block; font: 700 14.5px var(--mono); letter-spacing: -.03em; line-height: 1.3; }
+.fila-texto small { display: block; margin-top: 2px; color: var(--cyan); font: 700 12px var(--mono); }
+.fila-flecha { color: var(--dim); font-size: 15px; }
+.fila-linea {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  height: 4px;
+  border-radius: 0 4px 4px 0;
+  background: var(--azul);
+}
+.fila-leccion[data-estado="hecha"] { border-color: rgba(26, 166, 104, .22); background: #f1fbf5; }
+.fila-leccion[data-estado="hecha"] .fila-texto small { color: var(--lime); }
+.fila-leccion[data-estado="bloqueada"] {
+  border-color: var(--line);
+  background: var(--panel-2);
+  color: var(--dim);
+  cursor: not-allowed;
+}
+.fila-leccion[data-estado="bloqueada"] .fila-texto b { color: var(--dim); font-weight: 600; }
+.fila-leccion[data-estado="bloqueada"] .fila-texto small { color: var(--dim); font-weight: 600; }
+.fila-leccion[data-estado="lista"] .fila-texto small { color: var(--muted); }
+.fila-leccion[data-estado="bloqueada"] .fila-icono { filter: grayscale(1); opacity: .55; }
+.fila-leccion:not([disabled]):active { transform: scale(.985); }
+.fila-leccion { transition: transform .12s ease, border-color .15s ease, background .15s ease; }
+
+/* Agrupador de módulos por ruta: un rótulo discreto, no una caja más. */
+.grupo-ruta {
+  margin: 20px 0 10px;
+  color: var(--dim);
+  font: 700 10.5px var(--mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+
+/* =====================================================================
+   10. Ajustes de tamaño en pantallas grandes
+   ===================================================================== */
+
+@media (min-width: 650px) {
+  .metricas-inicio { gap: 12px; }
+  .academias { display: grid; grid-template-columns: repeat(2, 1fr); }
+}
+@media (min-width: 950px) {
+  .topbar { justify-content: space-between; }
+  .marca { position: static; transform: none; }
+  .pestanas {
+    margin: 16px 10px;
+    padding: 8px;
+    border-right: 0;
+  }
+  .academias { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 560px) {
+  .saludo { padding: 15px; gap: 12px; }
+  .saludo-figura { width: 54px; height: 54px; border-radius: 17px; font-size: 28px; }
+  .metrica-inicio { padding: 13px 6px 12px; border-radius: 17px; }
+  .metrica-inicio > span:first-child { font-size: 24px; }
+  .metrica-inicio b { font-size: 19px; }
+}
+@media (max-width: 370px) {
+  .stat-chip:nth-child(2) { display: inline-block; }
+  .marca { font-size: 14px; }
+}

@@ -63,30 +63,33 @@ try {
 
   console.log('▸ Aprender');
   comprobar('la app arranca', await pagina.locator('.app').isVisible());
-  // La portada muestra las academias CERRADAS: el camino de salas vive en la
-  // pantalla de cada academia, no amontonado en el inicio.
+  // La portada muestra las academias como fichas de catálogo: los módulos
+  // viven en la pantalla de cada academia, no amontonados en el inicio.
   comprobar('hay 5 academias en la portada', await pagina.locator('.tarjeta-academia').count() === 5);
-  comprobar('la portada no despliega salas', await pagina.locator('.nodo').count() === 0);
+  comprobar('cada academia lleva su cubierta', await pagina.locator('.tarjeta-academia .cubierta').count() === 5);
+  comprobar('la portada no despliega módulos', await pagina.locator('.modulo').count() === 0);
+  comprobar('la portada muestra el nivel y la ruta de rangos', await pagina.locator('.rango').count() === 6);
+  comprobar('la portada muestra las tres métricas', await pagina.locator('.metrica-inicio').count() === 3);
   const totalEjercicios = await pagina.evaluate(() => window.__mentor.totales.ejercicios);
   comprobar('el marcador refleja el total de ejercicios',
     (await pagina.locator('.continuar-progreso').innerText()).includes(String(totalEjercicios)), String(totalEjercicios));
   comprobar('no hay desborde horizontal', await pagina.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
   await shot('v3-01-aprender');
 
-  // Entrar en una academia abre su pantalla con el camino completo.
-  await pagina.locator('[data-academia="linux"]').click();
+  // Entrar en una academia abre su pantalla con todos sus módulos.
+  await pagina.locator('.tarjeta-academia .cubierta-boton[data-academia="linux"]').click();
   comprobar('la academia abre su propia pantalla', await pagina.locator('.academia-detalle').isVisible());
-  comprobar('la academia Linux tiene 5 tramos', await pagina.locator('.tramo').count() === 5);
-  comprobar('la academia Linux muestra sus 15 salas', await pagina.locator('.nodo').count() === 15);
-  comprobar('la primera sala está marcada como actual', await pagina.locator('.nodo[data-estado="curso"]').count() === 1);
-  comprobar('el resto queda bloqueado en orden', await pagina.locator('.nodo[data-estado="bloqueada"]').count() === 14);
+  comprobar('la academia Linux agrupa sus 5 rutas', await pagina.locator('.grupo-ruta').count() === 5);
+  comprobar('la academia Linux muestra sus 15 módulos', await pagina.locator('.modulo').count() === 15);
+  comprobar('solo el módulo en curso viene abierto', await pagina.locator('.modulo[open]').count() === 1);
+  comprobar('el resto queda cerrado en orden', await pagina.locator('.modulo-etiqueta[data-estado="cerrado"]').count() === 14);
   await shot('v3-01b-academia');
 
-  await pagina.locator('.nodo[data-sala="cero-absoluto"]').click();
+  await pagina.locator('.modulo[open] .btn-secundario[data-sala="cero-absoluto"]').click();
   // La sala ya no vuelca su contenido: enumera lecciones cortas.
-  comprobar('la sala lista sus 5 lecciones', await pagina.locator('.nodo[data-leccion]').count() === 5);
+  comprobar('la sala lista sus 5 lecciones', await pagina.locator('.fila-leccion[data-leccion]').count() === 5);
   comprobar('la sala no pinta ejercicios', await pagina.locator('.ejercicio').count() === 0);
-  comprobar('las lecciones se abren en orden', await pagina.locator('.nodo[data-estado="bloqueada"]').count() === 4);
+  comprobar('las lecciones se abren en orden', await pagina.locator('.fila-leccion[data-estado="bloqueada"]').count() === 4);
   await shot('v4-02-sala-lecciones');
 
   console.log('▸ Lección paso a paso');
@@ -168,7 +171,7 @@ try {
   comprobar('el cierre ofrece rematar lo que falta', await pagina.locator('[data-ir-paso]').count() === 1);
   await shot('v4-07-fin-leccion');
   await pagina.locator('.leccion-salir').click();
-  comprobar('salir devuelve a la lista de lecciones', await pagina.locator('.nodo[data-leccion]').count() === 5);
+  comprobar('salir devuelve a la lista de lecciones', await pagina.locator('.fila-leccion[data-leccion]').count() === 5);
 
   // Terminal de varios comandos: un comando suelto no debe gritar «incompleto».
   // Se abre una sala con reto de terminal multi-paso y se comprueba el silencio.

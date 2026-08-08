@@ -2,7 +2,7 @@
 // Estrategia: cache-first para los recursos propios, con actualización en
 // segundo plano. Como todo es estático, no hay nada que pedir a la red.
 
-const VERSION = 'mentor-linux-v4-20260808c';
+const VERSION = 'mentor-linux-v5-rework-claro';
 
 const RECURSOS = [
   './',
@@ -10,6 +10,7 @@ const RECURSOS = [
   'manifest.webmanifest',
   'css/base.css',
   'css/ui.css',
+  'css/tema.css',
   'css/terminal.css',
   'js/app.js',
   'js/ui.js',

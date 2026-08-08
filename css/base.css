@@ -1,49 +1,77 @@
+/* =====================================================================
+   Identidad visual: claro, blanco y monoespaciado
+   La app pasa de consola oscura a papel claro. Los nombres de los tokens
+   se conservan (--panel, --cyan, --lime…) para que las 1000 líneas de
+   ui.css sigan valiendo: aquí cambia lo que significan, no cómo se usan.
+   La única isla oscura que queda es la terminal, porque una terminal
+   clara deja de leerse como una terminal (css/terminal.css).
+   ===================================================================== */
+
 :root {
-  color-scheme: dark;
-  --void: #131a33;
-  --deep: #1a2244;
-  --panel: #232d55;
-  --panel-2: #2c3868;
-  --panel-3: #384682;
-  --line: #4d5c94;
-  --line-soft: rgba(168, 190, 240, .26);
-  --lime: #b6ff5c;
-  --cyan: #52e7ff;
-  --blue: #73a9ff;
-  --magenta: #ff69c7;
-  --amber: #ffd267;
-  --red: #ff7588;
-  --ink: #f7faff;
-  --muted: #c8d1ea;
-  --dim: #96a1c4;
-  --good: #79f2a6;
+  color-scheme: light;
+
+  /* Superficies: el fondo es gris papel y las tarjetas, blancas. */
+  --void: #f1f3f6;
+  --deep: #f6f8fa;
+  --panel: #ffffff;
+  --panel-2: #f2f5f8;
+  --panel-3: #e7ecf1;
+  --line: #dfe4ea;
+  --line-soft: rgba(24, 39, 68, .09);
+
+  /* Acentos. --cyan es el azul de marca (estado en curso, enlaces, datos)
+     y --lime pasa a ser el verde de «hecho»: en papel blanco el lima de
+     fósforo no se lee, el verde sí. */
+  --azul: #17a7ef;
+  --azul-hondo: #0d8fd4;
+  --cyan: #0e86c7;
+  --lime: #1aa668;
+  --blue: #3b74e8;
+  --magenta: #a955d8;
+  --amber: #d9860a;
+  --red: #e14356;
+  --good: #1aa668;
+
+  /* Texto */
+  --ink: #191d26;
+  --muted: #6f7885;
+  --dim: #98a1ad;
+
+  /* Sombras suaves: el relieve de esta interfaz lo dan las sombras, no
+     los bordes. */
+  --sombra-1: 0 1px 2px rgba(19, 32, 56, .05), 0 6px 16px rgba(19, 32, 56, .06);
+  --sombra-2: 0 2px 5px rgba(19, 32, 56, .06), 0 14px 34px rgba(19, 32, 56, .09);
+  --sombra-azul: 0 6px 18px rgba(23, 167, 239, .32);
+
+  /* La terminal conserva su mundo oscuro. */
   --term-fondo: #0d1330;
   --term-acento: #b6ff5c;
   --term-prompt: #b6ff5c;
-  --ui: ui-rounded, -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
-  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+
+  /* Todo monoespaciado: es la marca de la casa y lo que hace que una app
+     de Linux parezca una app de Linux. */
+  --mono: ui-monospace, "SF Mono", SFMono-Regular, "JetBrains Mono", "Roboto Mono", Menlo, Consolas, monospace;
+  --ui: var(--mono);
   --r-sm: 10px;
   --r-md: 16px;
-  --r-lg: 26px;
+  --r-lg: 22px;
   --tap: 46px;
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
-:root[data-theme="light"], :root[data-theme="dark"] { color-scheme: dark; }
+:root[data-theme="light"], :root[data-theme="dark"] { color-scheme: light; }
 * { box-sizing: border-box; }
 html, body { height: 100%; margin: 0; }
 html { background: var(--void); }
 body {
   overflow: hidden;
-  background:
-    radial-gradient(900px 520px at 7% -10%, rgba(82, 231, 255, .20), transparent 60%),
-    radial-gradient(760px 540px at 105% 4%, rgba(255, 105, 199, .17), transparent 58%),
-    linear-gradient(155deg, #1a2247 0%, var(--void) 52%, #1b1c3d 100%);
+  background: var(--void);
   color: var(--ink);
   font-family: var(--ui);
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 15.5px;
+  line-height: 1.55;
+  letter-spacing: -.01em;
   -webkit-font-smoothing: antialiased;
   -webkit-tap-highlight-color: transparent;
   overscroll-behavior: none;
@@ -52,24 +80,25 @@ button, input, textarea, select { font: inherit; color: inherit; }
 button { cursor: pointer; }
 input, textarea { font-size: 16px; }
 a { color: var(--cyan); }
+h1, h2, h3 { font-weight: 800; letter-spacing: -.035em; }
 code {
   display: inline;
   padding: .12em .38em;
-  border: 1px solid rgba(82, 231, 255, .28);
+  border: 1px solid rgba(14, 134, 199, .22);
   border-radius: 6px;
-  background: rgba(82, 231, 255, .12);
-  color: #c8f8ff;
+  background: rgba(23, 167, 239, .09);
+  color: #0a6a9e;
   font: .9em var(--mono);
   box-decoration-break: clone;
   -webkit-box-decoration-break: clone;
 }
 pre code { padding: 0; border: 0; background: none; color: inherit; }
 button:focus-visible, input:focus-visible, summary:focus-visible {
-  outline: 2px solid var(--cyan);
+  outline: 2px solid var(--azul);
   outline-offset: 3px;
 }
 ::-webkit-scrollbar { width: 7px; height: 7px; }
-::-webkit-scrollbar-thumb { border-radius: 9px; background: var(--line); }
+::-webkit-scrollbar-thumb { border-radius: 9px; background: #cfd6df; }
 ::-webkit-scrollbar-track { background: transparent; }
 .mono { font-family: var(--mono); }
 .muted { color: var(--muted); }

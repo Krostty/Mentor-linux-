@@ -64,9 +64,10 @@ function marcarProgresoCompartible() {
 }
 
 let xpPrevio = 0;
+// La cabecera solo lleva la marca y el XP: el nivel, la racha y el progreso
+// tienen su sitio en las tarjetas de la portada, y ahí se leen mejor.
 function actualizarCabecera() {
   const stats = store.estadisticas();
-  document.getElementById('ficha-nivel').textContent = `Nv ${stats.nivel.nivel}`;
   const chipXp = document.getElementById('ficha-xp');
   chipXp.textContent = `${stats.xp} XP`;
   // El contador de XP salta cuando sube: recompensa visual al acertar.
@@ -74,7 +75,6 @@ function actualizarCabecera() {
     chipXp.removeAttribute('data-sube'); void chipXp.offsetWidth; chipXp.setAttribute('data-sube', '');
   }
   xpPrevio = stats.xp;
-  document.getElementById('ficha-racha').textContent = `🔥 ${stats.racha}`;
   marcarProgresoCompartible();
 }
 
@@ -144,70 +144,190 @@ function renderAvisoInstalacion() {
   </aside>`;
 }
 
+// Los rangos son los hitos visibles de los 15 niveles: seis paradas que
+// caben en una fila y dicen a dónde lleva esto.
+const RANGOS = [
+  { nivel: 1, nombre: 'Novato', icono: '🌱' },
+  { nivel: 3, nombre: 'Aprendiz', icono: '📚' },
+  { nivel: 7, nombre: 'Operador', icono: '🧰' },
+  { nivel: 9, nombre: 'Admin', icono: '🧠' },
+  { nivel: 12, nombre: 'Experto', icono: '🛡️' },
+  { nivel: 15, nombre: 'Mentor', icono: '👑' },
+];
+
+// La cubierta de una academia: una portada dibujada con CSS a partir de su
+// color y su símbolo. Sin imágenes, para que siga funcionando sin red.
+function cubierta(academia, { etiqueta = '', titulo = academia.nombre } = {}) {
+  return `<span class="cubierta" data-color="${escapar(academia.color)}">
+    <span class="cubierta-glifo" aria-hidden="true">${escapar(academia.icono)}</span>
+    ${etiqueta ? `<span class="cubierta-etiqueta">${escapar(etiqueta)}</span>` : ''}
+    ${titulo ? `<b class="cubierta-titulo">${escapar(titulo)}</b>` : ''}
+  </span>`;
+}
+
+function academiaDe(salaId) {
+  if (!salaId) return null;
+  return ACADEMIAS.find((a) => a.rutas.some((r) => (RUTA_POR_ID[r]?.salas || []).includes(salaId))) || null;
+}
+
+// El siguiente ejercicio pendiente DENTRO de una academia concreta: es lo que
+// abre el botón «Continuar» de su tarjeta, sin pasar por la lista de módulos.
+function siguienteDeAcademia(academia) {
+  for (const rutaId of academia.rutas) {
+    for (const salaId of RUTA_POR_ID[rutaId]?.salas || []) {
+      if (!store.salaDesbloqueada(salaId)) break;
+      const sala = SALA_POR_ID[salaId];
+      for (const tarea of sala.tareas) {
+        const ejercicio = tarea.practica.find((e) => !store.ejercicioHecho(e.id));
+        if (ejercicio) return { sala, tarea, ejercicio };
+      }
+    }
+  }
+  return null;
+}
+
+function renderRangos(nivelActual) {
+  const alcanzado = RANGOS.filter((r) => r.nivel <= nivelActual).length - 1;
+  return `<div class="rangos">${RANGOS.map((r, i) => {
+    const estado = i < alcanzado ? 'hecho' : i === alcanzado ? 'actual' : 'futuro';
+    return `<div class="rango" data-estado="${estado}">
+      <span aria-hidden="true">${r.icono}</span>
+      <b>${escapar(r.nombre)}</b>
+      ${estado === 'actual' ? '' : `<small>Nv ${r.nivel}</small>`}
+    </div>`;
+  }).join('')}</div>`;
+}
+
 function renderAprender() {
   const stats = store.estadisticas();
   const siguiente = store.siguientePaso();
   const repasos = store.ejerciciosParaRepasar(3);
   const salaActual = store.salaActual();
-  const academiaActual = salaActual ? ACADEMIAS.find((a) =>
-    a.rutas.some((r) => (RUTA_POR_ID[r]?.salas || []).includes(salaActual))) : null;
+  const academiaActual = academiaDe(salaActual);
+  const nivel = stats.nivel;
 
-  // La portada muestra SOLO una cosa que hacer y la lista de academias
-  // cerradas. Antes desplegaba la primera academia entera con todas sus salas,
-  // más la sesión del día y el marcador: demasiado para una pantalla de móvil.
+  // La portada se lee de arriba abajo como un tablero: quién eres, cómo vas,
+  // a dónde llegas y qué toca hacer ahora. Solo después, el catálogo.
   vista.innerHTML = `<div class="pagina">
     ${renderAvisoInstalacion()}
 
-    <section class="continuar-hoy">
-      <span class="eyebrow">${repasos.length ? 'Toca repasar' : siguiente ? 'Continuar donde lo dejaste' : 'Todo completado'}</span>
-      <h1>${escapar(repasos.length ? `${repasos.length} ${repasos.length === 1 ? 'habilidad' : 'habilidades'} para refrescar`
-        : siguiente ? siguiente.sala.nombre : '¡Has terminado el currículo!')}</h1>
-      ${siguiente && !repasos.length ? `<p>${escapar(siguiente.tarea.titulo)}</p>` : ''}
-      <div class="acciones">
-        ${repasos.length
-          ? `<button class="btn" data-repasar="${escapar(repasos[0].id)}">Repasar ahora</button>`
-          : siguiente
-            ? `<button class="btn" data-sala="${escapar(siguiente.sala.id)}" data-ejercicio="${escapar(siguiente.ejercicio.id)}">Continuar</button>`
-            : '<button class="btn" data-ir="maquinas">Ir a las máquinas</button>'}
-        <button class="btn-secundario" data-ir="practicar">Practicar libre</button>
+    <section class="saludo">
+      <span class="saludo-figura" aria-hidden="true">${emojiNivel(nivel.nivel)}</span>
+      <div>
+        <h1>¡Hola, ${escapar(nivel.titulo)}!</h1>
+        <p>${stats.tareas
+          ? `Ya sumas ${stats.tareas} ${stats.tareas === 1 ? 'lección completada' : 'lecciones completadas'}.`
+          : 'Empieza por tu primera lección: se hace en cinco minutos.'}</p>
       </div>
-      <span class="continuar-progreso">
-        <span class="barra"><i style="width:${porcentaje(stats.ejercicios / TOTAL_EJERCICIOS)}%"></i></span>
-        <small>${stats.ejercicios} de ${TOTAL_EJERCICIOS} ejercicios · racha de ${stats.racha} ${stats.racha === 1 ? 'día' : 'días'}</small>
-      </span>
     </section>
 
-    <div class="seccion-titulo"><div><h2>Academias</h2><p>Toca una para ver sus salas</p></div></div>
+    <div class="metricas-inicio">
+      <div class="metrica-inicio">
+        <span aria-hidden="true">⭐</span>
+        <b>${porcentaje(stats.ejercicios / TOTAL_EJERCICIOS)}%</b>
+        <small>Progreso global</small>
+      </div>
+      <div class="metrica-inicio">
+        <span aria-hidden="true">📘</span>
+        <b>${stats.salas}/${TOTAL_SALAS}</b>
+        <small>Salas completadas</small>
+      </div>
+      <div class="metrica-inicio">
+        <span aria-hidden="true">🔥</span>
+        <b>${stats.racha}</b>
+        <small>Racha (días)</small>
+      </div>
+    </div>
+
+    <section class="tarjeta-nivel">
+      <div class="nivel-cabecera">
+        <span class="nivel-emoji" aria-hidden="true">${emojiNivel(nivel.nivel)}</span>
+        <div>
+          <b>${escapar(nivel.titulo)}</b>
+          <small>Nivel ${nivel.nivel}</small>
+        </div>
+        <span class="nivel-xp">${stats.xp}${nivel.siguiente ? ` / ${nivel.siguiente.xp}` : ''} XP</span>
+      </div>
+      <div class="barra"><i style="width:${porcentaje(nivel.progreso)}%"></i></div>
+      <p class="nivel-falta">${nivel.siguiente
+        ? `Te faltan ${nivel.faltan} XP para subir de nivel`
+        : 'Has alcanzado el rango máximo'}</p>
+      <p class="rangos-titulo">Tu ruta de rangos</p>
+      ${renderRangos(nivel.nivel)}
+    </section>
+
+    <section class="continuar-hoy">
+      ${academiaActual && siguiente ? cubierta(academiaActual, { etiqueta: 'Continuar', titulo: siguiente.sala.nombre }) : ''}
+      <div class="continuar-cuerpo">
+        <span class="eyebrow">${repasos.length ? 'Toca repasar' : siguiente ? 'Donde lo dejaste' : 'Todo completado'}</span>
+        <h1>${escapar(repasos.length ? `${repasos.length} ${repasos.length === 1 ? 'habilidad' : 'habilidades'} para refrescar`
+          : siguiente ? siguiente.tarea.titulo : '¡Has terminado el currículo!')}</h1>
+        ${siguiente && !repasos.length && !academiaActual ? `<p>${escapar(siguiente.sala.nombre)}</p>` : ''}
+        <div class="acciones">
+          ${repasos.length
+            ? `<button class="btn" data-repasar="${escapar(repasos[0].id)}">Repasar ahora</button>`
+            : siguiente
+              ? `<button class="btn" data-sala="${escapar(siguiente.sala.id)}" data-ejercicio="${escapar(siguiente.ejercicio.id)}">Continuar aprendiendo</button>`
+              : '<button class="btn" data-ir="maquinas">Ir a las máquinas</button>'}
+          <button class="btn-secundario" data-ir="practicar">Practicar</button>
+        </div>
+        <span class="continuar-progreso">
+          <span class="barra"><i style="width:${porcentaje(stats.ejercicios / TOTAL_EJERCICIOS)}%"></i></span>
+          <small>${stats.ejercicios} de ${TOTAL_EJERCICIOS} ejercicios · racha de ${stats.racha} ${stats.racha === 1 ? 'día' : 'días'}</small>
+        </span>
+      </div>
+    </section>
+
+    <div class="seccion-titulo"><div><h2>Academias</h2><p>Cada una es un curso completo con teoría y terminal</p></div></div>
     <div class="academias">${ACADEMIAS.map((a) => renderTarjetaAcademia(a, a.id === academiaActual?.id)).join('')}</div>
   </div>`;
 }
 
-// Tarjeta cerrada: identidad, avance y nada más. Al tocarla se entra en la
-// pantalla de la academia, donde ya sí está el camino completo de salas.
+// Tarjeta de catálogo: cubierta, objetivo, avance y un botón grande. La
+// cubierta entera también entra en la academia.
 function renderTarjetaAcademia(academia, esActual) {
   const salas = academia.rutas.flatMap((id) => numeroSalas(RUTA_POR_ID[id] || { salas: [] }));
   const hechas = salas.filter((s) => store.salaCompletada(s.id)).length;
   const avance = store.progresoAcademia(academia);
   const ejercicios = salas.reduce((t, s) => t + ejerciciosSala(s), 0);
   const abierta = salas.some((s) => store.salaDesbloqueada(s.id));
+  const empezada = avance > 0;
+  const pendiente = abierta ? siguienteDeAcademia(academia) : null;
 
-  return `<button class="tarjeta-academia" data-color="${academia.color}" data-academia="${escapar(academia.id)}"
-      ${esActual ? 'data-actual' : ''} ${abierta ? '' : 'disabled'}>
-    <span class="academia-icono">${escapar(academia.icono)}</span>
-    <span class="academia-cuerpo">
-      <b>${escapar(academia.nombre)}</b>
-      <small>${escapar(academia.objetivo || academia.descripcion)}</small>
+  // Dos acciones distintas, como en una ficha de curso: el botón grande
+  // retoma la lección donde la dejaste, y el cuadrado abre el índice de
+  // módulos para elegir a mano.
+  return `<article class="tarjeta-academia" data-color="${academia.color}"
+      ${esActual ? 'data-actual' : ''} ${abierta ? '' : 'data-bloqueada'}>
+    <button class="cubierta-boton" data-academia="${escapar(academia.id)}" ${abierta ? '' : 'disabled'}
+        aria-label="Abrir la academia ${escapar(academia.nombre)}">
+      ${cubierta(academia, { etiqueta: hechas === salas.length ? 'Completada' : empezada ? 'En progreso' : '' })}
+    </button>
+    <div class="academia-cuerpo">
+      <small>${escapar(academia.descripcion)}</small>
       <span class="academia-datos">${salas.length} salas · ${ejercicios} ejercicios</span>
-      <span class="barra"><i style="width:${porcentaje(avance)}%"></i></span>
-    </span>
-    <span class="academia-avance">
-      <b>${porcentaje(avance)}%</b>
-      <small>${hechas}/${salas.length}</small>
-    </span>
-  </button>`;
+      <div class="academia-avance">
+        <span class="barra"><i style="width:${porcentaje(avance)}%"></i></span>
+        <b>${porcentaje(avance)}%</b>
+      </div>
+      <div class="academia-pie">
+        ${pendiente
+          ? `<button class="btn" data-sala="${escapar(pendiente.sala.id)}" data-ejercicio="${escapar(pendiente.ejercicio.id)}">
+              ${empezada ? '▶ Continuar' : '▶ Empezar'}
+            </button>`
+          : `<button class="btn" data-academia="${escapar(academia.id)}" ${abierta ? '' : 'disabled'}>
+              ${abierta ? '↻ Repasar' : '🔒 Bloqueada'}
+            </button>`}
+        <button class="icon-btn" data-academia="${escapar(academia.id)}" ${abierta ? '' : 'disabled'}
+            aria-label="Ver los módulos de ${escapar(academia.nombre)}">🗂️</button>
+      </div>
+    </div>
+  </article>`;
 }
 
-// Pantalla propia de una academia: el camino completo de sus salas.
+// Pantalla propia de una academia: cubierta, presentación y sus módulos.
+// Cada sala es un módulo plegable con sus lecciones dentro, así que se ve
+// el curso entero sin salir de la pantalla.
 function renderAcademiaDetalle(id) {
   const academia = ACADEMIA_POR_ID[id];
   if (!academia) return ir('aprender');
@@ -220,55 +340,95 @@ function renderAcademiaDetalle(id) {
   const horas = minutos >= 60 ? `~${(minutos / 60).toFixed(minutos >= 600 ? 0 : 1).replace('.0', '')} h` : `${minutos} min`;
   const actual = store.salaActual();
 
-  let indice = 0;
-  const camino = rutas.map((ruta) => {
+  const modulos = rutas.map((ruta) => {
     const suyas = numeroSalas(ruta);
-    const filas = suyas.map((sala) => renderNodoSala(sala, ++indice, salas.length, actual)).join('');
-    return `<div class="tramo"><span class="tramo-nombre">${escapar(ruta.nombre)}</span>${filas}</div>`;
+    if (!suyas.length) return '';
+    return `<p class="grupo-ruta">${escapar(ruta.nombre)}</p>
+      <div class="modulos">${suyas.map((sala) => renderModulo(sala, actual)).join('')}</div>`;
   }).join('');
 
   vista.innerHTML = `<div class="pagina pagina-estrecha academia-detalle" data-color="${academia.color}">
-    <button class="enlace-volver" data-ir="aprender">← Academias</button>
-    <header class="cabecera-academia">
-      <span class="academia-icono grande">${escapar(academia.icono)}</span>
-      <div>
-        <h1>${escapar(academia.nombre)}</h1>
-        <p>${escapar(academia.objetivo || academia.descripcion)}</p>
-      </div>
+    <header class="cabecera-cubierta">
+      <button class="volver-flotante" data-ir="aprender" aria-label="Volver a las academias">←</button>
+      ${cubierta(academia, { etiqueta: 'Academia', titulo: '' })}
     </header>
+    <h1 class="titulo-detalle">${escapar(academia.nombre)}</h1>
+    <p class="texto-detalle">${escapar(academia.descripcion)}. ${escapar(academia.objetivo || '')}</p>
     <div class="chips">
       <span class="chip">${salas.length} salas</span>
       <span class="chip">${ejercicios} ejercicios</span>
       <span class="chip">${minutos ? `quedan ${horas}` : 'completada'}</span>
     </div>
-    <div class="barra" style="margin:12px 0 4px"><i style="width:${porcentaje(avance)}%"></i></div>
+    <div class="barra"><i style="width:${porcentaje(avance)}%"></i></div>
     <p class="ruta-desc">${hechas} de ${salas.length} salas completadas · ${porcentaje(avance)}%</p>
-    <div class="camino">${camino}</div>
+    <div class="seccion-titulo"><div><h2>Módulos</h2><p>Teoría y terminal en la misma lección</p></div><span class="contador">${hechas}/${salas.length}</span></div>
+    ${modulos}
   </div>`;
 }
 
-// Una sala como nodo de un camino: la línea vertical que las une la dibuja el
-// CSS, y el estado (hecha, en curso, bloqueada) se lee por color y por forma.
-function renderNodoSala(sala, indice, total, actual) {
+// Un módulo: cabecera de terminal, estado, y sus lecciones como filas. Se
+// abre solo el módulo por el que toca seguir.
+function renderModulo(sala, actual) {
   const desbloqueada = store.salaDesbloqueada(sala.id);
   const completada = store.salaCompletada(sala.id);
   const hechos = ejerciciosHechosSala(sala);
   const totalEj = ejerciciosSala(sala);
-  // «En curso» es la sala por la que toca seguir, la hayas empezado o no: sin
-  // esto ningún nodo indicaba dónde continuar hasta hacer el primer ejercicio.
   const esActual = sala.id === actual;
-  const estado = completada ? 'hecha' : !desbloqueada ? 'bloqueada' : esActual ? 'curso' : 'lista';
-  const marca = completada ? '✓' : esActual ? '▶' : desbloqueada ? String(indice).padStart(2, '0') : '🔒';
+  const siguiente = sala.tareas.find((t) => store.tareaDesbloqueada(t.id) && !store.tareaHecha(t.id));
+  const etiqueta = completada ? 'Completada' : !desbloqueada ? 'Se abre al terminar la anterior' : hechos ? 'En progreso' : 'Disponible';
+  const estadoEtiqueta = completada ? 'hecho' : !desbloqueada ? 'cerrado' : 'curso';
 
-  return `<button class="nodo" data-estado="${estado}" data-sala="${escapar(sala.id)}" ${desbloqueada ? '' : 'disabled'}
-      ${indice === total ? 'data-ultimo' : ''}>
-    <span class="nodo-punto">${marca}</span>
-    <span class="nodo-info">
-      <b>${escapar(sala.nombre)}</b>
-      <small>${sala.tareas.length} tareas · ${totalEj} ejercicios · ${sala.minutos} min</small>
-      ${desbloqueada && !completada ? `<span class="mini-barra"><i style="width:${porcentaje(hechos / totalEj)}%"></i></span>` : ''}
+  return `<details class="modulo" ${esActual ? 'open' : ''}>
+    <summary>
+      <span class="semaforo" aria-hidden="true"></span>
+      <span class="modulo-nombre">${escapar(sala.nombre)}</span>
+      <span class="modulo-flecha" aria-hidden="true">⌄</span>
+    </summary>
+    <div class="modulo-cuerpo">
+      <span class="modulo-etiqueta" data-estado="${estadoEtiqueta}">${escapar(etiqueta)}</span>
+      <p>${escapar(sala.resumen)}</p>
+      <div class="filas">${sala.tareas.map((t, i) => renderFilaLeccion(t, i, siguiente?.id)).join('')}</div>
+      <div class="acciones">
+        ${desbloqueada && siguiente
+          ? `<button class="btn" data-leccion="${escapar(siguiente.id)}">▶ ${hechos ? 'Continuar' : 'Empezar'}</button>`
+          : completada
+            ? `<button class="btn" data-sala="${escapar(sala.id)}">↻ Releer la sala</button>`
+            : ''}
+        ${desbloqueada ? `<button class="btn-secundario" data-sala="${escapar(sala.id)}">🧪 Ver la sala completa</button>` : ''}
+      </div>
+      <span class="continuar-progreso">
+        <span class="barra"><i style="width:${porcentaje(totalEj ? hechos / totalEj : 0)}%"></i></span>
+        <small>${hechos}/${totalEj} ejercicios · ${sala.minutos} min · ${escapar(sala.dificultad)}</small>
+      </span>
+    </div>
+  </details>`;
+}
+
+// Una lección como fila: el icono dice el estado y la línea azul, cuánto
+// llevas hecho de ella.
+function renderFilaLeccion(tarea, indice, siguienteId) {
+  const hechos = tarea.practica.filter((e) => store.ejercicioHecho(e.id)).length;
+  const total = tarea.practica.length;
+  const completa = total > 0 && hechos === total;
+  const abierta = store.tareaDesbloqueada(tarea.id);
+  const esActual = tarea.id === siguienteId;
+  const estado = completa ? 'hecha' : !abierta ? 'bloqueada' : esActual ? 'curso' : 'lista';
+  const icono = completa ? '✅' : !abierta ? '🔒' : esActual ? '📚' : '📄';
+  const avance = total ? hechos / total : 0;
+  const nota = completa ? 'Completada'
+    : !abierta ? 'Termina la lección anterior'
+    : hechos ? `${porcentaje(avance)}% completado`
+    : esActual ? `Empieza aquí · ${total} ${total === 1 ? 'ejercicio' : 'ejercicios'}`
+    : `${total} ${total === 1 ? 'ejercicio' : 'ejercicios'}`;
+
+  return `<button class="fila-leccion" data-estado="${estado}" data-leccion="${escapar(tarea.id)}" ${abierta ? '' : 'disabled'}>
+    <span class="fila-icono" aria-hidden="true">${icono}</span>
+    <span class="fila-texto">
+      <b>${escapar(tarea.titulo)}</b>
+      <small>${nota}</small>
     </span>
-    <span class="nodo-estado">${completada ? 'Completada' : esActual ? 'Continuar' : desbloqueada ? `${hechos}/${totalEj}` : ''}</span>
+    <span class="fila-flecha" aria-hidden="true">›</span>
+    ${abierta && !completa && hechos ? `<i class="fila-linea" style="width:${porcentaje(avance)}%"></i>` : ''}
   </button>`;
 }
 
@@ -298,40 +458,20 @@ function renderSala(id) {
   const habilidades = [...new Set(sala.tareas.flatMap((t) => t.practica.flatMap((e) => e.habilidades || [])))];
   const actual = sala.tareas.find((t) => store.tareaDesbloqueada(t.id) && !store.tareaHecha(t.id))?.id;
 
-  vista.innerHTML = `<div class="pagina pagina-estrecha">
-    <button class="enlace-volver" ${academia ? `data-academia="${escapar(academia.id)}"` : 'data-ir="aprender"'}>← ${escapar(academia?.nombre || 'Aprender')}</button>
-    <header class="detalle-cabecera">
-      <div class="migas"><span>${escapar(academia?.nombre || 'Aprender')}</span><i>›</i><b>${escapar(ruta?.nombre || 'Ruta')}</b></div>
-      <h1>${escapar(sala.nombre)}</h1><p>${escapar(sala.resumen)}</p>
-      <div class="chips"><span class="chip chip-dificultad">${escapar(sala.dificultad)}</span><span class="chip">◷ ${sala.minutos} min</span><span class="chip">${total} ejercicios</span></div>
-      <div class="barra"><i style="width:${porcentaje(hechos / total)}%"></i></div>
-      <div class="habilidades-sala">${habilidades.slice(0, 8).map((h) => `<span>${NIVELES_DOMINIO[store.nivelHabilidad(h)].icono} ${escapar(nombreHabilidad(h))}</span>`).join('')}</div>
-    </header>
+  vista.innerHTML = `<div class="pagina pagina-estrecha" ${academia ? `data-color="${escapar(academia.color)}"` : ''}>
+    ${academia ? `<header class="cabecera-cubierta">
+      <button class="volver-flotante" data-academia="${escapar(academia.id)}" aria-label="Volver a ${escapar(academia.nombre)}">←</button>
+      ${cubierta(academia, { etiqueta: ruta?.nombre || '', titulo: academia.nombre })}
+    </header>` : '<button class="enlace-volver" data-ir="aprender">← Aprender</button>'}
+    <div class="migas" style="margin-top:16px"><span>${escapar(academia?.nombre || 'Aprender')}</span><i>›</i><b>${escapar(ruta?.nombre || 'Ruta')}</b></div>
+    <h1 class="titulo-detalle" style="margin-top:6px">${escapar(sala.nombre)}</h1>
+    <p class="texto-detalle">${escapar(sala.resumen)}</p>
+    <div class="chips"><span class="chip chip-dificultad">${escapar(sala.dificultad)}</span><span class="chip">◷ ${sala.minutos} min</span><span class="chip">${total} ejercicios</span></div>
+    <div class="barra"><i style="width:${porcentaje(hechos / total)}%"></i></div>
+    <div class="habilidades-sala">${habilidades.slice(0, 8).map((h) => `<span>${NIVELES_DOMINIO[store.nivelHabilidad(h)].icono} ${escapar(nombreHabilidad(h))}</span>`).join('')}</div>
     <div class="seccion-titulo"><div><h2>Lecciones</h2><p>Una cosa por pantalla, paso a paso</p></div><span class="contador">${hechos}/${total}</span></div>
-    <div class="camino"><div class="tramo">${sala.tareas.map((t, i) => renderNodoTarea(t, i, sala, actual)).join('')}</div></div>
+    <div class="filas">${sala.tareas.map((t, i) => renderFilaLeccion(t, i, actual)).join('')}</div>
   </div>`;
-}
-
-function renderNodoTarea(tarea, indice, sala, actual) {
-  const hechos = tarea.practica.filter((e) => store.ejercicioHecho(e.id)).length;
-  const total = tarea.practica.length;
-  const completa = total > 0 && hechos === total;
-  const abierta = store.tareaDesbloqueada(tarea.id);
-  const esActual = tarea.id === actual;
-  const estado = completa ? 'hecha' : !abierta ? 'bloqueada' : esActual ? 'curso' : 'lista';
-  const marca = completa ? '✓' : esActual ? '▶' : abierta ? String(indice + 1).padStart(2, '0') : '🔒';
-  const pasos = (tarea.teoria || []).length + total;
-
-  return `<button class="nodo" data-estado="${estado}" data-leccion="${escapar(tarea.id)}" ${abierta ? '' : 'disabled'}
-      ${indice === sala.tareas.length - 1 ? 'data-ultimo' : ''}>
-    <span class="nodo-punto">${marca}</span>
-    <span class="nodo-info">
-      <b>${escapar(tarea.titulo)}</b>
-      <small>${pasos} pantallas · ${total} ${total === 1 ? 'ejercicio' : 'ejercicios'}</small>
-      ${abierta && !completa && total ? `<span class="mini-barra"><i style="width:${porcentaje(hechos / total)}%"></i></span>` : ''}
-    </span>
-    <span class="nodo-estado">${completa ? 'Hecha' : esActual ? 'Continuar' : abierta ? `${hechos}/${total}` : ''}</span>
-  </button>`;
 }
 
 // =====================================================================
