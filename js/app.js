@@ -63,10 +63,17 @@ function marcarProgresoCompartible() {
   if (store.xp > 0) document.cookie = 'mentor_linux_progress=1; max-age=31536000; path=/; SameSite=Lax';
 }
 
+let xpPrevio = 0;
 function actualizarCabecera() {
   const stats = store.estadisticas();
   document.getElementById('ficha-nivel').textContent = `Nv ${stats.nivel.nivel}`;
-  document.getElementById('ficha-xp').textContent = `${stats.xp} XP`;
+  const chipXp = document.getElementById('ficha-xp');
+  chipXp.textContent = `${stats.xp} XP`;
+  // El contador de XP salta cuando sube: recompensa visual al acertar.
+  if (stats.xp > xpPrevio) {
+    chipXp.removeAttribute('data-sube'); void chipXp.offsetWidth; chipXp.setAttribute('data-sube', '');
+  }
+  xpPrevio = stats.xp;
   document.getElementById('ficha-racha').textContent = `🔥 ${stats.racha}`;
   marcarProgresoCompartible();
 }
@@ -99,6 +106,12 @@ function ir(nombre, datos = {}, guardarHistorial = true) {
   document.querySelectorAll('[data-pestana]').forEach((b) => b.toggleAttribute('data-activa', b.dataset.pestana === principal));
   if (guardarHistorial && location.hash !== rutaHash(nombre, datos)) history.pushState({ nombre, datos }, '', rutaHash(nombre, datos));
   render();
+  // Animación de entrada solo al cambiar de pantalla (no en los re-render
+  // internos de una lección o una máquina, que rehacen el mismo nodo sin
+  // pasar por aquí): así cada sección «entra» una vez, sin parpadear al
+  // avanzar de paso.
+  const raiz = vista.firstElementChild;
+  if (raiz) { raiz.classList.remove('entra'); void raiz.offsetWidth; raiz.classList.add('entra'); }
   vista.scrollTop = 0;
   actualizarCabecera();
 }
