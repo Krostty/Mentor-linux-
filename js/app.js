@@ -12,7 +12,7 @@ import { LOGROS } from './data/logros.js';
 import { Terminal } from './engine/terminal.js';
 import { store } from './store.js';
 import { escapar, formato, brindis, celebrar, porcentaje, vibrar, permitirVibracion } from './ui.js';
-import { ilustracion, escenaDe, medalla, nombreRango, RANGOS_LOGRO, PORTADA_ACADEMIA, PORTADA_SECCION } from './arte.js';
+import { ilustracion, escenaDe, medalla, nombreRango, RANGOS_LOGRO, PORTADA_ACADEMIA } from './arte.js';
 import { sonido } from './sonido.js';
 
 const vista = document.getElementById('vista');

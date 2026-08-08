@@ -1082,18 +1082,9 @@ body::before {
   font: 800 12.5px var(--mono);
 }
 
-.panel-logros { padding: 16px; }
-.panel-logros-cuenta { margin: 0 0 14px; color: var(--muted); font: 700 13px var(--mono); }
-.logros-rejilla { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px 8px; }
-.logro-ficha { display: grid; justify-items: center; gap: 6px; text-align: center; }
-.logro-emoji { font-size: 30px; line-height: 1.1; }
-.logro-ficha b { color: var(--ink); font: 700 10.5px/1.25 var(--mono); letter-spacing: -.02em; }
-.logro-ficha[data-bloqueado] { opacity: .55; }
-.logro-ficha[data-bloqueado] b { color: var(--dim); }
 
 @media (min-width: 650px) {
   .retos { grid-template-columns: repeat(2, 1fr); }
-  .logros-rejilla { grid-template-columns: repeat(6, minmax(0, 1fr)); }
 }
 
 /* Cuando la portada lleva título encima, la ilustración se retira hacia
