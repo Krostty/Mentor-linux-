@@ -177,7 +177,11 @@ const recursos = [...sw.matchAll(/'([^']+)'/g)].map((m) => m[1]).filter((x) => /
 for (const recurso of recursos.filter((x) => x !== './')) test(`recurso offline ${recurso} existe`, existsSync(resolve(raiz, recurso)), recurso);
 for (const requerido of ['js/data/salas.js', 'js/data/habilidades.js', 'js/data/maquinas.js', 'js/data/wargame.js', 'js/engine/commands/advanced.js']) test(`PWA precachea ${requerido}`, recursos.includes(requerido));
 const manifest = JSON.parse(readFileSync(resolve(raiz, 'manifest.webmanifest'), 'utf8'));
-test('manifest usa la paleta v3', manifest.theme_color === '#080b19' && manifest.background_color === '#080b19');
+// El manifest pinta la pantalla de arranque: si no coincide con el
+// `theme-color` del HTML, la app abre con un destello del color viejo.
+const temaHtml = readFileSync(resolve(raiz, 'index.html'), 'utf8').match(/name="theme-color" content="([^"]+)"/)?.[1];
+test('manifest y html comparten el color de tema', manifest.theme_color === temaHtml, `${manifest.theme_color} vs ${temaHtml}`);
+test('manifest arranca sobre el papel claro', manifest.background_color === '#f1f3f6', manifest.background_color);
 test('manifest abre Aprender', manifest.start_url.includes('#aprender'));
 
 console.log(`\n${pasadas} pruebas v3 pasadas, ${fallidas} fallidas`);

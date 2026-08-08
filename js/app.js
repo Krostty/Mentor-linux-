@@ -265,7 +265,7 @@ function renderAprender() {
     </section>
 
     <section class="continuar-hoy">
-      ${academiaActual && siguiente ? cubierta(academiaActual, { etiqueta: 'Continuar', titulo: siguiente.sala.nombre }) : ''}
+      ${academiaActual && siguiente ? cubierta(academiaActual, { etiqueta: 'Continuar', titulo: siguiente.sala.nombre, rotulo: '' }) : ''}
       <div class="continuar-cuerpo">
         <span class="eyebrow">${repasos.length ? 'Toca repasar' : siguiente ? 'Donde lo dejaste' : 'Todo completado'}</span>
         <h1>${escapar(repasos.length ? `${repasos.length} ${repasos.length === 1 ? 'habilidad' : 'habilidades'} para refrescar`
@@ -469,7 +469,7 @@ function renderSala(id) {
   vista.innerHTML = `<div class="pagina pagina-estrecha" ${academia ? `data-color="${escapar(academia.color)}"` : ''}>
     ${academia ? `<header class="cabecera-cubierta">
       <button class="volver-flotante" data-academia="${escapar(academia.id)}" aria-label="Volver a ${escapar(academia.nombre)}">←</button>
-      ${cubierta(academia, { etiqueta: ruta?.nombre || '', titulo: academia.nombre })}
+      ${cubierta(academia, { etiqueta: ruta?.nombre || '', titulo: academia.nombre, rotulo: '' })}
     </header>` : '<button class="enlace-volver" data-ir="aprender">← Aprender</button>'}
     <div class="migas" style="margin-top:16px"><span>${escapar(academia?.nombre || 'Aprender')}</span><i>›</i><b>${escapar(ruta?.nombre || 'Ruta')}</b></div>
     <h1 class="titulo-detalle" style="margin-top:6px">${escapar(sala.nombre)}</h1>

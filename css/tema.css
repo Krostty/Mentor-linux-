@@ -1095,3 +1095,12 @@ body::before {
 .tarjeta-reto .cubierta { aspect-ratio: 16 / 10.5; }
 .tarjeta-reto .cubierta-arte { height: 72%; }
 .tarjeta-reto .cubierta::after { inset: 44% 0 0; }
+
+/* La tarjeta de «continuar» lleva una portada más baja y un título que puede
+   ocupar dos líneas, así que necesita el doble de zona limpia abajo. */
+.continuar-hoy .cubierta { aspect-ratio: 16 / 8.5; }
+.continuar-hoy .cubierta-arte { height: 64%; }
+.continuar-hoy .cubierta::after { inset: 34% 0 0; }
+
+/* Una etiqueta larga nunca debe crecer hasta el rótulo central. */
+.cubierta-etiqueta { max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
