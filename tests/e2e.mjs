@@ -204,12 +204,22 @@ try {
   await pagina.locator('[data-pestana="maquinas"]').click();
   comprobar('hay 12 máquinas', await pagina.locator('[data-maquina]').count() === 12);
   await pagina.locator('[data-maquina="lumen"]').click();
+  // La máquina se recorre guiada: una fase por pantalla, con la terminal
+  // integrada y su explicación.
+  comprobar('la máquina abre en modo guiado', await pagina.locator('.maquina-guia').isVisible());
+  comprobar('arranca en la fase 1', (await pagina.locator('#maq-cuenta').innerText()).trim() === 'Fase 1/4');
+  comprobar('la fase trae su guía didáctica', await pagina.locator('.maquina-guia-texto').count() === 1);
   comprobar('terminal de máquina enfoca sola', await pagina.locator('.consola-input').evaluate((e) => e === document.activeElement));
+  // «Ver desarrollo» revela el comando de la fase.
+  await pagina.locator('[data-dev-fase]').click();
+  comprobar('«Ver desarrollo» muestra el comando', (await pagina.locator('.maquina-desarrollo').innerText()).includes('nmap -sV'));
+  await shot('v4-08-maquina-fase');
   await comando('nmap -sV 10.10.10.21');
+  comprobar('la fase 1 se supera y avanza a la 2', (await pagina.locator('#maq-cuenta').innerText()).trim() === 'Fase 2/4');
   await pagina.reload({ waitUntil: 'domcontentloaded' });
-  comprobar('la máquina conserva la fase tras recargar', await pagina.locator('.fase[data-hecha]').count() === 1);
+  comprobar('la máquina conserva el avance tras recargar', (await pagina.locator('#maq-cuenta').innerText()).trim() === 'Fase 2/4');
   for (const cmd of ['curl http://lumen.box/robots.txt', 'ssh alex@lumen.box', 'sudo -l', 'sudo -i']) await comando(cmd);
-  comprobar('se completan las 4 fases', await pagina.locator('.fase[data-hecha]').count() === 4);
+  comprobar('se completan las 4 fases y aparecen las banderas', await pagina.locator('[data-banderas]').count() === 1);
   await comando('cat /home/alex/user.txt');
   await comando('cat /root/root.txt');
   const salida = await pagina.locator('.consola-salida').innerText();
@@ -219,8 +229,12 @@ try {
   await pagina.getByRole('button', { name: 'Validar user', exact: true }).click();
   await pagina.getByLabel('Bandera root.txt').fill(flags.at(-1) || '');
   await pagina.getByRole('button', { name: 'Validar root', exact: true }).click();
-  comprobar('el writeup se desbloquea', await pagina.locator('.writeup').isVisible());
+  const celebMaquina = pagina.locator('.celebracion [data-boton="0"]');
+  if (await celebMaquina.count()) await celebMaquina.click();
+  comprobar('el writeup se desbloquea al capturar las dos banderas', await pagina.locator('.writeup').isVisible());
   await shot('v3-03-maquina-completa');
+  await pagina.locator('.maquina-guia .leccion-pie [data-ir="maquinas"]').click();
+  comprobar('la máquina completada se marca en la lista', await pagina.locator('[data-maquina="lumen"] h3').innerText().then((t) => t.includes('✓')));
 
   console.log('▸ Wargame y laboratorio');
   await pagina.locator('[data-pestana="practicar"]').click();

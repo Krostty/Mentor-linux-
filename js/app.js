@@ -845,51 +845,159 @@ function renderMaquinas() {
   </div>`;
 }
 
+// =====================================================================
+// Reproductor de máquina guiado
+// Antes la máquina volcaba las 4 fases, la terminal y las banderas en una
+// sola pantalla larga. Ahora se recorre como una lección: una fase a la
+// vez, con su explicación, la terminal integrada, pistas escaladas y un
+// botón «Ver desarrollo» que revela el comando y por qué funciona. La
+// terminal se crea UNA vez y persiste entre fases (el acceso cambia de
+// usuario y no debe reiniciarse); solo se repinta el panel de la fase.
+// =====================================================================
+
 function faseDisponible(maquina, indice) {
   return indice === 0 || store.faseMaquinaHecha(maquina.id, maquina.fases[indice - 1].id);
 }
 
-function renderFasesMaquina(maquina) {
-  return maquina.fases.map((fase, i) => {
-    const hecha = store.faseMaquinaHecha(maquina.id, fase.id);
-    const disponible = faseDisponible(maquina, i);
-    const pistas = pistasMostradas.get(`${maquina.id}/${fase.id}`) || 0;
-    return `<article class="fase" data-fase="${escapar(fase.id)}" ${hecha ? 'data-hecha' : disponible ? 'data-activa' : ''}>
-      <div class="fase-cabecera"><span class="fase-num">${hecha ? '✓' : disponible ? i + 1 : '🔒'}</span><b>${escapar(fase.nombre)}</b></div>
-      <p>${disponible ? htmlSeguro(fase.objetivo) : 'Completa la fase anterior para desbloquearla.'}</p>
-      ${disponible && !hecha ? `<button class="btn-fantasma btn-mini" style="margin-top:9px" data-pista-fase="${escapar(fase.id)}">Ver pista</button>${renderPistas(fase, pistas)}` : ''}
-    </article>`;
-  }).join('');
+function faseActualMaquina(maquina) {
+  return maquina.fases.findIndex((f, i) => !store.faseMaquinaHecha(maquina.id, f.id) && faseDisponible(maquina, i));
 }
 
 function renderMaquina(id) {
   const maquina = MAQUINA_POR_ID[id];
   if (!maquina) return ir('maquinas');
-  const estado = store.estadoMaquina(id);
-  vista.innerHTML = `<div class="pagina pagina-terminal">
-    <button class="enlace-volver" data-ir="maquinas">← Todas las máquinas</button>
-    <header class="detalle-cabecera"><span class="eyebrow">Máquina simulada · ${escapar(maquina.so)}</span><h1>${escapar(maquina.nombre)}</h1><p>${escapar(maquina.ip)} · ${escapar(maquina.host)}</p><div class="chips"><span class="dificultad" data-nivel="${nivelDificultad(maquina.dificultad)}">${escapar(maquina.dificultad)}</span><span class="chip">◷ ${maquina.minutos} min</span>${maquina.habilidades.map((h) => `<span class="chip">${escapar(h)}</span>`).join('')}</div><div class="barra"><i style="width:${porcentaje(progresoMaquina(maquina))}%"></i></div></header>
-    <div class="laboratorio-layout">
-      <div><aside class="etica"><b>Entorno autorizado.</b> Esta máquina, sus IP y sus servicios son ficción local. La terminal no realiza conexiones de red.</aside><div class="fases" id="fases-maquina">${renderFasesMaquina(maquina)}</div></div>
-      <div class="panel-lab"><h2>AttackBox</h2><p class="muted">Empieza enumerando el objetivo. Toca cualquier parte de la consola para escribir.</p><div class="terminal-zona" id="terminal-maquina"></div><div class="flags">
-        <form class="flag-form" data-flag="user"><input class="campo mono" placeholder="Pega user.txt" aria-label="Bandera user.txt" ${estado.userFlag ? 'disabled value="Capturada ✓"' : ''}><button class="btn btn-mini" ${estado.userFlag ? 'disabled' : ''}>Validar user</button></form>
-        <form class="flag-form" data-flag="root"><input class="campo mono" placeholder="Pega root.txt" aria-label="Bandera root.txt" ${estado.rootFlag ? 'disabled value="Capturada ✓"' : ''}><button class="btn btn-mini" ${estado.rootFlag ? 'disabled' : ''}>Validar root</button></form>
-      </div><div class="feedback" data-feedback-maquina></div></div>
+  document.documentElement.toggleAttribute('data-en-leccion', true);
+  vista.innerHTML = `<div class="leccion maquina-guia" data-color="red">
+    <header class="leccion-top">
+      <button class="leccion-salir" data-ir="maquinas" aria-label="Salir de la máquina">✕</button>
+      <div class="leccion-progreso" id="maq-progreso"></div>
+      <span class="leccion-cuenta" id="maq-cuenta"></span>
+    </header>
+    <div class="leccion-cuerpo" id="maq-cuerpo">
+      <div id="maq-panel"></div>
+      <div class="ejercicio-terminal maquina-terminal">
+        <div class="terminal-zona" id="terminal-maquina"></div>
+        <div class="acciones"><button class="btn-fantasma btn-mini" data-reiniciar-maquina type="button">Restaurar máquina</button></div>
+      </div>
     </div>
-    ${estado.completada ? `<section class="writeup"><span class="eyebrow">Writeup desbloqueado</span><h2>Camino de resolución</h2><ol>${maquina.writeup.map((p) => `<li>${escapar(p)}</li>`).join('')}</ol></section>` : ''}
+    <footer class="leccion-pie" id="maq-pie"></footer>
   </div>`;
   conectarMaquina(maquina);
 }
 
-function conectarMaquina(maquina) {
-  document.getElementById('fases-maquina').addEventListener('click', (evento) => {
-    const b = evento.target.closest('[data-pista-fase]');
-    if (!b) return;
+function panelFase(maquina, fase, indice) {
+  const pistas = pistasMostradas.get(`${maquina.id}/${fase.id}`) || 0;
+  const desarrollo = pistasMostradas.get(`${maquina.id}/${fase.id}/dev`);
+  return `<article class="maquina-fase paso" data-fase="${escapar(fase.id)}">
+    <div class="ejercicio-cabecera"><span class="ejercicio-tipo">Fase ${indice + 1} · ${escapar(fase.nombre)}</span><span class="ejercicio-xp">Máquina ${escapar(maquina.nombre)}</span></div>
+    <p class="paso-enunciado">${htmlSeguro(fase.objetivo)}</p>
+    ${fase.guia ? `<div class="maquina-guia-texto">${htmlSeguro(fase.guia)}</div>` : ''}
+    ${renderPistas(fase, pistas)}
+    ${desarrollo ? `<div class="maquina-desarrollo"><b>Desarrollo</b><pre><code>${escapar(fase.solucion)}</code></pre><p>${htmlSeguro(fase.desarrollo || '')}</p></div>` : ''}
+  </article>`;
+}
+
+function panelBanderas(maquina) {
+  const estado = store.estadoMaquina(maquina.id);
+  return `<article class="maquina-fase paso" data-banderas>
+    <div class="ejercicio-cabecera"><span class="ejercicio-tipo">Banderas</span><span class="ejercicio-xp">${escapar(maquina.nombre)}</span></div>
+    <p class="paso-enunciado">Ya tienes root. Lee las banderas en la terminal y pégalas aquí.</p>
+    <div class="maquina-guia-texto">La bandera de usuario está en <code>/home/${escapar(maquina.user)}/user.txt</code> y la de root en <code>/root/root.txt</code>. Muéstralas con <code>cat</code> y copia el valor.</div>
+    <form class="flag-form" data-flag="user"><input class="campo mono" placeholder="Pega user.txt" aria-label="Bandera user.txt" ${estado.userFlag ? 'disabled value="Capturada ✓"' : ''}><button class="btn btn-mini" ${estado.userFlag ? 'disabled' : ''}>Validar user</button></form>
+    <form class="flag-form" data-flag="root"><input class="campo mono" placeholder="Pega root.txt" aria-label="Bandera root.txt" ${estado.rootFlag ? 'disabled value="Capturada ✓"' : ''}><button class="btn btn-mini" ${estado.rootFlag ? 'disabled' : ''}>Validar root</button></form>
+    <div class="feedback" data-feedback-maquina></div>
+  </article>`;
+}
+
+function panelWriteup(maquina) {
+  return `<article class="maquina-fase paso paso-fin" data-completa>
+    <div class="fin-marca">✓</div>
+    <h1>Máquina comprometida</h1>
+    <p>Has recorrido ${escapar(maquina.nombre)} de principio a fin.</p>
+    <section class="writeup"><span class="eyebrow">Writeup</span><ol>${maquina.writeup.map((p) => `<li>${escapar(p)}</li>`).join('')}</ol></section>
+  </article>`;
+}
+
+// Repinta el panel de la fase, el progreso y el pie sin tocar la terminal.
+function pintarMaquina(maquina) {
+  const panel = document.getElementById('maq-panel');
+  const pie = document.getElementById('maq-pie');
+  const progreso = document.getElementById('maq-progreso');
+  const cuenta = document.getElementById('maq-cuenta');
+  if (!panel) return;
+  const estado = store.estadoMaquina(maquina.id);
+  const idxFase = faseActualMaquina(maquina);
+  const total = maquina.fases.length + 2; // fases + 2 banderas
+  const hechas = maquina.fases.filter((f) => store.faseMaquinaHecha(maquina.id, f.id)).length;
+  const flags = Number(estado.userFlag) + Number(estado.rootFlag);
+  const hechos = hechas + flags;
+
+  // Progreso segmentado: una marca por fase y una por bandera.
+  const segs = [];
+  for (let i = 0; i < maquina.fases.length; i++) segs.push(store.faseMaquinaHecha(maquina.id, maquina.fases[i].id) ? 'hecho' : i === idxFase ? 'aqui' : 'pendiente');
+  segs.push(estado.userFlag ? 'hecho' : idxFase < 0 ? 'aqui' : 'pendiente');
+  segs.push(estado.rootFlag ? 'hecho' : 'pendiente');
+  progreso.innerHTML = segs.map((s) => `<span data-estado="${s}"></span>`).join('');
+  cuenta.textContent = idxFase >= 0 ? `Fase ${idxFase + 1}/${maquina.fases.length}` : `${hechos}/${total}`;
+
+  const terminalVisible = document.querySelector('.maquina-terminal');
+  if (idxFase >= 0) {
+    const fase = maquina.fases[idxFase];
+    panel.innerHTML = panelFase(maquina, fase, idxFase);
+    if (terminalVisible) terminalVisible.style.display = '';
+    const pistas = pistasMostradas.get(`${maquina.id}/${fase.id}`) || 0;
+    const hayPistas = pistas < fase.pistas.length;
+    const verDev = pistasMostradas.get(`${maquina.id}/${fase.id}/dev`);
+    pie.removeAttribute('data-estado');
+    pie.innerHTML = `<div class="feedback" data-feedback-maquina>Escribe los comandos en la terminal. La fase se valida sola cuando el sistema queda en el estado correcto.</div>
+      <div class="leccion-botones">
+        ${hayPistas ? `<button class="btn-fantasma btn-mini" data-pista-fase="${escapar(fase.id)}">Pista</button>` : ''}
+        ${verDev ? '' : `<button class="btn-fantasma btn-mini" data-dev-fase="${escapar(fase.id)}">Ver desarrollo</button>`}
+      </div>`;
+  } else if (flags < 2) {
+    panel.innerHTML = panelBanderas(maquina);
+    if (terminalVisible) terminalVisible.style.display = '';
+    pie.removeAttribute('data-estado');
+    pie.innerHTML = `<div class="feedback" data-feedback-maquina>Lee las banderas con <code>cat</code> y pégalas arriba.</div>`;
+  } else {
+    panel.innerHTML = panelWriteup(maquina);
+    if (terminalVisible) terminalVisible.style.display = 'none';
+    pie.setAttribute('data-estado', 'ok');
+    pie.innerHTML = `<div class="leccion-botones"><button class="btn" data-ir="maquinas">Volver a las máquinas</button></div>`;
+  }
+  conectarPanelMaquina(maquina);
+}
+
+function conectarPanelMaquina(maquina) {
+  vista.querySelectorAll('[data-pista-fase]').forEach((b) => b.addEventListener('click', () => {
     const fase = maquina.fases.find((f) => f.id === b.dataset.pistaFase);
     const clave = `${maquina.id}/${fase.id}`;
     pistasMostradas.set(clave, Math.min((pistasMostradas.get(clave) || 0) + 1, fase.pistas.length));
-    renderMaquina(maquina.id);
-  });
+    pintarMaquina(maquina);
+  }));
+  vista.querySelectorAll('[data-dev-fase]').forEach((b) => b.addEventListener('click', () => {
+    pistasMostradas.set(`${maquina.id}/${b.dataset.devFase}/dev`, true);
+    pintarMaquina(maquina);
+  }));
+  vista.querySelectorAll('[data-flag]').forEach((form) => form.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    const tipo = form.dataset.flag;
+    const valor = form.querySelector('input').value;
+    const hash = tipo === 'root' ? maquina.rootFlagHash : maquina.userFlagHash;
+    const mensaje = vista.querySelector('[data-feedback-maquina]');
+    if (!respuestaCorrecta(valor, hash)) { if (mensaje) { mensaje.textContent = 'Esa bandera no es válida para esta máquina.'; mensaje.dataset.error = ''; } return; }
+    store.registrarFlag(maquina, tipo);
+    actualizarCabecera();
+    if (store.estadoMaquina(maquina.id).completada) {
+      celebrar({ marca: '🏴', titulo: 'Máquina comprometida', texto: `Has completado ${maquina.nombre} con las dos banderas.`, xp: 0, botones: [{ texto: 'Ver writeup', accion: () => pintarMaquina(maquina) }, { texto: 'Volver a las máquinas', principal: false, accion: () => ir('maquinas') }] });
+    } else {
+      brindis(`🚩 ${tipo}.txt capturada`);
+      pintarMaquina(maquina);
+    }
+  }));
+}
+
+function conectarMaquina(maquina) {
   const estadoGuardado = store.estadoMaquina(maquina.id);
   const profile = structuredClone(maquina.profile);
   if (estadoGuardado.fases.includes('enum')) profile.accessUnlocked = true;
@@ -903,30 +1011,23 @@ function conectarMaquina(maquina) {
     groupMap: maquina.groupMap, machine: profile, autoFocus: true,
     alEjecutar: (ctx) => {
       store.contarComando(comandoDe(ctx.ultimo?.cmd));
-      const fase = maquina.fases.find((f, i) => !store.faseMaquinaHecha(maquina.id, f.id) && faseDisponible(maquina, i));
-      if (!fase) return;
+      const idx = faseActualMaquina(maquina);
+      if (idx < 0) return;
+      const fase = maquina.fases[idx];
       let ok = false;
       try { ok = fase.check(ctx) === true; } catch { ok = false; }
       if (!ok) return;
       try { fase.onComplete?.(ctx); } catch {}
       store.completarFaseMaquina(maquina, fase);
-      document.getElementById('fases-maquina').innerHTML = renderFasesMaquina(maquina);
       actualizarCabecera();
-      brindis(`✓ Fase completada: **${fase.nombre}**`);
+      vibrar(18);
+      brindis(`✓ Fase superada: **${fase.nombre}**`);
+      pintarMaquina(maquina);
     },
   });
-  vista.querySelectorAll('[data-flag]').forEach((form) => form.addEventListener('submit', (evento) => {
-    evento.preventDefault();
-    const tipo = form.dataset.flag;
-    const valor = form.querySelector('input').value;
-    const hash = tipo === 'root' ? maquina.rootFlagHash : maquina.userFlagHash;
-    const mensaje = vista.querySelector('[data-feedback-maquina]');
-    if (!respuestaCorrecta(valor, hash)) { mensaje.textContent = 'Esa bandera no es válida para esta máquina.'; mensaje.dataset.error = ''; return; }
-    store.registrarFlag(maquina, tipo);
-    brindis(`🚩 ${tipo}.txt capturada`);
-    renderMaquina(maquina.id);
-    actualizarCabecera();
-  }));
+  const reiniciar = vista.querySelector('[data-reiniciar-maquina]');
+  if (reiniciar) reiniciar.addEventListener('click', () => terminalActiva?.reiniciar());
+  pintarMaquina(maquina);
 }
 
 function renderPracticar() {

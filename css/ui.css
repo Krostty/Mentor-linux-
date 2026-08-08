@@ -904,3 +904,50 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
 
 /* La lección es pantalla completa: sin pestañas compitiendo por el pulgar. */
 :root[data-en-leccion] .pestanas { display: none; }
+
+
+/* =====================================================================
+   Máquina guiada
+   Reusa la estructura de la lección: cabecera con progreso, cuerpo con el
+   panel de la fase + la terminal persistente, y pie con pista y desarrollo.
+   ===================================================================== */
+
+.maquina-guia .leccion-progreso span[data-estado="hecho"] { background: var(--red); }
+.maquina-guia .leccion-progreso span[data-estado="aqui"] { background: var(--amber); box-shadow: 0 0 12px rgba(255,210,103,.5); }
+.maquina-fase { border-radius: 18px; }
+.maquina-fase .ejercicio-cabecera .ejercicio-tipo { color: var(--red); }
+.maquina-fase .ejercicio-cabecera .ejercicio-xp { color: var(--amber); }
+.maquina-guia-texto {
+  margin: 2px 0 12px;
+  padding: 11px 13px;
+  border-left: 3px solid var(--red);
+  border-radius: 10px;
+  background: color-mix(in srgb, var(--red) 8%, transparent);
+  color: var(--muted);
+  font-size: 14px;
+  line-height: 1.5;
+}
+.maquina-desarrollo {
+  margin-top: 11px;
+  padding: 12px 13px;
+  border: 1px dashed color-mix(in srgb, var(--amber) 45%, var(--line));
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--amber) 7%, transparent);
+}
+.maquina-desarrollo b { display: block; margin-bottom: 6px; color: var(--amber); font: 750 10px var(--mono); letter-spacing: .12em; text-transform: uppercase; }
+.maquina-desarrollo pre { margin: 0 0 8px; padding: 9px 11px; overflow-x: auto; border-radius: 9px; background: rgba(0,0,0,.3); color: var(--lime); font: 12.5px var(--mono); }
+.maquina-desarrollo p { margin: 0; color: var(--muted); font-size: 13.5px; }
+.maquina-terminal { margin-top: 14px; }
+.maquina-terminal .terminal-zona { min-height: min(44vh, 360px); }
+.maquina-fase .flag-form { margin-top: 9px; }
+.maquina-fase .writeup { margin-top: 14px; text-align: left; }
+
+/* Con el teclado abierto, la máquina también se despeja: solo la terminal. */
+:root[data-teclado] .maquina-fase .maquina-guia-texto,
+:root[data-teclado] .maquina-fase .ejercicio-cabecera,
+:root[data-teclado] .maquina-fase .pistas,
+:root[data-teclado] .maquina-fase .maquina-desarrollo { display: none; }
+:root[data-teclado] .maquina-fase .paso-enunciado { margin: 0 0 8px; font-size: 14px; max-height: 2.9em; overflow: hidden; color: var(--muted); }
+:root[data-teclado] .maquina-terminal { margin-top: 0; }
+:root[data-teclado] .maquina-terminal .terminal-zona { min-height: 0; }
+:root[data-teclado] .maquina-terminal .acciones { display: none; }

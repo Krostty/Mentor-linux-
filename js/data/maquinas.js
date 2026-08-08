@@ -59,6 +59,16 @@ function escaladaDe(tecnica) {
   return ['id', (c) => k.salidaTiene(c, 'groups=')];
 }
 
+// Cómo enumerar cada vía de escalada, en una frase, para la guía paso a paso.
+const VIA_ESCALADA = {
+  sudo: 'permisos de `sudo` demasiado generosos: mira `sudo -l` y busca un comando que puedas ejecutar como root',
+  suid: 'un binario **SUID** que no debería estarlo: búscalo con `find / -perm -4000`',
+  capabilities: 'una **capability** peligrosa asignada a un binario: enséñalas con `getcap -r /`',
+  cron: 'una **tarea cron** que ejecuta como root un script influenciable: revisa `/etc/crontab`',
+  path: 'un **PATH secuestrable** en un script privilegiado: compara `echo $PATH` con quién puede escribir en esas rutas',
+  groups: 'la **pertenencia a grupos** con permisos de más: empieza por `id` para ver a cuáles perteneces',
+};
+
 export const MAQUINAS = MACHINE_SEEDS.map((seed, i) => {
   const [id, user, userFlag, rootFlag] = seed;
   const p = profile(seed, i);
@@ -75,27 +85,35 @@ export const MAQUINAS = MACHINE_SEEDS.map((seed, i) => {
     fases: [
       {
         id: 'recon', nombre: 'Reconocimiento', objetivo: `Identifica los puertos y versiones de ${p.ip}.`,
+        guia: `Toda máquina empieza igual: ¿qué expone? Un escaneo de versiones lista los puertos abiertos y qué programa hay detrás de cada uno. Es el mapa sobre el que trabajarás. Escanea \`${p.ip}\` con detección de versión.`,
         pistas: ['Empieza por un escaneo de servicios.', `Prueba con \`nmap -sV ${p.ip}\`.`],
         solucion: `nmap -sV ${p.ip}`,
+        desarrollo: `\`nmap -sV ${p.ip}\` escanea los puertos y, con \`-sV\`, intenta identificar el servicio y su versión. Con ese mapa sabes por dónde seguir.`,
         check: (c) => k.usó(c, /^nmap\b/) && k.usó(c, new RegExp(p.ip.replace(/\./g, '\\.'))),
       },
       {
         id: 'enum', nombre: 'Enumeración', objetivo: 'Investiga el servicio expuesto y encuentra el token de acceso.',
+        guia: 'Ya sabes qué servicios hay; ahora exprímelos. Pide páginas, lee banners, busca rutas. En este laboratorio, un token de acceso escondido en el servicio expuesto es tu billete de entrada.',
         pistas: ['Observa los servicios y puertos del escaneo.', `La ruta de referencia usa: \`${enumSolution}\`.`],
         solucion: enumSolution,
+        desarrollo: `\`${enumSolution}\` interroga el servicio expuesto. La respuesta contiene el token de acceso del laboratorio, que habilita el siguiente paso.`,
         check: (c) => k.salidaTiene(c, p.token),
         onComplete: (c) => { c.shell.state.machine.accessUnlocked = true; },
       },
       {
         id: 'access', nombre: 'Acceso inicial', objetivo: `Usa la información encontrada para entrar como ${user}.`,
+        guia: `Con lo enumerado, consigue la primera sesión. Aquí el acceso simulado es por SSH como \`${user}\`: es tu punto de apoyo, entras sin privilegios. (La conexión no sale del dispositivo.)`,
         pistas: ['El acceso simulado se realiza mediante SSH.', `Ejecuta \`ssh ${user}@${p.host}\` después de enumerar.`],
         solucion: `ssh ${user}@${p.host}`,
+        desarrollo: `\`ssh ${user}@${p.host}\` abre la sesión como \`${user}\`. Ya estás dentro, pero como usuario normal: falta la escalada.`,
         check: (c) => c.shell.user === user,
       },
       {
         id: 'privesc', nombre: 'Escalada', objetivo: `Enumera la vía de escalada relacionada con ${tecnica} y consigue una shell root.`,
+        guia: `Ya estás dentro; el objetivo ahora es **root**. Esta máquina esconde ${VIA_ESCALADA[tecnica]}. Enumera primero, explota después.`,
         pistas: ['Enumera antes de explotar.', `La comprobación de referencia comienza con \`${privSolution.split('\n')[0]}\`.`],
         solucion: privSolution,
+        desarrollo: `La vía es ${tecnica}. \`${privSolution.split('\n')[0]}\` la deja al descubierto; a partir de ahí se obtiene una shell de root en el simulador.`,
         check: privCheck,
         onComplete: (c) => c.shell.setUser('root'),
       },
