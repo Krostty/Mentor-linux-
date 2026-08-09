@@ -114,6 +114,23 @@ export class Store {
     this.oyentes = new Set();
     this.temporizador = null;
     this.storageOk = true;
+    // Índices de consulta. Las listas de progreso solo crecen, así que basta
+    // con reconstruir el conjunto cuando cambia la identidad del array o su
+    // longitud; a cambio, «¿está hecho este ejercicio?» pasa de recorrer una
+    // lista de mil elementos a una consulta directa.
+    this.indices = new Map();
+    // Sello de cambio: permite cachear resúmenes caros sin quedarse obsoleto.
+    this.version = 0;
+  }
+
+  // Conjunto vivo de una lista del estado.
+  conjunto(clave) {
+    const lista = this.estado[clave] || [];
+    const cache = this.indices.get(clave);
+    if (cache && cache.origen === lista && cache.tam === lista.length) return cache.set;
+    const set = new Set(lista);
+    this.indices.set(clave, { origen: lista, tam: lista.length, set });
+    return set;
   }
 
   get xp() { return this.estado.xp; }
@@ -131,6 +148,7 @@ export class Store {
   guardar() {
     if (this.temporizador) clearTimeout(this.temporizador);
     this.temporizador = null;
+    this.version++;
     try {
       localStorage.setItem(CLAVE, JSON.stringify(this.estado));
       this.storageOk = true;
@@ -141,6 +159,7 @@ export class Store {
   }
 
   programarGuardado() {
+    this.version++;
     if (this.temporizador) clearTimeout(this.temporizador);
     this.temporizador = setTimeout(() => this.guardar(), DEBOUNCE_MS);
   }
@@ -168,9 +187,9 @@ export class Store {
     this.programarGuardado();
   }
 
-  ejercicioHecho(id) { return this.estado.ejerciciosCompletados.includes(id); }
-  tareaHecha(id) { return this.estado.tareasCompletadas.includes(id); }
-  salaCompletada(id) { return this.estado.salasCompletadas.includes(id); }
+  ejercicioHecho(id) { return this.conjunto('ejerciciosCompletados').has(id); }
+  tareaHecha(id) { return this.conjunto('tareasCompletadas').has(id); }
+  salaCompletada(id) { return this.conjunto('salasCompletadas').has(id); }
 
   multiplicador() {
     if (this.estado.combo >= 15) return 3;
@@ -399,7 +418,7 @@ export class Store {
     return true;
   }
 
-  nivelWargameDesbloqueado(n) { return this.estado.wargameDesbloqueados.includes(n); }
+  nivelWargameDesbloqueado(n) { return this.conjunto('wargameDesbloqueados').has(n); }
 
   completarNivelWargame(nivel) {
     if (this.estado.wargameCompletados.includes(nivel.n)) return false;
@@ -412,7 +431,7 @@ export class Store {
     return true;
   }
 
-  misionHecha(id) { return this.estado.misionesCompletadas.includes(id); }
+  misionHecha(id) { return this.conjunto('misionesCompletadas').has(id); }
 
   completarMision(mision) {
     if (this.misionHecha(mision.id)) return 0;
@@ -454,7 +473,8 @@ export class Store {
     const bloquesCompletados = BLOQUES.filter((b) => b.salas.every((id) => this.salaCompletada(id))).map((b) => b.id);
     const modulosSinPistas = this.estado.salasCompletadas.filter((id) => {
       const sala = SALA_POR_ID[id];
-      return sala && !sala.tareas.some((t) => t.practica.some((e) => this.estado.ejerciciosConPista.includes(e.id)));
+      const conPista = this.conjunto('ejerciciosConPista');
+      return sala && !sala.tareas.some((t) => t.practica.some((e) => conPista.has(e.id)));
     });
     return {
       ...this.estado,
@@ -543,7 +563,16 @@ export class Store {
     this.guardar();
   }
 
+  // El resumen recorre las 45 salas y sus 1.200 ejercicios. Se pide varias
+  // veces por pantalla, así que se guarda hasta el siguiente cambio de estado.
   estadisticas() {
+    if (this.cacheEstadisticas && this.cacheEstadisticas.version === this.version) return this.cacheEstadisticas.datos;
+    const datos = this.calcularEstadisticas();
+    this.cacheEstadisticas = { version: this.version, datos };
+    return datos;
+  }
+
+  calcularEstadisticas() {
     const niveles = Object.fromEntries(Object.keys(this.estado.habilidades).map((id) => [id, this.nivelHabilidad(id)]));
     return {
       xp: this.estado.xp,

@@ -148,5 +148,32 @@ probar('un bucle infinito se corta en vez de colgar la app', () => {
 });
 probar('printf reutiliza el formato con varios argumentos', () => run(prog(), `printf '%s\\n' uno dos tres`).output === 'uno\ndos\ntres\n');
 
+console.log('\n▸ Diagnóstico de errores del alumno');
+const err = (cmd) => run(prog(), cmd).output;
+probar('sugiere el nombre bien escrito', () => /Did you mean: 'print'/.test(err(`python3 -c 'pritn(1)'`)));
+probar('sugiere el método bien escrito', () => /Did you mean: 'upper'/.test(err(`python3 -c 'print("a".uppe())'`)));
+probar('avisa de los dos puntos que faltan', () => /expected ':'/.test(err(`python3 -c 'if 1 == 1
+    print(1)'`)));
+probar('distingue = de == en una condición', () => /Maybe you meant '=='/.test(err(`python3 -c 'if x = 1: print(1)'`)));
+probar('señala el paréntesis sin cerrar', () => /was never closed/.test(err(`python3 -c 'print(1'`)));
+probar('pide sangría indicando la línea culpable', () => /expected an indented block after 'for' statement on line 1/.test(err(`python3 -c 'for i in range(2):
+print(i)'`)));
+probar('dice qué bloque de Lua quedó sin end', () => /'end' expected \(to close 'if' at line 1\)/.test(err(`lua -e 'if 1 > 0 then print(1)'`)));
+probar('corrige != por ~= en Lua', () => /~=/.test(err(`lua -e 'if 1 != 2 then print(1) end'`)));
+probar('corrige ~= por != en Python', () => /!=/.test(err(`python3 -c 'print(1 ~= 2)'`)));
+// Lo que NO es un fallo del alumno: código correcto fuera del simulador.
+probar('las clases se anuncian como no soportadas, no como error de sintaxis', () => {
+  const o = err(`python3 -c 'class A: pass'`);
+  return o.includes('no llega hasta ahí') && o.includes('clases') && !o.includes('invalid syntax');
+});
+probar('las comprensiones se anuncian como no soportadas', () => /comprensión/.test(err(`python3 -c 'print([x for x in range(3)])'`)));
+probar('try/except se anuncia como no soportado', () => /excepciones/.test(err(`python3 -c 'try:
+    pass
+except:
+    pass'`)));
+probar('require de Lua se anuncia como no soportado', () => /módulos/.test(err(`lua -e 'require("socket")'`)));
+probar('las metatablas se anuncian como no soportadas', () => /metatablas/.test(err(`lua -e 'setmetatable({}, {})'`)));
+probar('el aviso invita a seguir con el lenguaje instalado', () => /instalado en tu máquina/.test(err(`python3 -c 'class A: pass'`)));
+
 console.log(`${ok} pruebas nuevas de shell pasadas, ${mal} fallidas`);
 process.exit(mal ? 1 : 0);

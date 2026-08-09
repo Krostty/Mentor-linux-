@@ -169,6 +169,17 @@ persistente.completarEjercicio(ejercicioDominio);
 test('dos recuperaciones elevan el dominio de pwd', persistente.nivelHabilidad('pwd') >= 3, String(persistente.nivelHabilidad('pwd')));
 persistente.registrarIntento(ejercicioDominio, { correcto: false });
 test('un fallo programa repaso inmediato', persistente.estado.habilidades.pwd.proxima <= new Date().toISOString().slice(0, 10));
+// El resumen del progreso se pide varias veces por pantalla y recorre todas
+// las salas: tiene que servirse cacheado mientras no cambie nada, y tiene que
+// dejar de servirse en cuanto cambia.
+const rendimiento = new Store();
+const resumen1 = rendimiento.estadisticas();
+test('estadisticas se cachea entre llamadas', rendimiento.estadisticas() === resumen1);
+rendimiento.completarEjercicio(TODOS_EJERCICIOS[0]);
+test('estadisticas se recalcula tras completar', rendimiento.estadisticas() !== resumen1);
+test('el ejercicio completado consta como hecho', rendimiento.ejercicioHecho(TODOS_EJERCICIOS[0].id));
+test('un ejercicio no tocado no consta como hecho', !rendimiento.ejercicioHecho('no-existe'));
+
 const legado = new Store({ version: 1, xp: 99, retosCompletados: ['r1-echo'], leccionesVistas: ['inicio/que-es'], modulosCompletados: ['inicio'] });
 test('migración v1 conserva XP', legado.xp === 99);
 test('migración v1 conserva retos', legado.estado.ejerciciosCompletados.includes('r1-echo'));

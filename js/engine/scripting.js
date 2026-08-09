@@ -36,6 +36,81 @@ export class ErrorScript extends Error {
   }
 }
 
+// Error de «esto es código correcto, pero el simulador no llega hasta ahí».
+// Es distinto de un fallo del alumno y se le dice con todas las letras, porque
+// hacerle creer que su código está mal es la peor forma de enseñar.
+export class ErrorNoSoportado extends ErrorScript {
+  constructor(que, linea, alternativa = '') {
+    super(que, linea);
+    this.que = que;
+    this.alternativa = alternativa;
+  }
+}
+
+// Catálogos para el «¿querías decir...?» de los métodos.
+const METODOS_CADENA = ['upper', 'lower', 'strip', 'lstrip', 'rstrip', 'split', 'join', 'replace',
+  'startswith', 'endswith', 'find', 'count', 'title', 'capitalize', 'isdigit', 'isalpha', 'format',
+  'zfill', 'splitlines'];
+const METODOS_LISTA = ['append', 'extend', 'insert', 'pop', 'remove', 'sort', 'reverse', 'index', 'count', 'clear'];
+
+// Distancia de edición acotada: sirve para el «¿querías decir...?».
+function distancia(a, b) {
+  if (Math.abs(a.length - b.length) > 3) return 99;
+  const fila = Array.from({ length: b.length + 1 }, (_, i) => i);
+  for (let i = 1; i <= a.length; i++) {
+    let anterior = fila[0];
+    fila[0] = i;
+    for (let j = 1; j <= b.length; j++) {
+      const temp = fila[j];
+      fila[j] = Math.min(fila[j] + 1, fila[j - 1] + 1, anterior + (a[i - 1] === b[j - 1] ? 0 : 1));
+      anterior = temp;
+    }
+  }
+  return fila[b.length];
+}
+
+// Devuelve el candidato más parecido, si hay uno lo bastante cercano. Es lo
+// que hace Python 3.11 con `NameError: ... Did you mean: 'print'?`, y es la
+// ayuda que más veces desatasca a quien empieza (una errata, no un concepto).
+export function sugerir(nombre, candidatos) {
+  let mejor = null;
+  let mejorDistancia = Math.max(1, Math.floor(String(nombre).length / 2) + 1);
+  for (const c of candidatos) {
+    if (c === nombre) continue;
+    const d = distancia(String(nombre).toLowerCase(), String(c).toLowerCase());
+    if (d < mejorDistancia) { mejor = c; mejorDistancia = d; }
+  }
+  return mejor;
+}
+
+// Construcciones que existen en el lenguaje pero no en este intérprete. Cada
+// una se nombra en castellano y, cuando la hay, se ofrece la alternativa que
+// sí funciona aquí.
+const NO_SOPORTADO_PY = {
+  class: ['las clases (`class`)', 'de momento organiza el código con funciones (`def`)'],
+  try: ['el manejo de excepciones (`try`/`except`)', 'comprueba antes con un `if` en vez de capturar el error'],
+  except: ['el manejo de excepciones (`try`/`except`)', 'comprueba antes con un `if` en vez de capturar el error'],
+  finally: ['el manejo de excepciones (`try`/`finally`)', ''],
+  raise: ['lanzar excepciones (`raise`)', ''],
+  lambda: ['las funciones anónimas (`lambda`)', 'define la función con `def` y su nombre'],
+  yield: ['los generadores (`yield`)', 'devuelve una lista con `return`'],
+  async: ['la programación asíncrona (`async`/`await`)', ''],
+  await: ['la programación asíncrona (`async`/`await`)', ''],
+  nonlocal: ['`nonlocal`', 'usa `global` o pasa el valor como parámetro'],
+  del: ['`del`', 'para listas usa `.pop()` y para diccionarios `.pop(clave)`'],
+  assert: ['`assert`', 'comprueba con un `if` y avisa con `print`'],
+  match: ['`match`/`case`', 'encadena `if` / `elif` / `else`'],
+};
+
+const NO_SOPORTADO_LUA = {
+  require: ['cargar módulos con `require`', 'aquí todo el programa vive en un archivo'],
+  coroutine: ['las corrutinas (`coroutine`)', ''],
+  setmetatable: ['las metatablas (`setmetatable`)', 'usa una tabla normal con sus campos'],
+  getmetatable: ['las metatablas (`getmetatable`)', ''],
+  pcall: ['capturar errores con `pcall`', 'comprueba los valores con un `if` antes de usarlos'],
+  goto: ['`goto`', 'usa `break` o una condición'],
+};
+
 // --- valores compartidos ---------------------------------------------
 
 // Un número con parte decimal explícita. Python y Lua 5.4 distinguen 5 de
@@ -141,7 +216,7 @@ const SEÑAL_SEGUIR = Symbol('continue');
 
 const OPS = [
   '//=', '**=', '...', '..=', '//', '**', '==', '!=', '~=', '<=', '>=', '+=', '-=', '*=', '/=', '%=', '..',
-  '(', ')', '[', ']', '{', '}', ',', ':', ';', '.', '+', '-', '*', '/', '%', '^', '#', '<', '>', '=',
+  '(', ')', '[', ']', '{', '}', ',', ':', ';', '.', '+', '-', '*', '/', '%', '^', '#', '<', '>', '=', '@', '!',
 ];
 
 function esLetra(c) {
@@ -162,6 +237,9 @@ function tokenizar(fuente, lang) {
   let linea = 1;
   let inicioLinea = true;
   let profundidad = 0; // paréntesis abiertos: dentro no hay indentación
+  // Se recuerda dónde se abrió cada paréntesis para poder decir «'(' was
+  // never closed» señalando la línea de apertura, como hace Python 3.11.
+  const abiertos = [];
 
   const push = (tipo, valor, extra = {}) => tokens.push({ tipo, valor, linea, ...extra });
 
@@ -269,12 +347,38 @@ function tokenizar(fuente, lang) {
 
     const op = OPS.find((o) => fuente.startsWith(o, i));
     if (!op) throw new ErrorScript(py ? `SyntaxError: invalid character '${c}'` : `unexpected symbol near '${c}'`, linea);
-    if ('([{'.includes(op)) profundidad++;
-    if (')]}'.includes(op)) profundidad = Math.max(0, profundidad - 1);
+    // El error clásico al saltar de un lenguaje al otro: `!=` es de Python y
+    // `~=` es de Lua. Decirlo aquí ahorra diez minutos de mirar la pantalla.
+    if (!py && (op === '!=' || op === '!')) {
+      throw new ErrorScript("unexpected symbol near '!' (en Lua, «distinto de» se escribe `~=`)", linea);
+    }
+    if (py && op === '~=') {
+      throw new ErrorScript("SyntaxError: invalid syntax (en Python, «distinto de» se escribe `!=`)", linea);
+    }
+    if (py && op === '!' && !fuente.startsWith('!=', i)) {
+      throw new ErrorScript("SyntaxError: invalid syntax (para negar en Python se usa `not`)", linea);
+    }
+    if ('([{'.includes(op)) { profundidad++; abiertos.push({ signo: op, linea }); }
+    if (')]}'.includes(op)) {
+      profundidad = Math.max(0, profundidad - 1);
+      const pareja = { ')': '(', ']': '[', '}': '{' }[op];
+      const ultimo = abiertos[abiertos.length - 1];
+      if (!ultimo) throw new ErrorScript(py ? `SyntaxError: unmatched '${op}'` : `unexpected symbol near '${op}'`, linea);
+      if (ultimo.signo !== pareja) {
+        throw new ErrorScript(py
+          ? `SyntaxError: closing parenthesis '${op}' does not match opening parenthesis '${ultimo.signo}' on line ${ultimo.linea}`
+          : `'${pareja}' expected (to close '${ultimo.signo}' at line ${ultimo.linea})`, linea);
+      }
+      abiertos.pop();
+    }
     i += op.length;
     push('op', op);
   }
 
+  if (abiertos.length) {
+    const { signo, linea: abierta } = abiertos[0];
+    throw new ErrorScript(py ? `SyntaxError: '${signo}' was never closed` : `'${signo}' was never closed`, abierta);
+  }
   if (py) {
     push('newline');
     while (pila.length > 1) { pila.pop(); push('dedent'); }
@@ -317,6 +421,13 @@ class Analizador {
     return t;
   }
 
+  // Como `comer`, pero diciendo qué bloque esperaba esa palabra.
+  comerLua(palabra, dueño, lineaDueño) {
+    if (this.actual.tipo === 'nombre' && this.actual.valor === palabra) { this.i++; return; }
+    const visto = this.actual.tipo === 'eof' ? '<eof>' : String(this.actual.valor ?? this.actual.tipo);
+    throw new ErrorScript(`'${palabra}' expected (to close '${dueño}' at line ${lineaDueño}) near '${visto}'`, this.linea);
+  }
+
   aceptarOp(valor) {
     if (this.esOp(valor)) { this.i++; return true; }
     return false;
@@ -351,11 +462,19 @@ class Analizador {
     return cuerpo;
   }
 
-  bloquePython() {
+  bloquePython(dueño = 'statement', lineaDueño = 0) {
+    if (!this.esOp(':')) {
+      // Python 3.10+ dice exactamente esto, y es el error número uno de quien
+      // viene de otro lenguaje o escribe deprisa.
+      if (this.esOp('=')) throw new ErrorScript("SyntaxError: invalid syntax. Maybe you meant '==' or ':=' instead of '='?", this.linea);
+      throw new ErrorScript("SyntaxError: expected ':'", this.linea);
+    }
     this.comer('op', ':');
     if (this.actual.tipo === 'newline') {
       this.saltarNuevaLinea();
-      if (this.actual.tipo !== 'indent') throw new ErrorScript('IndentationError: expected an indented block', this.linea);
+      if (this.actual.tipo !== 'indent') {
+        throw new ErrorScript(`IndentationError: expected an indented block after '${dueño}' statement on line ${lineaDueño || this.linea}`, this.linea);
+      }
       this.i++;
       return this.sentenciasHastaDedent();
     }
@@ -365,11 +484,17 @@ class Analizador {
     return s;
   }
 
-  sentenciasLua(finales) {
+  // `apertura` recuerda qué bloque abrió estas sentencias para poder decir
+  // «'end' expected (to close 'if' at line 4)», que es exactamente lo que dice
+  // Lua y lo único que localiza el `end` olvidado en un archivo largo.
+  sentenciasLua(finales, apertura = null) {
     const cuerpo = [];
     while (true) {
       const t = this.actual;
-      if (t.tipo === 'eof' && !finales.includes('eof')) throw new ErrorScript("'end' expected near <eof>", t.linea);
+      if (t.tipo === 'eof' && !finales.includes('eof')) {
+        const donde = apertura ? ` (to close '${apertura.palabra}' at line ${apertura.linea})` : '';
+        throw new ErrorScript(`'end' expected${donde} near <eof>`, t.linea);
+      }
       if (t.tipo === 'eof') break;
       if (t.tipo === 'nombre' && finales.includes(t.valor)) break;
       cuerpo.push(this.sentencia());
@@ -386,11 +511,19 @@ class Analizador {
 
   sentenciaPy() {
     const linea = this.linea;
+    // Antes que nada: si es Python válido que este intérprete no cubre, se
+    // dice claramente en vez de soltar un «invalid syntax» que haría pensar
+    // al alumno que su código está mal escrito.
+    if (this.actual.tipo === 'nombre' && NO_SOPORTADO_PY[this.actual.valor]) {
+      const [que, alternativa] = NO_SOPORTADO_PY[this.actual.valor];
+      throw new ErrorNoSoportado(que, linea, alternativa);
+    }
+    if (this.esOp('@')) throw new ErrorNoSoportado('los decoradores (`@`)', linea, '');
     if (this.esNombre('if')) return this.siPython();
     if (this.esNombre('while')) {
       this.i++;
       const cond = this.expresion();
-      return { tipo: 'mientras', cond, cuerpo: this.bloquePython(), linea };
+      return { tipo: 'mientras', cond, cuerpo: this.bloquePython('while', linea), linea };
     }
     if (this.esNombre('for')) {
       this.i++;
@@ -398,13 +531,13 @@ class Analizador {
       while (this.aceptarOp(',')) vars.push(this.comer('nombre').valor);
       if (!this.aceptarNombre('in')) throw new ErrorScript('SyntaxError: invalid syntax', linea);
       const iterable = this.expresion();
-      return { tipo: 'paraEn', vars, iterable, cuerpo: this.bloquePython(), linea };
+      return { tipo: 'paraEn', vars, iterable, cuerpo: this.bloquePython('for', linea), linea };
     }
     if (this.esNombre('def')) {
       this.i++;
       const nombre = this.comer('nombre').valor;
       const { params, defectos } = this.parametros();
-      return { tipo: 'defun', nombre, params, defectos, cuerpo: this.bloquePython(), linea };
+      return { tipo: 'defun', nombre, params, defectos, cuerpo: this.bloquePython('def', linea), linea };
     }
     if (this.esNombre('return')) {
       this.i++;
@@ -440,7 +573,7 @@ class Analizador {
       const valor = this.expresion();
       if (!this.aceptarNombre('as')) throw new ErrorScript('SyntaxError: invalid syntax', linea);
       const alias = this.comer('nombre').valor;
-      return { tipo: 'con', valor, alias, cuerpo: this.bloquePython(), linea };
+      return { tipo: 'con', valor, alias, cuerpo: this.bloquePython('with', linea), linea };
     }
     return this.expresionOAsignacion();
   }
@@ -449,11 +582,11 @@ class Analizador {
     const linea = this.linea;
     this.i++;
     const cond = this.expresion();
-    const cuerpo = this.bloquePython();
+    const cuerpo = this.bloquePython('if', linea);
     let sino = [];
     this.saltarNuevaLinea();
     if (this.esNombre('elif')) sino = [this.siPython()];
-    else if (this.esNombre('else')) { this.i++; sino = this.bloquePython(); }
+    else if (this.esNombre('else')) { const l = this.linea; this.i++; sino = this.bloquePython('else', l); }
     return { tipo: 'si', cond, cuerpo, sino, linea };
   }
 
@@ -462,20 +595,20 @@ class Analizador {
     if (this.esNombre('if')) {
       this.i++;
       const cond = this.expresion();
-      this.comer('nombre', 'then');
-      const cuerpo = this.sentenciasLua(['elseif', 'else', 'end']);
+      this.comerLua('then', 'if', linea);
+      const cuerpo = this.sentenciasLua(['elseif', 'else', 'end'], { palabra: 'if', linea });
       let sino = [];
       if (this.esNombre('elseif')) sino = [this.sentenciaLuaElseif()];
-      else if (this.aceptarNombre('else')) { sino = this.sentenciasLua(['end']); this.comer('nombre', 'end'); }
-      else this.comer('nombre', 'end');
+      else if (this.aceptarNombre('else')) { sino = this.sentenciasLua(['end'], { palabra: 'if', linea }); this.comerLua('end', 'if', linea); }
+      else this.comerLua('end', 'if', linea);
       return { tipo: 'si', cond, cuerpo, sino, linea };
     }
     if (this.esNombre('while')) {
       this.i++;
       const cond = this.expresion();
-      this.comer('nombre', 'do');
-      const cuerpo = this.sentenciasLua(['end']);
-      this.comer('nombre', 'end');
+      this.comerLua('do', 'while', linea);
+      const cuerpo = this.sentenciasLua(['end'], { palabra: 'while', linea });
+      this.comerLua('end', 'while', linea);
       return { tipo: 'mientras', cond, cuerpo, linea };
     }
     if (this.esNombre('repeat')) {
@@ -492,18 +625,18 @@ class Analizador {
         this.comer('op', ',');
         const hasta = this.expresion();
         const paso = this.aceptarOp(',') ? this.expresion() : null;
-        this.comer('nombre', 'do');
-        const cuerpo = this.sentenciasLua(['end']);
-        this.comer('nombre', 'end');
+        this.comerLua('do', 'for', linea);
+        const cuerpo = this.sentenciasLua(['end'], { palabra: 'for', linea });
+        this.comerLua('end', 'for', linea);
         return { tipo: 'paraNumerico', variable: primera, desde, hasta, paso, cuerpo, linea };
       }
       const vars = [primera];
       while (this.aceptarOp(',')) vars.push(this.comer('nombre').valor);
       this.comer('nombre', 'in');
       const iterable = this.expresion();
-      this.comer('nombre', 'do');
-      const cuerpo = this.sentenciasLua(['end']);
-      this.comer('nombre', 'end');
+      this.comerLua('do', 'for', linea);
+      const cuerpo = this.sentenciasLua(['end'], { palabra: 'for', linea });
+      this.comerLua('end', 'for', linea);
       return { tipo: 'paraEn', vars, iterable, cuerpo, linea };
     }
     if (this.esNombre('function')) {
@@ -517,8 +650,8 @@ class Analizador {
         destino = { tipo: 'indice', objeto: destino, clave: { tipo: 'literal', valor: campo }, linea };
       }
       const { params, defectos } = this.parametros();
-      const cuerpo = this.sentenciasLua(['end']);
-      this.comer('nombre', 'end');
+      const cuerpo = this.sentenciasLua(['end'], { palabra: 'function', linea });
+      this.comerLua('end', 'function', linea);
       return { tipo: 'asignar', destinos: [destino], valores: [{ tipo: 'funcion', nombre, params, defectos, cuerpo, linea }], linea };
     }
     if (this.esNombre('local')) {
@@ -527,8 +660,8 @@ class Analizador {
         this.i++;
         const nombre = this.comer('nombre').valor;
         const { params, defectos } = this.parametros();
-        const cuerpo = this.sentenciasLua(['end']);
-        this.comer('nombre', 'end');
+        const cuerpo = this.sentenciasLua(['end'], { palabra: 'function', linea });
+        this.comerLua('end', 'function', linea);
         return { tipo: 'local', nombres: [nombre], valores: [{ tipo: 'funcion', nombre, params, defectos, cuerpo, linea }], linea };
       }
       const nombres = [this.comer('nombre').valor];
@@ -741,6 +874,14 @@ class Analizador {
           return { tipo: 'funcion', nombre: 'anónima', params, defectos, cuerpo, linea };
         }
       }
+      if (this.py && NO_SOPORTADO_PY[v]) {
+        const [que, alternativa] = NO_SOPORTADO_PY[v];
+        throw new ErrorNoSoportado(que, linea, alternativa);
+      }
+      if (!this.py && NO_SOPORTADO_LUA[v]) {
+        const [que, alternativa] = NO_SOPORTADO_LUA[v];
+        throw new ErrorNoSoportado(que, linea, alternativa);
+      }
       const reservadas = this.py ? PALABRAS_PY : PALABRAS_LUA;
       if (reservadas.has(v) && !['in', 'and', 'or', 'not'].includes(v)) {
         throw new ErrorScript(this.py ? `SyntaxError: invalid syntax (near '${v}')` : `unexpected symbol near '${v}'`, linea);
@@ -759,6 +900,10 @@ class Analizador {
       const items = [];
       while (!this.esOp(']')) {
         items.push(this.expresion());
+        if (this.esNombre('for')) {
+          throw new ErrorNoSoportado('las listas por comprensión (`[x for x in ...]`)', this.linea,
+            'escribe el bucle a mano: crea la lista vacía y ve haciendo `.append(...)`');
+        }
         if (!this.aceptarOp(',')) break;
       }
       this.comer('op', ']');
@@ -944,6 +1089,18 @@ export class Interprete {
 
   error(mensaje, linea) {
     throw new ErrorScript(mensaje, linea);
+  }
+
+  // Todo lo que el alumno podría haber querido escribir: sus variables y sus
+  // funciones, más las de la biblioteca. Alimenta el «¿querías decir...?».
+  nombresVisibles(entorno) {
+    const nombres = new Set();
+    let e = entorno;
+    while (e) {
+      for (const n of e.vars.keys()) if (!n.startsWith('__')) nombres.add(n);
+      e = e.padre;
+    }
+    return [...nombres];
   }
 
   // --- ejecución -------------------------------------------------------
@@ -1180,7 +1337,10 @@ export class Interprete {
       case 'nombre': {
         const e = entorno.buscar(nodo.nombre);
         if (!e) {
-          if (this.py) this.error(`NameError: name '${nodo.nombre}' is not defined`, nodo.linea);
+          if (this.py) {
+            const parecido = sugerir(nodo.nombre, this.nombresVisibles(entorno));
+            this.error(`NameError: name '${nodo.nombre}' is not defined${parecido ? `. Did you mean: '${parecido}'?` : ''}`, nodo.linea);
+          }
           return null;   // Lua: una variable no declarada vale nil
         }
         return e.vars.get(nodo.nombre);
@@ -1260,11 +1420,18 @@ export class Interprete {
         if (i < 0 || i >= objeto.length) this.error('IndexError: string index out of range', nodo.linea);
         return objeto[i];
       }
-      this.error(this.py ? `AttributeError: 'str' object has no attribute '${clave}'` : `attempt to index a string value`, nodo.linea);
+      const parecido = this.py ? sugerir(clave, METODOS_CADENA) : null;
+      this.error(this.py
+        ? `AttributeError: 'str' object has no attribute '${clave}'${parecido ? `. Did you mean: '${parecido}'?` : ''}`
+        : 'attempt to index a string value', nodo.linea);
     }
     if (Array.isArray(objeto)) {
       const metodo = this.metodoLista(objeto, clave);
       if (metodo) return metodo;
+      if (typeof clave === 'string') {
+        const parecido = sugerir(clave, METODOS_LISTA);
+        this.error(`AttributeError: 'list' object has no attribute '${clave}'${parecido ? `. Did you mean: '${parecido}'?` : ''}`, nodo.linea);
+      }
       return objeto[this.indiceLista(objeto, clave, nodo.linea)];
     }
     if (objeto instanceof Tabla) {
@@ -1894,6 +2061,16 @@ export function ejecutarScript(lang, fuente, { io = null, argv = [], nombre = ''
     return { salida: interprete.salida, error: '', codigo: interprete.codigoSalida || 0 };
   } catch (e) {
     if (e && e.salida) return { salida: interprete.salida, error: '', codigo: interprete.codigoSalida || 0 };
+    if (e instanceof ErrorNoSoportado) {
+      const lenguaje = lang === 'py' ? 'Python' : 'Lua';
+      const donde = e.linea ? ` (línea ${e.linea})` : '';
+      const texto =
+        `mentor: esto es ${lenguaje} correcto, pero el simulador de Mentor Linux no llega hasta ahí${donde}.\n` +
+        `  No están ${e.que}.\n` +
+        (e.alternativa ? `  Aquí: ${e.alternativa}.\n` : '') +
+        `  Con ${lenguaje} instalado en tu máquina funciona tal cual: eso es lo siguiente que te toca.\n`;
+      return { salida: interprete.salida, error: texto, codigo: 1 };
+    }
     if (e instanceof ErrorScript) {
       const etiqueta = nombre || (lang === 'py' ? 'script.py' : 'script.lua');
       const donde = e.linea ? `${etiqueta}:${e.linea}: ` : `${etiqueta}: `;
