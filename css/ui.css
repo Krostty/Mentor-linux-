@@ -808,9 +808,11 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
   flex-direction: column;
   padding: 15px 13px 20px;
 }
-/* Con contenido corto el paso queda centrado; con contenido largo, el
-   margen automático se colapsa y simplemente hace scroll. */
-.paso { min-width: 0; width: 100%; margin: auto 0; }
+/* El paso arranca arriba. Antes iba centrado verticalmente, y con un
+   ejercicio corto en un móvil alto quedaban 300 px vacíos encima y el
+   contenido saltaba de sitio entre pantallas. Se lee mejor anclado, con un
+   respiro fijo por arriba. */
+.paso { min-width: 0; width: 100%; margin: 4px 0 auto; }
 .paso-titulo { margin: 5px 0 4px; font-size: clamp(21px, 6vw, 28px); line-height: 1.12; letter-spacing: -.03em; text-wrap: balance; }
 .paso-sub { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
 .paso-teoria .teoria { gap: 12px; }
