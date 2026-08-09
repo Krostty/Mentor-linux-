@@ -357,7 +357,7 @@ export function ilustracion(nombre, color = '') {
   const png = rutaPortada(nombre, color);
   if (png) {
     return `<img class="cubierta-arte cubierta-foto" src="${png}" alt="" aria-hidden="true"
-      width="800" height="400" loading="lazy" decoding="async">`;
+      width="1000" height="500" loading="lazy" decoding="async">`;
   }
   const escena = ESCENAS[nombre] || ESCENAS.terminal;
   return `<svg class="cubierta-arte" viewBox="0 0 320 160" preserveAspectRatio="xMidYMid slice"
