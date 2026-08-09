@@ -120,7 +120,9 @@ try {
   await pagina.locator('.opcion[data-opcion="0"]').click();
   comprobar('acertar pinta el pie de verde', await pagina.locator('.leccion-pie[data-estado="ok"]').count() === 1);
   comprobar('acertar explica el porqué', (await pagina.locator('.leccion-pie .feedback').innerText()).includes('¡Correcto!'));
-  comprobar('acertar suma XP', (await pagina.locator('#ficha-xp').innerText()) === '15 XP');
+  // El marcador cuenta hasta el total con una animación; el valor definitivo
+  // se publica al momento en `data-xp`, que es lo que se comprueba aquí.
+  comprobar('acertar suma XP', (await pagina.locator('#ficha-xp').getAttribute('data-xp')) === '15');
   comprobar('acertar no abre ningún modal', await pagina.locator('.celebracion[data-abierta]').count() === 0);
   await shot('v4-05-acierto');
 
@@ -136,14 +138,14 @@ try {
   await pagina.locator('.ficha').first().click();
   comprobar('comprobar vive en el pie, bajo el pulgar', await pagina.locator('.leccion-pie [data-comprobar]').count() === 1);
   await pagina.locator('[data-comprobar]').click();
-  comprobar('el constructor valida el orden', (await pagina.locator('#ficha-xp').innerText()) === '30 XP');
+  comprobar('el constructor valida el orden', (await pagina.locator('#ficha-xp').getAttribute('data-xp') + ' XP') === '30 XP');
 
   await pagina.locator('.leccion-pie [data-mover="1"]').click();
   comprobar('la terminal recibe foco al llegar a su paso', await pagina.locator('.consola-input').evaluate((e) => e === document.activeElement));
   await comando('ls');
   comprobar('el fallo en terminal orienta al comando que falta', (await pagina.locator('.leccion-pie .feedback').innerText()).includes('pwd'));
   await comando('pwd');
-  comprobar('la terminal completa su ejercicio', (await pagina.locator('#ficha-xp').innerText()) === '55 XP');
+  comprobar('la terminal completa su ejercicio', (await pagina.locator('#ficha-xp').getAttribute('data-xp') + ' XP') === '55 XP');
   await shot('v4-06-paso-terminal');
 
   // Saltar nunca te deja atascado, y lo saltado vuelve al final.
@@ -154,7 +156,7 @@ try {
 
   await pagina.reload({ waitUntil: 'domcontentloaded' });
   comprobar('la lección sobrevive a recargar', await pagina.locator('.leccion').isVisible());
-  comprobar('el XP persiste al recargar', (await pagina.locator('#ficha-xp').innerText()) === '55 XP');
+  comprobar('el XP persiste al recargar', (await pagina.locator('#ficha-xp').getAttribute('data-xp') + ' XP') === '55 XP');
   comprobar('al volver se retoma en lo pendiente', await pagina.locator('#ejercicio-cero-ruta').isVisible());
 
   await pagina.getByLabel('Tu respuesta').fill('home/user');
@@ -162,7 +164,7 @@ try {
   comprobar('el fallo de ruta explica que falta la barra', (await pagina.locator('.leccion-pie .feedback').innerText()).includes('/'));
   await pagina.getByLabel('Tu respuesta').fill('/home/user');
   await pagina.locator('[data-comprobar]').click();
-  comprobar('la respuesta corta valida', (await pagina.locator('#ficha-xp').innerText()) === '70 XP');
+  comprobar('la respuesta corta valida', (await pagina.locator('#ficha-xp').getAttribute('data-xp') + ' XP') === '70 XP');
 
   // Hasta el cierre de la lección.
   for (let i = 0; i < 12 && await pagina.locator('.paso-fin').count() === 0; i++) {
@@ -240,7 +242,19 @@ try {
   comprobar('el writeup se desbloquea al capturar las dos banderas', await pagina.locator('.writeup').isVisible());
   await shot('v3-03-maquina-completa');
   await pagina.locator('.maquina-guia .leccion-pie [data-ir="maquinas"]').click();
-  comprobar('la máquina completada se marca en la lista', await pagina.locator('[data-maquina="lumen"] h3').innerText().then((t) => t.includes('✓')));
+  // La tarjeta de máquina ya no lleva título suelto: el estado va en la
+  // etiqueta de su portada, igual que en las academias y los retos.
+  await pagina.waitForSelector('[data-maquina="lumen"] .cubierta-etiqueta', { timeout: 4000 }).catch(() => {});
+  comprobar('la máquina completada se marca en la lista',
+    /completada/i.test(await pagina.locator('[data-maquina="lumen"]').innerText()));
+  comprobar('cada máquina lleva portada e insignia de dificultad',
+    await pagina.locator('.tarjeta-maquina .cubierta-arte').count() === 12
+    && await pagina.locator('.tarjeta-maquina .insignia-dificultad').count() === 12);
+  await pagina.locator('[data-filtro-maquina="dificil"]').click();
+  comprobar('el filtro de dificultad deja solo las difíciles',
+    await pagina.locator('.tarjeta-maquina[data-nivel="dificil"]').count() === await pagina.locator('.tarjeta-maquina').count());
+  await pagina.locator('[data-filtro-maquina="todas"]').click();
+  comprobar('el filtro vuelve a mostrarlas todas', await pagina.locator('.tarjeta-maquina').count() === 12);
 
   console.log('▸ Wargame y laboratorio');
   await pagina.locator('[data-pestana="practicar"]').click();
@@ -294,7 +308,7 @@ try {
   await contexto.setOffline(true);
   await pagina.reload({ waitUntil: 'domcontentloaded' });
   comprobar('la app abre offline', await pagina.locator('.app').isVisible());
-  comprobar('el progreso sigue offline', (await pagina.locator('#ficha-xp').innerText()) !== '0 XP');
+  comprobar('el progreso sigue offline', (await pagina.locator('#ficha-xp').getAttribute('data-xp') + ' XP') !== '0 XP');
   await contexto.setOffline(false);
 
   comprobar('no hubo errores de consola', errores.length === 0, errores.join(' | '));

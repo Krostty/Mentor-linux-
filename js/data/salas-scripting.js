@@ -36,7 +36,7 @@ export const SALA_PYTHON_CERO = {
   id: 'python-cero', n: 39, nombre: 'Python desde cero',
   resumen: 'Escribe y ejecuta tus primeros programas: variables, texto, decisiones, bucles y funciones',
   dificultad: 'Principiante', minutos: 55,
-  comandos: ['python3', 'echo', 'printf', 'cat', 'chmod'], origen: 'v6-scripting',
+  comandos: ['python3', 'nano', 'echo', 'printf', 'cat', 'chmod'], origen: 'v6-scripting',
   tareas: [
     {
       id: 'py-primer-programa', titulo: '1. Tu primer programa', subtitulo: 'Qué es un script y cómo se ejecuta',
@@ -44,6 +44,8 @@ export const SALA_PYTHON_CERO = {
         { t: 'Un script es un archivo de texto con órdenes', p: 'Un programa en Python es un archivo normal, casi siempre con extensión `.py`. No se compila: se lo das a un **intérprete** (`python3`) y este lo lee de arriba abajo y va ejecutando línea por línea.' },
         { c: '$ python3 hola.py\nHola, mundo' },
         { t: 'print muestra cosas', p: '`print(...)` escribe en la terminal lo que le pongas entre paréntesis y añade un salto de línea al final. El texto va entre comillas: `print("Hola")`.' },
+        { t: 'Para escribir el archivo, `nano`', p: 'En la terminal de Mentor Linux, `nano hola.py` abre un editor de verdad: escribes, guardas y vuelves. También puedes crear archivos de una línea con `echo ... > hola.py` o de varias con `printf`, que es lo que harías en un servidor sin editor.' },
+        { c: '$ nano hola.py      # escribe, Ctrl+S para guardar\n$ python3 hola.py\nHola, mundo' },
         { n: 'Los paréntesis y las comillas van en pareja', p: 'Casi todos los primeros errores son un paréntesis o una comilla sin cerrar. Python te dirá `SyntaxError` y el número de línea: empieza siempre por ahí.' },
       ],
       practica: [
@@ -73,7 +75,7 @@ export const SALA_PYTHON_CERO = {
         terminal('py-division', 'Muestra en una sola orden el resultado de `17 / 4`, `17 // 4` y `17 % 4`, en ese orden.', SNAP, 'python3 -c \'print(17 / 4, 17 // 4, 17 % 4)\'', (c) => k.salidaTiene(c, '4.25', '4', '1'), ['`print` acepta varios valores separados por comas.']),
         completar('py-c2', 'Completa la conversión de texto a número entero.', 'edad = ____("30")', ['int'], '`int()` convierte texto a entero; fallaría con "treinta".', ['python3']),
         ordenar('py-orden-asigna', 'Construye la línea que guarda el número 7 en una variable llamada `total`.', ['total', '=', '7'], 'total = 7', 'Nombre, igual, valor. El igual asigna, no compara.', ['python3']),
-        terminal('py-variable-script', 'Escribe un script `edad.py` que guarde tu edad en una variable y muestre `Tengo 30 años` usando esa variable, y ejecútalo.', SNAP, 'printf \'%s\\n\' \'edad = 30\' \'print("Tengo", edad, "años")\' > edad.py\npython3 edad.py', (c) => k.salidaTiene(c, 'Tengo 30 años') && archivoCon(c, 'edad.py', 'edad'), ['`printf \'%s\\n\' \'linea1\' \'linea2\' > edad.py` escribe varias líneas de golpe.']),
+        terminal('py-variable-script', 'Escribe un script `edad.py` que guarde tu edad en una variable y muestre `Tengo 30 años` usando esa variable, y ejecútalo.', SNAP, 'printf \'%s\\n\' \'edad = 30\' \'print("Tengo", edad, "años")\' > edad.py\npython3 edad.py', (c) => k.salidaTiene(c, 'Tengo 30 años') && archivoCon(c, 'edad.py', 'edad'), ['Ábrelo con `nano edad.py`, escribe las dos líneas y guarda con Ctrl+S. También vale `printf \'%s\\n\' \'linea1\' \'linea2\' > edad.py`.']),
         quiz('py-q5', '¿Qué ocurre con `"3" + 4`?', ['Da un TypeError', 'Da 7', 'Da "34"', 'Da 34'], 0, 'Python no adivina: hay que convertir con `int("3")` o `str(4)`.'),
       ],
     },
@@ -150,7 +152,7 @@ export const SALA_PYTHON_SISTEMA = {
   id: 'python-sistema', n: 40, nombre: 'Python en el sistema',
   resumen: 'Lee archivos, procesa registros, recibe argumentos y deja tu script ejecutable como una herramienta más',
   dificultad: 'Fácil', minutos: 45,
-  comandos: ['python3', 'chmod', 'cat', 'printf', 'grep'], origen: 'v6-scripting',
+  comandos: ['python3', 'nano', 'chmod', 'cat', 'printf', 'grep'], origen: 'v6-scripting',
   tareas: [
     {
       id: 'pys-archivos', titulo: '1. Leer archivos', subtitulo: 'open, read y readlines',
@@ -219,7 +221,7 @@ export const SALA_LUA_CERO = {
   id: 'lua-cero', n: 41, nombre: 'Lua desde cero',
   resumen: 'El lenguaje que llevan dentro Nginx, Redis, Neovim y media industria del videojuego: sintaxis, tablas y funciones',
   dificultad: 'Principiante', minutos: 50,
-  comandos: ['lua', 'echo', 'printf', 'cat', 'chmod'], origen: 'v6-scripting',
+  comandos: ['lua', 'nano', 'echo', 'printf', 'cat', 'chmod'], origen: 'v6-scripting',
   tareas: [
     {
       id: 'lua-primer-programa', titulo: '1. Hola, Lua', subtitulo: 'Para qué sirve y cómo se ejecuta',
@@ -227,6 +229,7 @@ export const SALA_LUA_CERO = {
         { t: 'Un lenguaje pequeño que va dentro de otros', p: 'Lua se diseñó para **empotrarse**: Nginx (OpenResty), Redis, Neovim, Wireshark, routers y muchísimos juegos lo usan para que puedas programar su comportamiento sin recompilarlos. Es diminuto y muy rápido.' },
         { c: '$ lua hola.lua\nHola, mundo' },
         { t: 'Se parece a Python, con dos diferencias que duelen', p: 'No hay indentación obligatoria: los bloques terminan con `end`. Y las listas empiezan en **1**, no en 0.' },
+        { t: 'Escribe el archivo con `nano`', p: '`nano hola.lua` abre el editor; con Ctrl+S guardas y vuelves a la terminal. Para una sola línea, `echo \'print("Hola")\' > hola.lua` también sirve.' },
         { n: 'Comentarios con dos guiones', p: '`-- esto es un comentario`. Nada de `#`, que en Lua es el operador de longitud.' },
       ],
       practica: [

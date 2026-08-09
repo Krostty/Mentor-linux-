@@ -61,6 +61,10 @@ La academia **Scripting** enseña a programar desde cero en dos lenguajes:
 - **Python en el sistema** — leer archivos, procesar registros, escribir informes, `sys.argv`, shebang y `chmod +x` para convertir un script en una herramienta.
 - **Lua desde cero** — el lenguaje que llevan dentro Nginx, Redis y Neovim: `local`, concatenación, tablas (la única estructura), `ipairs`/`pairs`, funciones y `string.format`.
 
+En la terminal, `nano archivo.py` abre un editor de verdad —con sangría por
+tabulador y guardado con Ctrl+S—, así que se escribe el programa como se
+escribiría en un servidor y no encadenando `printf`.
+
 Los scripts **se ejecutan**: `js/engine/scripting.js` es un intérprete didáctico de
 ambos lenguajes que corre contra el filesystem simulado, con la salida y los
 errores que daría el intérprete real (`NameError`, `attempt to index a nil value`,
@@ -70,9 +74,13 @@ tablas, control de flujo, funciones, archivos y una biblioteca estándar mínima
 (`string`, `table`, `math`, `io`, `os`, `sys`).
 
 **No** cubre clases, excepciones, comprensiones, módulos externos, metatablas ni
-corrutinas: la última tarea de cada sala lo dice explícitamente y señala ese punto
-como el momento de instalar el lenguaje en tu máquina. Un bucle infinito se corta
-con un aviso en vez de colgar la pestaña.
+corrutinas. Y cuando el alumno escribe una de esas cosas, el intérprete no dice
+«invalid syntax»: dice que **el código es correcto** y que esa parte no está en el
+simulador, con la alternativa que sí funciona aquí. Los errores de verdad traen la
+ayuda que da Python 3.11 —«name 'pritn' is not defined. Did you mean: 'print'?»,
+«expected ':'», «'(' was never closed»— y Lua señala qué bloque se quedó sin `end`
+y en qué línea se abrió. Un bucle infinito se corta con un aviso en vez de colgar
+la pestaña.
 
 ## Motor Linux simulado
 
@@ -103,9 +111,9 @@ node tools/portadas.mjs          # necesita Playwright (solo para autoría)
 ```bash
 node tests/shell.test.mjs        # 180 pruebas heredadas del motor
 node tests/content.test.mjs      # 1.991 comprobaciones del contenido original
-node tests/v2-shell.test.mjs     # 93 pruebas de herramientas nuevas y de los intérpretes
-node tests/v2-content.test.mjs   # 9.697 comprobaciones y resolución de los 1.210 ejercicios
-node tests/e2e.mjs               # 90 comprobaciones en móvil, persistencia y offline
+node tests/v2-shell.test.mjs     # 108 pruebas de herramientas, intérpretes y diagnóstico
+node tests/v2-content.test.mjs   # 9.702 comprobaciones y resolución de los 1.210 ejercicios
+node tests/e2e.mjs               # 93 comprobaciones en móvil, persistencia y offline
 ```
 
 `v2-content.test.mjs` resuelve todos los ejercicios de terminal con su solución de referencia —incluidos los que escriben y ejecutan programas en Python y en Lua—, completa las cuatro fases y ambas flags de cada máquina, encadena los 15 niveles y comprueba migración, debounce y precaché PWA.
@@ -123,6 +131,7 @@ css/
   terminal.css             la consola, única isla oscura de la app
 js/
   app.js                   cuatro áreas y flujos interactivos
+  animacion.js             recompensas: XP que vuela, onda de acierto, destellos
   arte.js                  portadas (PNG o SVG) y medallas de logro
   sonido.js                avisos sintetizados con WebAudio, sin archivos
   store.js                 progreso v3, dominio, repaso, migración y copias

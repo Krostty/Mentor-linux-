@@ -1312,3 +1312,136 @@ body::before {
   outline-offset: 2px;
   border-radius: 10px;
 }
+
+/* =====================================================================
+   Máquinas: misma anatomía que los retos, más filtros
+   ===================================================================== */
+
+.filtros { display: flex; flex-wrap: wrap; gap: 8px; margin: 0 0 14px; }
+.filtro {
+  padding: 9px 15px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+  color: var(--muted);
+  font: 700 12.5px var(--mono);
+}
+.filtro[data-activo] {
+  border-color: var(--azul);
+  background: color-mix(in srgb, var(--azul) 14%, #fff);
+  color: var(--azul-hondo);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--azul) 12%, transparent);
+}
+
+.tarjeta-maquina { overflow: hidden; padding: 0; }
+.tarjeta-maquina .academia-cuerpo { padding: 14px 16px 16px; }
+.tarjeta-maquina .cubierta { aspect-ratio: 16 / 10.5; }
+.tarjeta-maquina .cubierta-arte { height: 72%; }
+.tarjeta-maquina .cubierta-foto { height: 100%; }
+.tarjeta-maquina .cubierta::after { inset: 44% 0 0; }
+.tarjeta-maquina .cubierta-titulo { bottom: 46px; }
+.tarjeta-maquina .maquina-host { margin: 0 0 4px; color: var(--cyan); font: 700 12px var(--mono); }
+.tarjeta-maquina p { margin: 0 0 11px; color: var(--muted); font-size: 13px; }
+.tarjeta-maquina .barra { margin-top: 12px; }
+
+/* Las dos banderas son el marcador de la máquina: se ven de un vistazo. */
+.maquina-banderas { display: flex; align-items: center; gap: 8px; }
+.bandera {
+  padding: 5px 10px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel-2);
+  color: var(--dim);
+  font: 700 11px var(--mono);
+}
+.bandera.tomada {
+  border-color: color-mix(in srgb, var(--lime) 45%, transparent);
+  background: color-mix(in srgb, var(--lime) 13%, #fff);
+  color: var(--lime);
+}
+.maquina-banderas .contador { margin-left: auto; }
+
+/* =====================================================================
+   Capa de animación: piezas volantes, ondas y destellos
+   Nada de aquí captura clics ni ocupa sitio en el layout.
+   ===================================================================== */
+
+#capa-animacion {
+  position: fixed;
+  inset: 0;
+  z-index: 90;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.xp-volante {
+  position: absolute;
+  left: 0; top: 0;
+  padding: 7px 13px;
+  border: 1px solid color-mix(in srgb, var(--azul) 45%, transparent);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--azul) 16%, #fff);
+  color: var(--azul-hondo);
+  font: 750 14px var(--mono);
+  white-space: nowrap;
+  box-shadow: 0 10px 26px rgba(15, 143, 214, .3);
+  will-change: transform, opacity;
+}
+
+/* Onda de acierto: nace en la tarjeta y se abre hacia fuera. */
+.onda-acierto {
+  position: absolute;
+  inset: -2px;
+  z-index: 0;
+  border: 2px solid var(--lime);
+  border-radius: inherit;
+  box-shadow: 0 0 0 8px color-mix(in srgb, var(--lime) 16%, transparent);
+  pointer-events: none;
+}
+
+/* Barrido de luz para lo recién desbloqueado. */
+.destello {
+  position: absolute;
+  top: 0; bottom: 0; left: 0;
+  width: 42%;
+  background: linear-gradient(100deg, transparent, rgba(255, 255, 255, .55), transparent);
+  pointer-events: none;
+}
+
+/* El marcador de XP acusa el golpe cuando llega la ficha volante. */
+.stat-xp[data-sube] { animation: xp-golpe .5s cubic-bezier(.2,.8,.3,1); }
+@keyframes xp-golpe {
+  0% { transform: scale(1); }
+  35% { transform: scale(1.18); box-shadow: 0 0 0 6px color-mix(in srgb, var(--azul) 18%, transparent); }
+  100% { transform: scale(1); }
+}
+
+/* La medalla conseguida respira al entrar en la vitrina. */
+.medalla-ficha:not([data-bloqueado]) .medalla-cuna { animation: medalla-entra .55s cubic-bezier(.2,.9,.3,1) both; }
+@keyframes medalla-entra {
+  0% { transform: scale(.72) rotate(-8deg); opacity: 0; }
+  60% { transform: scale(1.06) rotate(2deg); opacity: 1; }
+  100% { transform: scale(1) rotate(0); }
+}
+.medalla-cuna { position: relative; overflow: visible; }
+
+/* La barra de progreso deja un rastro de luz cuando crece. */
+.barra > i {
+  position: relative;
+  overflow: hidden;
+  transition: width .55s cubic-bezier(.2,.8,.3,1);
+}
+.barra > i::after {
+  content: "";
+  position: absolute;
+  inset: 0 0 0 auto;
+  width: 26px;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .65));
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .stat-xp[data-sube],
+  .medalla-ficha:not([data-bloqueado]) .medalla-cuna { animation: none; }
+  .barra > i { transition: none; }
+  .barra > i::after { display: none; }
+}

@@ -2,7 +2,7 @@
 // Estrategia: cache-first para los recursos propios, con actualización en
 // segundo plano. Como todo es estático, no hay nada que pedir a la red.
 
-const VERSION = 'mentor-linux-v7-scripting-portadas-png';
+const VERSION = 'mentor-linux-v8-portadas-editor-animacion';
 
 const RECURSOS = [
   './',
@@ -16,6 +16,7 @@ const RECURSOS = [
   'js/ui.js',
   'js/arte.js',
   'js/sonido.js',
+  'js/animacion.js',
   'js/store.js',
   'js/engine/fs.js',
   'js/engine/shell.js',

@@ -14,6 +14,7 @@ import { store } from './store.js';
 import { escapar, formato, brindis, celebrar, porcentaje, vibrar, permitirVibracion } from './ui.js';
 import { ilustracion, escenaDe, medalla, nombreRango, RANGOS_LOGRO, PORTADA_ACADEMIA } from './arte.js';
 import { sonido } from './sonido.js';
+import { contarHasta, volarXp, ondaAcierto, destello } from './animacion.js';
 
 const vista = document.getElementById('vista');
 const pistasMostradas = new Map();
@@ -68,11 +69,17 @@ function marcarProgresoCompartible() {
 let xpPrevio = 0;
 // La cabecera solo lleva la marca y el XP: el nivel, la racha y el progreso
 // tienen su sitio en las tarjetas de la portada, y ahí se leen mejor.
+let cancelarConteoXp = null;
+
 function actualizarCabecera() {
   const stats = store.estadisticas();
   const chipXp = document.getElementById('ficha-xp');
-  chipXp.textContent = `${stats.xp} XP`;
-  // El contador de XP salta cuando sube: recompensa visual al acertar.
+  // El marcador cuenta hasta el nuevo total en vez de saltar: así se ve de
+  // dónde salen los puntos y cuánto ha valido lo que acabas de resolver.
+  cancelarConteoXp?.();
+  chipXp.dataset.xp = String(stats.xp);
+  chipXp.setAttribute('aria-label', `${stats.xp} puntos de experiencia`);
+  cancelarConteoXp = contarHasta(xpPrevio, stats.xp, (n) => { chipXp.textContent = `${n} XP`; });
   if (stats.xp > xpPrevio) {
     chipXp.removeAttribute('data-sube'); void chipXp.offsetWidth; chipXp.setAttribute('data-sube', '');
   }
@@ -794,7 +801,12 @@ function conectarLeccion(tarea, sala, paso) {
 
 function completarEjercicio(tarea, ejercicio) {
   const nivelAntes = store.nivel.nivel;
+  // La tarjeta se captura ANTES de repintar: es el punto del que sale la
+  // ficha de XP volando hacia el marcador.
+  const tarjeta = vista.querySelector('.tarjeta-ejercicio, .paso-ejercicio, .paso');
   const resultado = store.completarEjercicio(ejercicio, { usoPista: (pistasMostradas.get(ejercicio.id) || 0) > 0 });
+  ondaAcierto(tarjeta);
+  volarXp(resultado.ganado || 0, tarjeta);
   actualizarCabecera();
   vibrar(18);
   // Subir de nivel suena distinto de acertar: es la recompensa mayor.
@@ -1002,15 +1014,77 @@ function progresoMaquina(maquina) {
   return (e.fases.length + Number(e.userFlag) + Number(e.rootFlag)) / (maquina.fases.length + 2);
 }
 
+// Las máquinas se leían como una lista de texto mientras los retos tenían
+// portada e insignia. Ahora comparten anatomía: portada con su escena, nivel
+// de dificultad en la esquina, y debajo el objetivo, las banderas y el avance.
+// Además se pueden filtrar, que con doce objetivos ya hace falta.
+let filtroMaquinas = 'todas';
+
+const FILTROS_MAQUINA = [
+  { id: 'todas', nombre: 'Todas' },
+  { id: 'facil', nombre: 'Fáciles' },
+  { id: 'media', nombre: 'Medias' },
+  { id: 'dificil', nombre: 'Difíciles' },
+  { id: 'pendientes', nombre: 'Sin terminar' },
+];
+
+function maquinasFiltradas() {
+  return MAQUINAS.filter((m) => {
+    if (filtroMaquinas === 'todas') return true;
+    if (filtroMaquinas === 'pendientes') return !store.estadoMaquina(m.id).completada;
+    return nivelDificultad(m.dificultad) === filtroMaquinas;
+  });
+}
+
+function renderTarjetaMaquina(maquina) {
+  const estado = store.estadoMaquina(maquina.id);
+  const nivel = nivelDificultad(maquina.dificultad);
+  const escena = escenaDe(`${maquina.habilidades.join(' ')} ${maquina.nombre}`, maquina.id);
+  const avance = porcentaje(progresoMaquina(maquina));
+  const fases = maquina.fases.filter((f) => store.faseMaquinaHecha(maquina.id, f.id)).length;
+  const insignia = `<span class="insignia-dificultad" data-nivel="${nivel}">
+    <i aria-hidden="true"><b></b><b></b><b></b></i>${escapar(maquina.dificultad.toUpperCase())}
+  </span>`;
+  return `<article class="tarjeta tarjeta-maquina" data-nivel="${nivel}">
+    <button class="cubierta-boton" data-maquina="${escapar(maquina.id)}" aria-label="Abrir la máquina ${escapar(maquina.nombre)}">
+      ${cubierta(null, {
+        escena, rotulo: escapar(maquina.so.toUpperCase()), titulo: maquina.nombre,
+        color: nivel === 'facil' ? 'lime' : nivel === 'media' ? 'amber' : 'red',
+        etiqueta: estado.completada ? 'Completada' : avance > 0 ? 'En curso' : '', insignia,
+      })}
+    </button>
+    <div class="academia-cuerpo">
+      <div class="maquina-host">${escapar(maquina.ip)} · ${escapar(maquina.host)}</div>
+      <p>${maquina.habilidades.map(escapar).join(' · ')}</p>
+      <div class="maquina-banderas">
+        <span class="bandera ${estado.userFlag ? 'tomada' : ''}">${estado.userFlag ? '🚩' : '⚑'} user</span>
+        <span class="bandera ${estado.rootFlag ? 'tomada' : ''}">${estado.rootFlag ? '🏴' : '⚑'} root</span>
+        <span class="contador">${fases}/${maquina.fases.length} fases</span>
+      </div>
+      <div class="barra"><i style="width:${avance}%"></i></div>
+    </div>
+  </article>`;
+}
+
 function renderMaquinas() {
+  const lista = maquinasFiltradas();
+  const completadas = MAQUINAS.filter((m) => store.estadoMaquina(m.id).completada).length;
   vista.innerHTML = `<div class="pagina">
-    <section class="hero"><span class="eyebrow">Laboratorio ofensivo · 100% simulado</span><h1>Máquinas vulnerables.<br>Entornos seguros.</h1><p>Practica una metodología completa: reconocimiento, enumeración, acceso y escalada. Todos los objetivos viven dentro del simulador; nunca se contactan sistemas reales.</p><div class="chips"><span class="chip">12 máquinas</span><span class="chip">48 fases</span><span class="chip">24 flags</span><span class="chip">writeups desbloqueables</span></div></section>
-    <div class="seccion-titulo"><div><h2>Selecciona un objetivo</h2><p>De tu primer escaneo a cadenas de explotación avanzadas</p></div></div>
-    <div class="rejilla">${MAQUINAS.map((m) => {
-      const estado = store.estadoMaquina(m.id);
-      return `<button class="tarjeta maquina-card" data-maquina="${escapar(m.id)}"><div class="tarjeta-top"><span class="eyebrow">${escapar(m.so)}</span><span class="dificultad" data-nivel="${nivelDificultad(m.dificultad)}">${escapar(m.dificultad)}</span></div><h3>${escapar(m.nombre)} ${estado.completada ? '✓' : ''}</h3><div class="maquina-host">${escapar(m.ip)} · ${escapar(m.host)}</div><p>${m.habilidades.map(escapar).join(' · ')}</p><div class="barra" style="margin-top:13px"><i style="width:${porcentaje(progresoMaquina(m))}%"></i></div></button>`;
-    }).join('')}</div>
+    <section class="hero"><span class="eyebrow">Laboratorio ofensivo · 100% simulado</span><h1>Máquinas vulnerables.<br>Entornos seguros.</h1><p>Practica una metodología completa: reconocimiento, enumeración, acceso y escalada. Todos los objetivos viven dentro del simulador; nunca se contactan sistemas reales.</p><div class="chips"><span class="chip">${MAQUINAS.length} máquinas</span><span class="chip">${MAQUINAS.length * 4} fases</span><span class="chip">${MAQUINAS.length * 2} flags</span><span class="chip">writeups desbloqueables</span></div></section>
+    <div class="seccion-titulo"><div><h2>Selecciona un objetivo</h2><p>De tu primer escaneo a cadenas de explotación avanzadas</p></div><span class="contador">${completadas}/${MAQUINAS.length}</span></div>
+    <div class="filtros" role="group" aria-label="Filtrar máquinas">
+      ${FILTROS_MAQUINA.map((f) => `<button class="filtro" data-filtro-maquina="${f.id}" ${f.id === filtroMaquinas ? 'data-activo aria-pressed="true"' : 'aria-pressed="false"'}>${escapar(f.nombre)}</button>`).join('')}
+    </div>
+    ${lista.length
+      ? `<div class="retos">${lista.map(renderTarjetaMaquina).join('')}</div>`
+      : '<p class="estado-vacio">No queda ninguna máquina con ese filtro. Prueba con «Todas».</p>'}
   </div>`;
+  vista.querySelectorAll('[data-filtro-maquina]').forEach((boton) => {
+    boton.addEventListener('click', () => {
+      filtroMaquinas = boton.dataset.filtroMaquina;
+      renderMaquinas();
+    });
+  });
 }
 
 // =====================================================================

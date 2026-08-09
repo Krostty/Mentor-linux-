@@ -260,6 +260,89 @@ export class Terminal {
     this.escribir('Mentor Linux — terminal simulada. Escribe `help` para ver los comandos disponibles.', 'nota');
   }
 
+  // `nano` y `vi` no son comandos que devuelvan texto: abren un editor. Se
+  // interceptan aquí, en el componente, porque el motor solo sabe de entrada
+  // y salida y un editor necesita pantalla.
+  //
+  // Escribir un programa de diez líneas con `printf '%s\n' ...` era el punto
+  // flojo de las salas de scripting: se aprendía redirección, no a programar.
+  interceptarEditor(texto) {
+    const m = /^(nano|vi|vim|edit|editar)\s+(\S+)$/.exec(texto);
+    if (!m) return false;
+    this.abrirEditor(m[2], m[1]);
+    return true;
+  }
+
+  abrirEditor(ruta, comando = 'nano') {
+    const absoluta = this.shell.resolve(ruta);
+    let contenido = '';
+    let nuevo = true;
+    try {
+      contenido = this.shell.fs.readFile(absoluta, this.shell.ctx);
+      nuevo = false;
+    } catch {
+      contenido = '';
+    }
+
+    const capa = document.createElement('div');
+    capa.className = 'editor';
+    capa.innerHTML = `
+      <div class="editor-marco" role="dialog" aria-modal="true" aria-label="Editor de ${escapar(ruta)}">
+        <header class="editor-barra">
+          <span class="editor-nombre">${escapar(comando)} · ${escapar(ruta)}${nuevo ? ' (nuevo)' : ''}</span>
+          <span class="editor-ayuda">Ctrl+S guarda · Esc cierra</span>
+        </header>
+        <textarea class="editor-texto" spellcheck="false" autocapitalize="off" autocorrect="off"
+          aria-label="Contenido del archivo">${escapar(contenido)}</textarea>
+        <footer class="editor-pie">
+          <button type="button" class="btn-fantasma" data-editor-cancelar>Salir sin guardar</button>
+          <button type="button" class="btn" data-editor-guardar>Guardar</button>
+        </footer>
+      </div>`;
+    document.body.appendChild(capa);
+
+    const area = capa.querySelector('.editor-texto');
+    area.focus();
+    area.setSelectionRange(contenido.length, contenido.length);
+
+    const cerrar = (mensaje, clase = 'nota') => {
+      capa.remove();
+      if (mensaje) this.escribir(mensaje, clase);
+      this.desplazarAlFinal();
+      this.enfocar();
+    };
+
+    const guardar = () => {
+      let texto = area.value;
+      // Un archivo de texto de Unix termina en salto de línea; si falta, se
+      // añade, que es lo que hace cualquier editor de verdad.
+      if (texto && !texto.endsWith('\n')) texto += '\n';
+      try {
+        this.shell.fs.writeFile(absoluta, texto, this.shell.ctx);
+        cerrar(`${ruta}: ${texto.split('\n').length - 1} líneas guardadas`, 'ok');
+        this.ultimo = { cmd: `${comando} ${ruta}`, salida: '', code: 0 };
+        this.alEjecutar(this.contexto());
+      } catch (e) {
+        cerrar(`${comando}: ${ruta}: ${e.message}`, 'error');
+      }
+    };
+
+    capa.querySelector('[data-editor-guardar]').addEventListener('click', guardar);
+    capa.querySelector('[data-editor-cancelar]').addEventListener('click', () => cerrar('Salida sin guardar.'));
+    capa.addEventListener('keydown', (e) => {
+      if (e.key === 'Escape') { e.preventDefault(); cerrar('Salida sin guardar.'); }
+      if ((e.ctrlKey || e.metaKey) && (e.key === 's' || e.key === 'o')) { e.preventDefault(); guardar(); }
+      // Tab dentro del editor sangra en vez de saltar de campo: en Python la
+      // sangría es sintaxis, y perderla al tabular sería inaceptable.
+      if (e.key === 'Tab') {
+        e.preventDefault();
+        const pos = area.selectionStart;
+        area.value = area.value.slice(0, pos) + '    ' + area.value.slice(area.selectionEnd);
+        area.setSelectionRange(pos + 4, pos + 4);
+      }
+    });
+  }
+
   ejecutar(linea) {
     const texto = linea.trim();
     // El eco del comando, con el prompt delante, igual que en una terminal real.
@@ -275,6 +358,11 @@ export class Terminal {
 
     this.historial.push(texto);
     this.indiceHistorial = -1;
+
+    if (this.interceptarEditor(texto)) {
+      this.desplazarAlFinal();
+      return;
+    }
 
     const resultado = this.shell.run(texto);
     if (resultado.clear) this.limpiar();
