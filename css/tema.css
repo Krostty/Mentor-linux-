@@ -1104,3 +1104,200 @@ body::before {
 
 /* Una etiqueta larga nunca debe crecer hasta el rótulo central. */
 .cubierta-etiqueta { max-width: 48%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* Las portadas aprobadas de las academias ya traen su identidad dentro del
+   PNG. Se elimina la trama generada y solo reaparece el velo cuando la app
+   necesita superponer un título distinto, como «Continuar». */
+.cubierta[data-portada-png]::before,
+.cubierta[data-portada-png]::after { display: none; }
+.cubierta[data-portada-png][data-con-titulo]::after {
+  display: block;
+  inset: 46% 0 0;
+  background: linear-gradient(180deg, transparent, rgba(3, 9, 19, .94));
+}
+.cubierta[data-portada-png] .cubierta-arte,
+.continuar-hoy .cubierta[data-portada-png] .cubierta-arte {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.cabecera-cubierta .cubierta[data-portada-png],
+.continuar-hoy .cubierta[data-portada-png] { aspect-ratio: 2 / 1; }
+
+/* =====================================================================
+   16. Catálogos visuales de Máquinas y Wargame
+   Estas portadas son archivos PNG; el nombre, estado y dificultad siguen
+   siendo texto de interfaz para conservar nitidez y accesibilidad.
+   ===================================================================== */
+
+.portada-png {
+  position: relative;
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 3 / 2;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
+  background: #061427;
+  isolation: isolate;
+}
+.portada-png::after {
+  content: "";
+  position: absolute;
+  z-index: 1;
+  inset: 44% 0 0;
+  background: linear-gradient(180deg, transparent, rgba(3, 9, 19, .94));
+}
+.portada-png > img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+}
+.portada-png-rotulo {
+  position: absolute;
+  z-index: 2;
+  left: 15px;
+  top: 14px;
+  max-width: 54%;
+  overflow: hidden;
+  color: rgba(255, 255, 255, .86);
+  font: 750 10px var(--mono);
+  letter-spacing: .16em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  text-shadow: 0 2px 8px rgba(0, 0, 0, .7);
+}
+.portada-png-etiqueta {
+  position: absolute;
+  z-index: 3;
+  right: 13px;
+  top: 12px;
+  max-width: 42%;
+  overflow: hidden;
+  padding: 5px 9px;
+  border: 1px solid rgba(255, 255, 255, .2);
+  border-radius: 999px;
+  background: rgba(4, 13, 28, .72);
+  color: #fff;
+  font: 750 9.5px var(--mono);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.portada-png-titulo {
+  position: absolute;
+  z-index: 3;
+  left: 16px;
+  right: 16px;
+  bottom: 15px;
+  margin: 0;
+  color: #fff;
+  font: 800 clamp(20px, 5.5vw, 27px)/1.1 var(--mono);
+  letter-spacing: -.045em;
+  text-shadow: 0 2px 12px rgba(0, 0, 0, .72);
+}
+
+.portada-seccion {
+  overflow: hidden;
+  margin: 0 0 16px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  background: #061427;
+  box-shadow: var(--sombra-2);
+}
+.portada-seccion > img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 2 / 1;
+  object-fit: cover;
+}
+.pagina-terminal > .portada-seccion { margin-top: 12px; }
+
+.maquinas-grid,
+.wargame-lista {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 16px;
+}
+.tarjeta-visual {
+  overflow: hidden;
+  padding: 0;
+  border-color: var(--line);
+  box-shadow: var(--sombra-2);
+}
+.tarjeta-visual .academia-cuerpo { padding: 14px 16px 5px; }
+.tarjeta-visual .academia-cuerpo p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.45;
+}
+.tarjeta-visual .academia-pie { padding: 12px 16px 16px; }
+.tarjeta-visual .academia-pie .btn { width: 100%; }
+
+.tarjeta-maquina[data-nivel="facil"] { --acento-academia: var(--lime); }
+.tarjeta-maquina[data-nivel="media"] { --acento-academia: var(--amber); }
+.tarjeta-maquina[data-nivel="dificil"] { --acento-academia: var(--red); }
+.tarjeta-maquina .portada-png-titulo { bottom: 49px; }
+.tarjeta-maquina .maquina-host { margin: 0 0 7px; }
+.tarjeta-maquina .barra > i { background: var(--acento-academia); }
+.maquina-meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin: 12px 0 7px;
+  color: var(--dim);
+  font: 700 11px var(--mono);
+}
+.maquina-meta b { color: var(--acento-academia); font-size: 12px; }
+
+.panel-wargame {
+  scroll-margin-top: 14px;
+  margin: 22px 0 16px;
+  overflow: hidden;
+  padding: 0;
+  border-color: rgba(36, 181, 242, .28);
+  background: var(--panel);
+}
+.panel-wargame .portada-seccion {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  box-shadow: none;
+}
+.panel-wargame-cuerpo {
+  padding: 18px;
+  background:
+    radial-gradient(70% 120% at 100% 0, rgba(255, 126, 58, .09), transparent 70%),
+    var(--panel);
+}
+.panel-wargame h2 {
+  margin: 3px 0 6px;
+  font: 800 clamp(21px, 6vw, 27px)/1.15 var(--mono);
+  letter-spacing: -.045em;
+}
+.panel-wargame p { margin: 0 0 15px; color: var(--muted); font-size: 13.5px; }
+.tarjeta-wargame { --acento-academia: var(--cyan); }
+.tarjeta-wargame[data-hecha] { border-color: rgba(47, 208, 127, .4); }
+.tarjeta-wargame[data-hecha] .barra > i { background: var(--lime); }
+.tarjeta-wargame[data-bloqueada] .portada-png > img {
+  filter: grayscale(.72) saturate(.45);
+  opacity: .5;
+}
+.tarjeta-wargame[data-bloqueada] .academia-cuerpo { opacity: .7; }
+.tarjeta-wargame[data-bloqueada] .cubierta-boton { cursor: not-allowed; }
+
+@media (min-width: 650px) {
+  .maquinas-grid,
+  .wargame-lista { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+
+@media (min-width: 1120px) {
+  .maquinas-grid,
+  .wargame-lista { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}

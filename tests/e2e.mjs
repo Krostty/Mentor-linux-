@@ -67,6 +67,8 @@ try {
   // viven en la pantalla de cada academia, no amontonados en el inicio.
   comprobar('hay 5 academias en la portada', await pagina.locator('.tarjeta-academia').count() === 5);
   comprobar('cada academia lleva su cubierta', await pagina.locator('.tarjeta-academia .cubierta').count() === 5);
+  comprobar('las cinco academias usan las portadas PNG aprobadas',
+    await pagina.locator('.tarjeta-academia .cubierta[data-portada-png] img[src$=".png"]').count() === 5);
   comprobar('la portada no despliega módulos', await pagina.locator('.modulo').count() === 0);
   comprobar('la portada muestra el nivel y la ruta de rangos', await pagina.locator('.rango').count() === 6);
   comprobar('la portada muestra las tres métricas', await pagina.locator('.metrica-inicio').count() === 3);
@@ -205,6 +207,7 @@ try {
 
   console.log('▸ Máquina completa');
   await pagina.locator('[data-pestana="maquinas"]').click();
+  comprobar('Máquinas usa su portada general PNG', await pagina.locator('.portada-seccion[data-seccion="maquinas"] img[src$=".png"]').count() === 1);
   comprobar('hay 12 máquinas', await pagina.locator('[data-maquina]').count() === 12);
   await pagina.locator('[data-maquina="lumen"]').click();
   // La máquina se recorre guiada: una fase por pantalla, con la terminal
@@ -245,10 +248,9 @@ try {
   comprobar('cada reto lleva su portada ilustrada', await pagina.locator('.tarjeta-reto .cubierta-arte').count() === 8);
   comprobar('cada reto lleva su insignia de dificultad', await pagina.locator('.insignia-dificultad').count() === 8);
   comprobar('los accesos rápidos son tres filas', await pagina.locator('.fila-acceso').count() === 3);
-  const wargame = pagina.locator('details.plegable').filter({ hasText: 'Wargame' }).first();
-  await wargame.locator('summary').click();
+  comprobar('Wargame usa su portada general PNG', await pagina.locator('.panel-wargame .portada-seccion[data-seccion="wargame"] img[src$=".png"]').count() === 1);
   comprobar('hay 15 niveles Wargame', await pagina.locator('.wargame-lista [data-wargame]').count() === 15);
-  await pagina.locator('[data-wargame="bandit-0"]').last().click();
+  await pagina.locator('[data-wargame="bandit-0"] .btn').click();
   await comando('cat README');
   await pagina.getByLabel('Contraseña del siguiente nivel').fill('linux-opens-the-door');
   await pagina.getByRole('button', { name: 'Desbloquear', exact: true }).click();
@@ -263,7 +265,8 @@ try {
   await pagina.getByRole('button', { name: 'Más retos', exact: true }).click();
 
   comprobar('el panel de puntos débiles existe', await pagina.locator('.debiles, .vacio-suave').count() > 0);
-  comprobar('las secciones largas quedan plegadas', await pagina.locator('details.plegable').count() === 4);
+  comprobar('el contenido auxiliar queda plegado y Wargame conserva su panel visible',
+    await pagina.locator('details.plegable').count() === 3 && await pagina.locator('.panel-wargame').isVisible());
 
   console.log('▸ Perfil y offline');
   await pagina.locator('[data-pestana="perfil"]').click();

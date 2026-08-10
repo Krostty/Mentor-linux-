@@ -24,6 +24,7 @@ export const WARGAME = DATOS.map(([nombre, objetivo, solucion, pistas], n) => ({
   n,
   nombre,
   objetivo,
+  imagen: `assets/art/wargame/nivel-${String(n).padStart(2, '0')}.png`,
   snapshot: `wargame-${n}`,
   solucion,
   pistas,

@@ -14,6 +14,7 @@ import { WARGAME } from '../js/data/wargame.js';
 import { respuestaCorrecta } from '../js/data/secretos.js';
 import { LOGROS } from '../js/data/logros.js';
 import { Store } from '../js/store.js';
+import { PORTADA_PNG_POR_ID } from '../js/portadas.js';
 
 let pasadas = 0;
 let fallidas = 0;
@@ -46,6 +47,10 @@ test('hay al menos 140 tareas', TOTAL_TAREAS >= 140, String(TOTAL_TAREAS));
 test('hay al menos 500 ejercicios', TOTAL_EJERCICIOS >= 500, String(TOTAL_EJERCICIOS));
 test('hay exactamente 12 máquinas', MAQUINAS.length === 12, String(MAQUINAS.length));
 test('hay exactamente 15 niveles Wargame', WARGAME.length === 15, String(WARGAME.length));
+test('cada máquina tiene una portada PNG existente', MAQUINAS.every((m) => m.imagen.endsWith('.png') && existsSync(resolve(m.imagen))));
+test('cada nivel Wargame tiene una portada PNG existente', WARGAME.every((n) => n.imagen.endsWith('.png') && existsSync(resolve(n.imagen))));
+test('las ocho secciones usan sus portadas PNG aprobadas',
+  Object.keys(PORTADA_PNG_POR_ID).length === 8 && Object.values(PORTADA_PNG_POR_ID).every((ruta) => ruta.endsWith('.png') && existsSync(resolve(ruta))));
 test('hay exactamente 40 logros', LOGROS.length === 40, String(LOGROS.length));
 test('existe la Sala 0 absoluta', SALAS.some((s) => s.n === 0 && s.id === 'cero-absoluto'));
 

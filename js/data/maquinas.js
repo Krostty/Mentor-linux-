@@ -77,6 +77,7 @@ export const MAQUINAS = MACHINE_SEEDS.map((seed, i) => {
   const [privSolution, privCheck] = escaladaDe(tecnica);
   return {
     id, nombre: NOMBRES[i], dificultad: DIFICULTADES[i], so: SISTEMAS[i],
+    imagen: `assets/art/maquinas/${id}.png`,
     minutos: 35 + i * 8, snapshot: `machine-${id}`, ip: p.ip, host: p.host, user,
     habilidades: ['reconocimiento', p.ports[1]?.service || p.ports[0].service, tecnica],
     profile: p,

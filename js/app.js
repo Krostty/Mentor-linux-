@@ -12,7 +12,8 @@ import { LOGROS } from './data/logros.js';
 import { Terminal } from './engine/terminal.js';
 import { store } from './store.js';
 import { escapar, formato, brindis, celebrar, porcentaje, vibrar, permitirVibracion } from './ui.js';
-import { ilustracion, escenaDe, PORTADA_ACADEMIA, PORTADA_SECCION } from './arte.js';
+import { ilustracion, escenaDe, PORTADA_ACADEMIA } from './arte.js';
+import { PORTADA_PNG_POR_ID } from './portadas.js';
 import { sonido } from './sonido.js';
 
 const vista = document.getElementById('vista');
@@ -157,19 +158,42 @@ const RANGOS = [
   { nivel: 15, nombre: 'Mentor', icono: '👑' },
 ];
 
-// La cubierta de una academia: fondo con su color, ilustración SVG propia,
-// rótulo en mayúsculas arriba y título abajo. Todo dibujado: ni una imagen,
-// para que la app siga entera sin red.
+// Las cinco academias usan las portadas PNG aprobadas. Los SVG quedan como
+// respaldo para cubiertas dinámicas, por ejemplo los retos generados por tema.
 function cubierta(academia, { etiqueta = '', titulo = academia.nombre, escena, rotulo, color, insignia = '' } = {}) {
   const portada = PORTADA_ACADEMIA[academia?.id] || {};
+  const imagen = PORTADA_PNG_POR_ID[academia?.id] || '';
   const dibujo = escena || portada.escena || 'terminal';
-  const cabecera = rotulo !== undefined ? rotulo : portada.rotulo || '';
-  return `<span class="cubierta" data-color="${escapar(color || academia?.color || 'cyan')}" ${titulo ? 'data-con-titulo' : ''}>
-    ${ilustracion(dibujo)}
+  const cabecera = rotulo !== undefined ? rotulo : imagen ? '' : portada.rotulo || '';
+  const mostrarTitulo = Boolean(titulo && (!imagen || titulo !== academia?.nombre));
+  return `<span class="cubierta" data-color="${escapar(color || academia?.color || 'cyan')}" ${imagen ? 'data-portada-png' : ''} ${mostrarTitulo ? 'data-con-titulo' : ''}>
+    ${imagen
+      ? `<img class="cubierta-arte" src="${escapar(imagen)}" alt="" width="800" height="400" loading="lazy" decoding="async" aria-hidden="true">`
+      : ilustracion(dibujo)}
     ${cabecera ? `<span class="cubierta-rotulo" aria-hidden="true">${escapar(cabecera)}</span>` : ''}
     ${etiqueta ? `<span class="cubierta-etiqueta">${escapar(etiqueta)}</span>` : ''}
     ${insignia}
-    ${titulo ? `<b class="cubierta-titulo">${escapar(titulo)}</b>` : ''}
+    ${mostrarTitulo ? `<b class="cubierta-titulo">${escapar(titulo)}</b>` : ''}
+  </span>`;
+}
+
+function portadaSeccion(id, alt) {
+  const imagen = PORTADA_PNG_POR_ID[id];
+  if (!imagen) return '';
+  return `<figure class="portada-seccion" data-seccion="${escapar(id)}">
+    <img src="${escapar(imagen)}" alt="${escapar(alt)}" width="800" height="400" loading="lazy" decoding="async">
+  </figure>`;
+}
+
+// Portada raster para los catálogos de práctica. Las ilustraciones son PNG
+// reales y el texto queda en HTML para que siempre sea nítido y accesible.
+function portadaPng({ imagen, titulo, rotulo, etiqueta = '', insignia = '' }) {
+  return `<span class="portada-png">
+    <img src="${escapar(imagen)}" alt="" width="720" height="480" loading="lazy" decoding="async" aria-hidden="true">
+    ${rotulo ? `<span class="portada-png-rotulo" aria-hidden="true">${escapar(rotulo)}</span>` : ''}
+    ${etiqueta ? `<span class="portada-png-etiqueta">${escapar(etiqueta)}</span>` : ''}
+    ${insignia}
+    <h3 class="portada-png-titulo">${escapar(titulo)}</h3>
   </span>`;
 }
 
@@ -1003,13 +1027,35 @@ function progresoMaquina(maquina) {
 
 function renderMaquinas() {
   vista.innerHTML = `<div class="pagina">
+    ${portadaSeccion('maquinas', 'Portada de Máquinas')}
     <section class="hero"><span class="eyebrow">Laboratorio ofensivo · 100% simulado</span><h1>Máquinas vulnerables.<br>Entornos seguros.</h1><p>Practica una metodología completa: reconocimiento, enumeración, acceso y escalada. Todos los objetivos viven dentro del simulador; nunca se contactan sistemas reales.</p><div class="chips"><span class="chip">12 máquinas</span><span class="chip">48 fases</span><span class="chip">24 flags</span><span class="chip">writeups desbloqueables</span></div></section>
     <div class="seccion-titulo"><div><h2>Selecciona un objetivo</h2><p>De tu primer escaneo a cadenas de explotación avanzadas</p></div></div>
-    <div class="rejilla">${MAQUINAS.map((m) => {
-      const estado = store.estadoMaquina(m.id);
-      return `<button class="tarjeta maquina-card" data-maquina="${escapar(m.id)}"><div class="tarjeta-top"><span class="eyebrow">${escapar(m.so)}</span><span class="dificultad" data-nivel="${nivelDificultad(m.dificultad)}">${escapar(m.dificultad)}</span></div><h3>${escapar(m.nombre)} ${estado.completada ? '✓' : ''}</h3><div class="maquina-host">${escapar(m.ip)} · ${escapar(m.host)}</div><p>${m.habilidades.map(escapar).join(' · ')}</p><div class="barra" style="margin-top:13px"><i style="width:${porcentaje(progresoMaquina(m))}%"></i></div></button>`;
-    }).join('')}</div>
+    <div class="maquinas-grid">${MAQUINAS.map(renderTarjetaMaquina).join('')}</div>
   </div>`;
+}
+
+function renderTarjetaMaquina(maquina) {
+  const estado = store.estadoMaquina(maquina.id);
+  const avance = porcentaje(progresoMaquina(maquina));
+  const nivel = nivelDificultad(maquina.dificultad);
+  const insignia = `<span class="insignia-dificultad" data-nivel="${nivel}">
+    <i aria-hidden="true"><b></b><b></b><b></b></i>${escapar(maquina.dificultad.toUpperCase())}
+  </span>`;
+  const etiqueta = estado.completada ? 'Completada' : avance ? `${avance}%` : '';
+  return `<article class="tarjeta tarjeta-visual tarjeta-maquina" data-maquina="${escapar(maquina.id)}" data-nivel="${nivel}">
+    <button class="cubierta-boton" aria-label="Abrir la máquina ${escapar(maquina.nombre)}">
+      ${portadaPng({ imagen: maquina.imagen, titulo: `${maquina.nombre}${estado.completada ? ' ✓' : ''}`, rotulo: 'MACHINE LAB', etiqueta, insignia })}
+    </button>
+    <div class="academia-cuerpo">
+      <div class="maquina-host">${escapar(maquina.ip)} · ${escapar(maquina.host)}</div>
+      <p>${maquina.habilidades.map(escapar).join(' · ')}</p>
+      <div class="maquina-meta"><span>${escapar(maquina.so)}</span><b>${avance}%</b></div>
+      <span class="barra"><i style="width:${avance}%"></i></span>
+    </div>
+    <div class="academia-pie">
+      <button class="btn">${estado.completada ? '↻ Repetir máquina' : avance ? '▶ Continuar máquina' : '▶ Iniciar máquina'}</button>
+    </div>
+  </article>`;
 }
 
 // =====================================================================
@@ -1220,7 +1266,7 @@ function renderPracticar() {
 
     <div class="accesos">
       ${filaAcceso('🧪', 'Modo libre', 'Una terminal sin objetivo, restaurable', 'data-laboratorio="libre"')}
-      ${filaAcceso('🏴', 'Wargame', `${wargameHechos}/15 niveles encadenados por contraseña`, 'data-wargame="bandit-0"')}
+      ${filaAcceso('🏴', 'Wargame', `${wargameHechos}/15 niveles con panel e ilustración propia`, 'data-abrir="wargame"')}
       ${filaAcceso('📖', 'Chuletario', `${TODOS_COMANDOS.length} comandos con sintaxis y ejemplo`, 'data-abrir="chuletario"')}
     </div>
 
@@ -1257,17 +1303,15 @@ function renderPracticar() {
       </div>
     </details>
 
-    <details class="plegable">
-      <summary><span class="plegable-emoji emoji-vivo" aria-hidden="true">🏴</span><b>Wargame</b><span class="plegable-cuenta">${wargameHechos}/15</span><i class="modulo-flecha" aria-hidden="true">▾</i></summary>
-      <div class="plegable-cuerpo">
-        <p class="plegable-nota">Cada nivel esconde la contraseña del siguiente.</p>
-        <div class="wargame-lista">${WARGAME.map((n) => {
-          const abierto = store.nivelWargameDesbloqueado(n.n);
-          const hecho = store.estado.wargameCompletados.includes(n.n);
-          return `<button class="nivel-wargame" data-wargame="${escapar(n.id)}" ${abierto ? '' : 'disabled'} ${hecho ? 'data-hecho' : ''}><b>${hecho ? '✓' : String(n.n).padStart(2, '0')}</b><small>${abierto ? escapar(n.nombre) : 'Bloqueado'}</small></button>`;
-        }).join('')}</div>
+    <section class="tarjeta panel-wargame" id="wargame">
+      ${portadaSeccion('wargame', 'Portada de Wargame')}
+      <div class="panel-wargame-cuerpo">
+        <div><span class="eyebrow">Wargame</span><h2>Una ruta, quince niveles</h2><p>Cada contraseña abre el siguiente desafío. Todos tienen su propia ficha visual.</p></div>
+        <div class="linea-avance"><b>${wargameHechos} de ${WARGAME.length} completados</b><span>${porcentaje(wargameHechos / WARGAME.length)}%</span></div>
+        <span class="barra"><i style="width:${porcentaje(wargameHechos / WARGAME.length)}%"></i></span>
       </div>
-    </details>
+    </section>
+    <div class="wargame-lista">${WARGAME.map(renderTarjetaWargame).join('')}</div>
 
     <details class="plegable" id="chuletario">
       <summary><span class="plegable-emoji emoji-vivo" aria-hidden="true">📖</span><b>Chuletario de comandos</b><span class="plegable-cuenta">${TODOS_COMANDOS.length}</span><i class="modulo-flecha" aria-hidden="true">▾</i></summary>
@@ -1314,13 +1358,32 @@ function renderTarjetaReto(mision, hecho) {
   </article>`;
 }
 
+function renderTarjetaWargame(nivel) {
+  const abierto = store.nivelWargameDesbloqueado(nivel.n);
+  const hecho = store.estado.wargameCompletados.includes(nivel.n);
+  const numero = String(nivel.n).padStart(2, '0');
+  const estado = hecho ? 'Completado' : abierto ? `Nivel ${numero}` : 'Bloqueado';
+  return `<article class="tarjeta tarjeta-visual tarjeta-wargame" data-wargame="${escapar(nivel.id)}" ${abierto ? '' : 'data-bloqueada'} ${hecho ? 'data-hecha' : ''}>
+    <button class="cubierta-boton" ${abierto ? '' : 'disabled'} aria-label="${abierto ? 'Abrir' : 'Nivel bloqueado:'} ${escapar(nivel.nombre)}">
+      ${portadaPng({ imagen: nivel.imagen, titulo: nivel.nombre, rotulo: `WARGAME · ${numero}`, etiqueta: estado })}
+    </button>
+    <div class="academia-cuerpo">
+      <p>${abierto ? htmlSeguro(nivel.objetivo) : 'Completa el nivel anterior para desbloquear este desafío.'}</p>
+      <div class="reto-meta"><span class="chip">+${nivel.xp} XP</span><span class="chip">${hecho ? 'Superado ✓' : abierto ? 'Disponible' : '🔒 Cerrado'}</span></div>
+    </div>
+    <div class="academia-pie">
+      <button class="btn" ${abierto ? '' : 'disabled'}>${hecho ? '↻ Repetir nivel' : abierto ? '▶ Abrir nivel' : '🔒 Bloqueado'}</button>
+    </div>
+  </article>`;
+}
+
 function renderComandos(lista) {
   return lista.map((c) => `<article class="comando"><b>${escapar(c.n)}</b><p>${escapar(c.q)}</p><pre>${escapar(c.s)}\n${escapar(c.e)}</pre></article>`).join('') || '<p class="muted">No encontramos ese comando.</p>';
 }
 
 function renderLaboratorio(id = 'libre') {
   const mision = MISIONES.find((m) => m.id === id);
-  vista.innerHTML = `<div class="pagina pagina-terminal"><button class="enlace-volver" data-ir="practicar">← Volver a Retos</button><header class="detalle-cabecera"><span class="eyebrow">${mision ? `Misión rápida · ${escapar(mision.dificultad)}` : 'Modo libre · sistema restaurable'}</span><h1>${escapar(mision?.nombre || 'Laboratorio Linux')}</h1><p>${mision ? htmlSeguro(mision.objetivo) : 'Explora la terminal sin objetivo ni riesgo. Escribe `help` para ver los comandos disponibles.'}</p>${mision ? `<div class="chips"><span class="chip">+${mision.xp} XP</span><span class="chip">Solución por estado, no por texto</span></div>` : ''}</header><section class="panel-lab" style="margin-top:15px"><div class="terminal-zona" id="terminal-laboratorio"></div><div class="acciones"><button class="btn-fantasma btn-mini" data-reiniciar-lab>Restaurar sistema</button>${mision ? '<button class="btn-fantasma btn-mini" data-solucion-lab>Ver solución</button>' : ''}</div><div class="feedback" data-feedback-lab></div></section></div>`;
+  vista.innerHTML = `<div class="pagina pagina-terminal"><button class="enlace-volver" data-ir="practicar">← Volver a Retos</button>${mision ? '' : portadaSeccion('laboratorio', 'Portada del Laboratorio Linux')}<header class="detalle-cabecera"><span class="eyebrow">${mision ? `Misión rápida · ${escapar(mision.dificultad)}` : 'Modo libre · sistema restaurable'}</span><h1>${escapar(mision?.nombre || 'Laboratorio Linux')}</h1><p>${mision ? htmlSeguro(mision.objetivo) : 'Explora la terminal sin objetivo ni riesgo. Escribe `help` para ver los comandos disponibles.'}</p>${mision ? `<div class="chips"><span class="chip">+${mision.xp} XP</span><span class="chip">Solución por estado, no por texto</span></div>` : ''}</header><section class="panel-lab" style="margin-top:15px"><div class="terminal-zona" id="terminal-laboratorio"></div><div class="acciones"><button class="btn-fantasma btn-mini" data-reiniciar-lab>Restaurar sistema</button>${mision ? '<button class="btn-fantasma btn-mini" data-solucion-lab>Ver solución</button>' : ''}</div><div class="feedback" data-feedback-lab></div></section></div>`;
   terminalActiva = new Terminal(document.getElementById('terminal-laboratorio'), {
     snapshot: mision?.snapshot || 'profesional', autoFocus: true,
     alEjecutar: (ctx) => {
@@ -1505,7 +1568,7 @@ document.addEventListener('click', (evento) => {
   const maquina = evento.target.closest('[data-maquina]');
   if (maquina) return ir('maquina', { id: maquina.dataset.maquina });
   const nivel = evento.target.closest('[data-wargame]');
-  if (nivel && !nivel.disabled) return ir('wargame', { id: nivel.dataset.wargame });
+  if (nivel && !nivel.hasAttribute('data-bloqueada')) return ir('wargame', { id: nivel.dataset.wargame });
   const lab = evento.target.closest('[data-laboratorio]');
   if (lab) return ir('laboratorio', { id: lab.dataset.laboratorio });
   // Accesos que solo despliegan una sección de la misma pantalla.
