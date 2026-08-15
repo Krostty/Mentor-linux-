@@ -9,9 +9,15 @@ import {
 import { MAQUINAS } from './data/maquinas.js';
 import { WARGAME } from './data/wargame.js';
 import { LOGROS, nivelDe, TEMAS } from './data/logros.js';
+import {
+  CAPACIDADES, CAPACIDAD_POR_ID, requisitosDeRuta, evaluarCapacidad,
+} from './data/prerrequisitos.js';
+import {
+  AUTONOMIA_POR_ID, proximaRevision, revisionVencida,
+} from './data/pedagogia.js';
 
 const CLAVE = 'mentor-linux/progreso';
-const VERSION = 3;
+const VERSION = 4;
 const DEBOUNCE_MS = 250;
 
 export function hoy() {
@@ -50,6 +56,7 @@ function estadoInicial() {
     habilidades: {},
     intentosEjercicio: {},
     repaso: {},
+    evidenciasPaso: {},
     creado: hoy(),
     avisoSafariVisto: false,
     // Ajustes del dispositivo. Van en el progreso para que sobrevivan a la
@@ -78,6 +85,7 @@ function arraysSeguros(estado) {
   if (!estado.habilidades || typeof estado.habilidades !== 'object') estado.habilidades = {};
   if (!estado.intentosEjercicio || typeof estado.intentosEjercicio !== 'object') estado.intentosEjercicio = {};
   if (!estado.repaso || typeof estado.repaso !== 'object') estado.repaso = {};
+  if (!estado.evidenciasPaso || typeof estado.evidenciasPaso !== 'object') estado.evidenciasPaso = {};
   return estado;
 }
 
@@ -185,23 +193,26 @@ export class Store {
     if (!h.sinPista) return 1;
     if (h.sinPista === 1) return 2;
     if (h.sinPista < 3) return 3;
-    if ((h.ejercicios || []).length < 3) return 3;
-    if ((h.fechas || []).length < 2) return 4;
-    if (h.sinPista < 7 || (h.fechas || []).length < 3) return 5;
+    if ((h.ejercicios || []).length < 3 || (h.contextos || []).length < 2) return 3;
+    if ((h.fechas || []).length < 2 || (h.recuperaciones || 0) < 1) return 4;
+    if (h.sinPista < 7 || (h.fechas || []).length < 3 || (h.contextos || []).length < 3 || (h.recuperaciones || 0) < 2) return 5;
     return 6;
   }
 
-  registrarIntento(ejercicio, { correcto, usoPista = false, contexto = '' } = {}) {
+  registrarIntento(ejercicio, { correcto, usoPista = false, contexto = '', confianza = 0, esRepaso = false } = {}) {
     const fecha = hoy();
-    const intento = this.estado.intentosEjercicio[ejercicio.id] || { intentos: 0, errores: 0, aciertos: 0, ultima: null };
+    const ahora = new Date();
+    const intento = this.estado.intentosEjercicio[ejercicio.id] || { intentos: 0, errores: 0, aciertos: 0, ultima: null, confianzas: [] };
     intento.intentos++;
-    intento.ultima = new Date().toISOString();
+    intento.ultima = ahora.toISOString();
+    if (confianza) intento.confianzas = [...(intento.confianzas || []), { valor: confianza, correcto, fecha: intento.ultima }].slice(-20);
     if (correcto) intento.aciertos++;
     else intento.errores++;
     this.estado.intentosEjercicio[ejercicio.id] = intento;
 
     for (const id of ejercicio.habilidades || []) {
-      const h = this.estado.habilidades[id] || { intentos: 0, aciertos: 0, sinPista: 0, fallos: 0, ejercicios: [], fechas: [], contextos: [], proxima: fecha, intervalo: 0 };
+      const h = this.estado.habilidades[id] || { intentos: 0, aciertos: 0, sinPista: 0, fallos: 0, ejercicios: [], fechas: [], contextos: [], proxima: null, etapa: 0, recuperaciones: 0 };
+      const recuperacionDemorada = h.aciertos > 0 && (esRepaso || revisionVencida(h.proxima, ahora));
       h.intentos++;
       if (correcto) {
         h.aciertos++;
@@ -210,24 +221,39 @@ export class Store {
         if (!usoPista) {
           h.sinPista++;
           if (!h.fechas.includes(fecha)) h.fechas.push(fecha);
+          if (recuperacionDemorada) h.recuperaciones = (h.recuperaciones || 0) + 1;
         }
-        const intervalos = [1, 1, 3, 7, 14, 30];
-        h.intervalo = usoPista ? 1 : intervalos[Math.min(h.fechas.length, intervalos.length - 1)];
-        h.proxima = this.fechaEnDias(h.intervalo);
+        h.etapa = usoPista ? 0 : Math.min((h.etapa || 0) + Number(recuperacionDemorada), 4);
+        h.proxima = proximaRevision(h.etapa, ahora);
       } else {
         h.fallos++;
-        h.intervalo = 0;
-        h.proxima = fecha;
+        h.etapa = 0;
+        h.proxima = ahora.toISOString();
       }
       this.estado.habilidades[id] = h;
       h.nivel = this.nivelHabilidad(id);
+    }
+    if (!correcto) {
+      this.estado.repaso[ejercicio.id] = {
+        proxima: ahora.toISOString(), etapa: 0,
+        veces: this.estado.repaso[ejercicio.id]?.veces || 0, motivo: 'error',
+      };
     }
     this.programarGuardado();
     return (ejercicio.habilidades || []).map((id) => ({ id, nivel: this.nivelHabilidad(id) }));
   }
 
-  completarEjercicio(ejercicio, { usoPista = false } = {}) {
-    const habilidades = this.registrarIntento(ejercicio, { correcto: true, usoPista, contexto: ejercicio.salaId || '' });
+  completarEjercicio(ejercicio, { usoPista = false, esRepaso = false, confianza = 0 } = {}) {
+    const habilidades = this.registrarIntento(ejercicio, {
+      correcto: true, usoPista, contexto: ejercicio.salaId || ejercicio.tareaId || '', confianza, esRepaso,
+    });
+    const anterior = this.estado.repaso[ejercicio.id] || { etapa: 0, veces: 0 };
+    const etapa = usoPista ? 0 : esRepaso ? Math.min((anterior.etapa || 0) + 1, 4) : 0;
+    this.estado.repaso[ejercicio.id] = {
+      proxima: proximaRevision(etapa), etapa,
+      veces: (anterior.veces || 0) + Number(esRepaso),
+      motivo: usoPista ? 'pista' : esRepaso ? 'recuperacion' : 'consolidacion',
+    };
     if (this.ejercicioHecho(ejercicio.id)) {
       this.guardar();
       return { ganado: 0, nuevosLogros: [], repaso: true, habilidades };
@@ -238,11 +264,9 @@ export class Store {
       this.estado.combo = 0;
       this.estado.ejerciciosConPista.push(ejercicio.id);
       if (String(ejercicio.id).startsWith('r')) this.estado.retosConPista.push(ejercicio.id);
-      this.estado.repaso[ejercicio.id] = { fecha: this.fechaEnDias(2), veces: 0 };
     } else {
       this.estado.combo++;
       this.estado.mejorCombo = Math.max(this.estado.mejorCombo, this.estado.combo);
-      delete this.estado.repaso[ejercicio.id];
     }
     const ganado = Math.round((ejercicio.xp || 15) * this.multiplicador());
     this.estado.xp += ganado;
@@ -361,8 +385,90 @@ export class Store {
     return rutas.length ? rutas.reduce((n, r) => n + this.progresoRuta(r), 0) / rutas.length : 0;
   }
 
+  evidenciaPaso(tareaId, pasoId) {
+    return this.estado.evidenciasPaso[`${tareaId}/${pasoId}`] || null;
+  }
+
+  guardarEvidenciaPaso(tareaId, pasoId, datos = {}) {
+    const clave = `${tareaId}/${pasoId}`;
+    this.estado.evidenciasPaso[clave] = { ...datos, fecha: new Date().toISOString() };
+    this.registrarActividad();
+    this.guardar();
+    return this.estado.evidenciasPaso[clave];
+  }
+
+  calibracionMetacognitiva() {
+    const muestras = Object.values(this.estado.evidenciasPaso).filter((item) =>
+      [1, 2, 3].includes(Number(item.confianza)) && typeof item.correcto === 'boolean');
+    if (!muestras.length) return { muestras: 0, precision: 0, error: 0, etiqueta: 'Sin datos todavía' };
+    const aciertos = muestras.filter((item) => item.correcto).length;
+    const error = muestras.reduce((total, item) =>
+      total + Math.abs(Number(item.confianza) / 3 - Number(item.correcto)), 0) / muestras.length;
+    return {
+      muestras: muestras.length,
+      precision: aciertos / muestras.length,
+      error,
+      etiqueta: error <= 0.2 ? 'Bien calibrada' : error <= 0.4 ? 'En ajuste' : 'Conviene contrastar más',
+    };
+  }
+
+  detalleCapacidad(id) {
+    return evaluarCapacidad(id, (habilidadId) => this.nivelHabilidad(habilidadId));
+  }
+
+  nivelCapacidad(id) {
+    return this.detalleCapacidad(id)?.nivel || 0;
+  }
+
+  // Los prerrequisitos son una radiografía, no un candado. Una persona con
+  // experiencia previa puede entrar igualmente y Mentor señalará qué base le
+  // conviene reforzar según evidencia real de ejercicios y rutas.
+  estadoPrerequisitosRuta(rutaId) {
+    const ruta = RUTA_POR_ID[rutaId];
+    if (!ruta) return { rutaId, listo: true, avance: 1, requisitos: [], faltantes: [] };
+    const requisitos = requisitosDeRuta(rutaId).map((requisito) => {
+      if (requisito.tipo === 'ruta') {
+        const requerida = RUTA_POR_ID[requisito.id];
+        const actual = requerida ? this.progresoRuta(requerida) : 0;
+        return {
+          ...requisito,
+          nombre: requerida?.nombre || requisito.id,
+          actual,
+          objetivo: requisito.avance,
+          cumple: actual >= requisito.avance,
+          avance: Math.min(1, actual / requisito.avance),
+          rutaReferencia: requisito.id,
+        };
+      }
+      const capacidad = CAPACIDAD_POR_ID[requisito.id];
+      const detalle = this.detalleCapacidad(requisito.id);
+      const actual = detalle?.nivel || 0;
+      return {
+        ...requisito,
+        nombre: capacidad?.nombre || requisito.id,
+        actual,
+        objetivo: requisito.nivel,
+        cumple: actual >= requisito.nivel,
+        avance: requisito.nivel ? Math.min(1, actual / requisito.nivel) : 1,
+        rutaReferencia: capacidad?.rutaReferencia || '',
+      };
+    });
+    const faltantes = requisitos.filter((requisito) => !requisito.cumple);
+    return {
+      rutaId,
+      listo: faltantes.length === 0,
+      avance: requisitos.length ? requisitos.reduce((total, requisito) => total + requisito.avance, 0) / requisitos.length : 1,
+      requisitos,
+      faltantes,
+    };
+  }
+
   estadoMaquina(id) {
-    if (!this.estado.maquinas[id]) this.estado.maquinas[id] = { fases: [], userFlag: false, rootFlag: false, completada: false };
+    const base = {
+      fases: [], userFlag: false, rootFlag: false, completada: false,
+      autonomia: 'guiada', roeAceptadas: false, evidencias: [], reporte: null,
+    };
+    this.estado.maquinas[id] = { ...base, ...(this.estado.maquinas[id] || {}) };
     return this.estado.maquinas[id];
   }
 
@@ -379,6 +485,57 @@ export class Store {
     return estado;
   }
 
+  cambiarAutonomiaMaquina(id, autonomia) {
+    if (!AUTONOMIA_POR_ID[autonomia]) return false;
+    const estado = this.estadoMaquina(id);
+    estado.autonomia = autonomia;
+    if (autonomia !== 'red-team') estado.roeAceptadas = false;
+    this.guardar();
+    return true;
+  }
+
+  aceptarRoeMaquina(id, aceptadas = true) {
+    this.estadoMaquina(id).roeAceptadas = !!aceptadas;
+    this.guardar();
+  }
+
+  registrarEvidenciaMaquina(id, faseId, evidencia) {
+    const estado = this.estadoMaquina(id);
+    const texto = String(evidencia || '').trim();
+    if (!texto) return false;
+    estado.evidencias = [...(estado.evidencias || []).filter((item) => item.faseId !== faseId), {
+      faseId, texto, fecha: new Date().toISOString(),
+    }];
+    this.guardar();
+    return true;
+  }
+
+  guardarReporteMaquina(maquina, reporte) {
+    const campos = ['observacion', 'evidencia', 'impacto', 'remediacion'];
+    if (!campos.every((campo) => String(reporte?.[campo] || '').trim().length >= 12)) return false;
+    const estado = this.estadoMaquina(maquina.id);
+    estado.reporte = { ...reporte, fecha: new Date().toISOString() };
+    this.finalizarMaquinaSiLista(maquina);
+    this.guardar();
+    return true;
+  }
+
+  finalizarMaquinaSiLista(maquina) {
+    const estado = this.estadoMaquina(maquina.id);
+    const nivel = AUTONOMIA_POR_ID[estado.autonomia] || AUTONOMIA_POR_ID.guiada;
+    const lista = estado.userFlag && estado.rootFlag
+      && maquina.fases.every((fase) => estado.fases.includes(fase.id))
+      && !!estado.reporte && (!nivel.requiereRoe || estado.roeAceptadas);
+    if (!lista || estado.completada) return false;
+    estado.completada = true;
+    if (!this.estado.maquinasCompletadas.includes(maquina.id)) {
+      this.estado.maquinasCompletadas.push(maquina.id);
+      this.estado.xp += maquina.xp || 300;
+    }
+    this.revisarLogros();
+    return true;
+  }
+
   registrarFlag(maquina, tipo) {
     const estado = this.estadoMaquina(maquina.id);
     const clave = tipo === 'root' ? 'rootFlag' : 'userFlag';
@@ -387,13 +544,7 @@ export class Store {
     if (tipo === 'root') this.estado.flagsRoot++;
     else this.estado.flagsUser++;
     this.estado.xp += tipo === 'root' ? 120 : 70;
-    if (estado.userFlag && estado.rootFlag && maquina.fases.every((f) => estado.fases.includes(f.id))) {
-      estado.completada = true;
-      if (!this.estado.maquinasCompletadas.includes(maquina.id)) {
-        this.estado.maquinasCompletadas.push(maquina.id);
-        this.estado.xp += maquina.xp || 300;
-      }
-    }
+    this.finalizarMaquinaSiLista(maquina);
     this.revisarLogros();
     this.guardar();
     return true;
@@ -477,9 +628,11 @@ export class Store {
   }
 
   retosParaRepasar() {
-    const fecha = hoy();
-    const antiguos = Object.entries(this.estado.repaso).filter(([, r]) => r.fecha <= fecha).map(([id]) => id);
-    const habilidades = Object.entries(this.estado.habilidades).filter(([, h]) => h.proxima <= fecha).map(([id]) => id);
+    const ahora = new Date();
+    const antiguos = Object.entries(this.estado.repaso)
+      .filter(([, r]) => revisionVencida(r.proxima || r.fecha, ahora)).map(([id]) => id);
+    const habilidades = Object.entries(this.estado.habilidades)
+      .filter(([, h]) => revisionVencida(h.proxima, ahora)).map(([id]) => id);
     const porHabilidad = TODOS_EJERCICIOS.filter((e) => this.ejercicioHecho(e.id) && e.habilidades?.some((id) => habilidades.includes(id))).map((e) => e.id);
     return [...new Set([...antiguos, ...porHabilidad])];
   }
@@ -545,6 +698,7 @@ export class Store {
 
   estadisticas() {
     const niveles = Object.fromEntries(Object.keys(this.estado.habilidades).map((id) => [id, this.nivelHabilidad(id)]));
+    const capacidades = CAPACIDADES.map((capacidad) => this.detalleCapacidad(capacidad.id));
     return {
       xp: this.estado.xp,
       nivel: this.nivel,
@@ -568,6 +722,9 @@ export class Store {
       habilidades: Object.keys(this.estado.habilidades).length,
       habilidadesDominadas: Object.values(niveles).filter((n) => n >= 6).length,
       nivelesHabilidad: niveles,
+      capacidades: capacidades.length,
+      capacidadesDominadas: capacidades.filter((capacidad) => capacidad.nivel >= 4).length,
+      dominioCapacidades: capacidades,
       dominio: SALAS.map((s) => ({ id: s.id, nombre: s.nombre, progreso: this.progresoSala(s.id), completado: this.salaCompletada(s.id) })),
     };
   }

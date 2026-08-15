@@ -180,6 +180,93 @@
 .modo-repaso { display: inline-flex; margin-top: 10px; padding: 4px 8px; border: 1px solid rgba(255,210,103,.28); border-radius: 999px; background: rgba(255,210,103,.09); color: var(--amber); font: 700 10px var(--mono); text-transform: uppercase; }
 .habilidades-sala { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 13px; }
 .habilidades-sala span { padding: 4px 7px; border-radius: 7px; background: rgba(82,231,255,.07); color: var(--muted); font: 10px var(--mono); }
+
+/* Fase 2: los prerrequisitos orientan sin cerrar rutas. */
+.grupo-ruta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+.grupo-ruta > span:first-child { min-width: 0; }
+.preparacion-compacta {
+  flex: none;
+  max-width: 58%;
+  padding: 4px 8px;
+  border: 1px solid rgba(26, 166, 104, .22);
+  border-radius: 999px;
+  background: rgba(26, 166, 104, .08);
+  color: var(--lime);
+  font: 700 9.5px var(--mono);
+  letter-spacing: 0;
+  text-align: right;
+  text-transform: none;
+}
+.preparacion-compacta[data-estado="refuerzo"] {
+  border-color: rgba(237, 151, 54, .25);
+  background: rgba(237, 151, 54, .09);
+  color: #a45d0b;
+}
+.preparacion-ruta {
+  min-width: 0;
+  margin: 14px 0 4px;
+  padding: 13px;
+  border: 1px solid rgba(26, 166, 104, .24);
+  border-radius: 15px;
+  background: rgba(26, 166, 104, .07);
+}
+.preparacion-ruta[data-estado="refuerzo"] {
+  border-color: rgba(237, 151, 54, .28);
+  background: rgba(255, 244, 224, .75);
+}
+.preparacion-cabecera {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+.preparacion-icono {
+  display: grid;
+  width: 30px;
+  height: 30px;
+  place-items: center;
+  border-radius: 10px;
+  background: rgba(26, 166, 104, .12);
+  color: var(--lime);
+  font-weight: 900;
+}
+.preparacion-ruta[data-estado="refuerzo"] .preparacion-icono { background: rgba(237, 151, 54, .14); color: #a45d0b; }
+.preparacion-cabecera b,
+.preparacion-cabecera small { display: block; }
+.preparacion-cabecera b { font: 800 13px var(--mono); }
+.preparacion-cabecera small { margin-top: 2px; color: var(--muted); font-size: 11px; line-height: 1.35; }
+.preparacion-ruta ul { margin: 10px 0 0 40px; padding-left: 15px; color: var(--muted); font-size: 11px; line-height: 1.5; }
+.preparacion-ruta .btn-fantasma { width: 100%; min-height: 38px; margin-top: 10px; }
+
+.mapa-capacidades { display: grid; gap: 0; padding: 4px 14px; }
+.capacidad-fila {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+  min-width: 0;
+  padding: 12px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+.capacidad-fila:last-child { border-bottom: 0; }
+.capacidad-fila > div { min-width: 0; }
+.capacidad-fila b,
+.capacidad-fila small { display: block; }
+.capacidad-fila b { font-size: 13px; }
+.capacidad-fila small { margin: 2px 0 7px; color: var(--dim); font-size: 10px; line-height: 1.35; }
+.capacidad-fila .barra { height: 5px; }
+
+@media (max-width: 430px) {
+  .grupo-ruta { align-items: flex-start; }
+  .preparacion-compacta { max-width: 54%; white-space: normal; }
+  .capacidad-fila { grid-template-columns: auto minmax(0, 1fr); }
+  .capacidad-fila > .contador { grid-column: 2; justify-self: start; }
+}
 .teoria { min-width: 0; display: grid; grid-template-columns: minmax(0,1fr); gap: 10px; padding: 14px 0; }
 .teoria-bloque { padding: 13px; border-radius: 12px; background: var(--deep); color: var(--muted); }
 .teoria-bloque h3 { margin: 0 0 5px; color: var(--ink); font-size: 15px; }
@@ -812,6 +899,28 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
 .paso-sub { margin: 0 0 14px; color: var(--muted); font-size: 14px; }
 .paso-teoria .teoria { gap: 12px; }
 .paso-teoria .teoria-bloque p, .paso-teoria .teoria-nota { font-size: 15.5px; line-height: 1.55; }
+.paso-imagen {
+  overflow: hidden;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--panel);
+  box-shadow: var(--sombra-1);
+}
+.paso-imagen img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 3 / 2;
+  object-fit: cover;
+  background: var(--term-fondo);
+}
+.paso-imagen figcaption {
+  padding: 12px 14px 14px;
+  color: var(--muted);
+  font-size: 13.5px;
+  line-height: 1.5;
+}
+.paso-imagen figcaption code { font-size: .92em; }
 
 /* En el paso de ejercicio la tarjeta ya no compite con otras diez: puede
    ocupar el ancho entero y respirar. */
@@ -941,6 +1050,80 @@ button.tarjeta:hover { border-color: var(--cyan); transform: translateY(-1px); }
 .maquina-terminal .terminal-zona { min-height: min(44vh, 360px); }
 .maquina-fase .flag-form { margin-top: 9px; }
 .maquina-fase .writeup { margin-top: 14px; text-align: left; }
+
+/* Evidencia de aprendizaje: predecir, explicar y reportar sin convertir la
+   lección en un formulario denso. Una decisión principal por pantalla. */
+.paso-pedagogico { display: grid; gap: 12px; }
+.paso-pedagogico .paso-enunciado { margin: 0; }
+.evidencia-form, .reporte-form { display: grid; gap: 11px; }
+.campo-pedagogico { display: grid; gap: 6px; }
+.campo-pedagogico > span, .confianza legend {
+  color: var(--muted); font: 750 10px var(--mono);
+  letter-spacing: .1em; text-transform: uppercase;
+}
+.campo-pedagogico textarea {
+  width: 100%; min-height: 84px; resize: vertical; padding: 12px 13px;
+  border: 1px solid var(--line); border-radius: 12px;
+  background: var(--panel-2); color: var(--text); font: 14px/1.45 var(--sans);
+}
+.campo-pedagogico textarea:focus { outline: 2px solid color-mix(in srgb, var(--cyan) 65%, transparent); border-color: var(--cyan); }
+.opciones-prediccion .opcion { cursor: pointer; }
+.opciones-prediccion .opcion input { position: absolute; opacity: 0; pointer-events: none; }
+.opciones-prediccion .opcion:has(input:checked) { border-color: var(--cyan); background: color-mix(in srgb, var(--cyan) 10%, var(--panel-2)); }
+.confianza { margin: 0; padding: 0; border: 0; display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.confianza legend { grid-column: 1 / -1; margin-bottom: 6px; }
+.confianza label { position: relative; }
+.confianza input { position: absolute; opacity: 0; }
+.confianza span {
+  display: grid; place-items: center; min-height: 42px; border: 1px solid var(--line);
+  border-radius: 10px; background: var(--panel-2); cursor: pointer; font-size: 13px;
+}
+.confianza input:checked + span { border-color: var(--cyan); color: var(--cyan); background: color-mix(in srgb, var(--cyan) 10%, var(--panel-2)); }
+.pedagogia-ayuda, .pedagogia-contexto {
+  padding: 11px 12px; border-left: 3px solid var(--cyan); border-radius: 0 11px 11px 0;
+  background: color-mix(in srgb, var(--cyan) 7%, transparent); color: var(--muted);
+}
+.pedagogia-contexto { margin-bottom: 12px; }
+.pedagogia-contexto p { margin: 6px 0 0; font-size: 14px; line-height: 1.45; }
+.pedagogia-contexto .pedagogia-ayuda { margin-top: 8px; }
+.ejemplo-pasos { margin: 12px 0 0; padding-left: 23px; display: grid; gap: 8px; color: var(--muted); }
+.evidencia-guardada { margin: 0; color: var(--lime); font-size: 12.5px; }
+.opcion[data-incorrecta] { border-color: color-mix(in srgb, var(--red) 65%, var(--line)); background: color-mix(in srgb, var(--red) 8%, var(--panel-2)); }
+.calibracion-card { display: grid; grid-template-columns: minmax(0,1fr) auto; gap: 18px; align-items: center; margin-top: 14px; padding: 16px; }
+.calibracion-card h2 { margin: 3px 0 5px; font-size: 19px; }
+.calibracion-card p { margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.calibracion-datos { display: grid; grid-template-columns: auto auto; gap: 3px 9px; align-items: baseline; }
+.calibracion-datos b { color: var(--cyan); text-align: right; font: 750 18px var(--mono); }
+.calibracion-datos span { color: var(--muted); font-size: 11px; }
+
+/* Autonomía progresiva y reporte de máquinas. */
+.autonomia-panel { display: grid; gap: 9px; margin: 0 0 11px; padding: 11px; border: 1px solid var(--line); border-radius: 13px; background: var(--panel-2); }
+.autonomia-panel > div:first-child { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+.autonomia-panel b { color: var(--red); font: 750 11px var(--mono); text-transform: uppercase; letter-spacing: .08em; }
+.autonomia-panel span { color: var(--muted); font-size: 12px; text-align: right; }
+.autonomia-opciones { display: flex; gap: 6px; overflow-x: auto; scrollbar-width: thin; padding-bottom: 2px; }
+.autonomia-opciones button {
+  flex: 0 0 auto; min-height: 34px; padding: 6px 9px; border: 1px solid var(--line);
+  border-radius: 9px; background: transparent; color: var(--muted); font: 700 10px var(--mono);
+}
+.autonomia-opciones button[data-activa] { border-color: var(--red); color: var(--red); background: color-mix(in srgb, var(--red) 9%, transparent); }
+.alcance-lab { display: grid; gap: 4px; margin-bottom: 11px; padding: 10px 11px; border-radius: 11px; background: color-mix(in srgb, var(--amber) 7%, transparent); font-size: 12px; }
+.alcance-lab b { color: var(--amber); text-transform: uppercase; font: 750 10px var(--mono); letter-spacing: .08em; }
+.alcance-lab code { color: var(--lime); }
+.alcance-lab span { color: var(--muted); }
+.roe-check { display: flex; gap: 9px; align-items: flex-start; margin-bottom: 12px; color: var(--muted); font-size: 13px; }
+.roe-check input { margin-top: 2px; accent-color: var(--red); }
+.evidencias-maquina, .reporte-entregado { margin: 10px 0 14px; padding: 12px; border: 1px solid var(--line); border-radius: 12px; background: var(--panel-2); text-align: left; }
+.evidencias-maquina ol { margin: 8px 0 0; padding-left: 21px; display: grid; gap: 6px; color: var(--muted); font-size: 12px; }
+.reporte-entregado p { margin: 7px 0; color: var(--muted); font-size: 13px; }
+
+@media (max-width: 520px) {
+  .autonomia-panel > div:first-child { display: grid; }
+  .autonomia-panel span { text-align: left; }
+  .confianza { grid-template-columns: 1fr; }
+  .calibracion-card { grid-template-columns: 1fr; }
+  .calibracion-datos { justify-content: start; }
+}
 
 /* Con el teclado abierto, la máquina también se despeja: solo la terminal. */
 :root[data-teclado] .maquina-fase .maquina-guia-texto,

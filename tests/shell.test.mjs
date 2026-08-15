@@ -251,6 +251,47 @@ test('$? refleja el código de salida', () => {
   return igual(correr(sh, 'echo $?').salida, '1\n');
 });
 test('~ se expande a HOME', () => contiene(correr(nuevaShell(), 'ls ~').salida, 'notas.txt'));
+test('cd ~ y ~/ruta usan HOME', () => {
+  const sh = nuevaShell();
+  correr(sh, 'cd /etc', 'cd ~', 'cd ~/documentos');
+  return igual(sh.cwd, '/home/user/documentos');
+});
+test('tilde entre comillas permanece literal', () => {
+  const sh = nuevaShell();
+  const r = correr(sh, 'cd "~"');
+  return contiene(r.salida, 'No such file or directory') === true && igual(sh.cwd, '/home/user') === true;
+});
+test('prefijo tilde no citado admite sufijo citado', () => igual(correr(nuevaShell(), 'echo ~/"documentos"').salida, '/home/user/documentos\n'));
+test('tilde pegado a texto citado no se expande', () => igual(correr(nuevaShell(), 'echo ~"documentos"').salida, '~documentos\n'));
+test('asignación expande tilde', () => {
+  const sh = nuevaShell();
+  correr(sh, 'ruta=~/documentos');
+  return igual(correr(sh, 'echo "$ruta"').salida, '/home/user/documentos\n');
+});
+test('tilde procedente de variable no se reexpande', () => {
+  const sh = nuevaShell();
+  correr(sh, "literal='~'");
+  return igual(correr(sh, 'echo $literal').salida, '~\n');
+});
+test('~root se expande y un usuario inexistente queda literal', () => {
+  const sh = nuevaShell();
+  return igual(correr(sh, 'echo ~root ~fantasma').salida, '/root ~fantasma\n');
+});
+test('~+ y ~- siguen PWD y OLDPWD', () => {
+  const sh = nuevaShell();
+  correr(sh, 'cd /etc', 'cd /var');
+  return igual(correr(sh, 'echo ~+ ~-').salida, '/var /etc\n');
+});
+test('redirección a ~/ruta expande tilde', () => {
+  const sh = nuevaShell();
+  correr(sh, 'echo listo > ~/tilde.txt');
+  return igual(sh.fs.readFile('/home/user/tilde.txt', sh.ctx), 'listo\n');
+});
+test('redirección con tilde citado no escribe en HOME', () => {
+  const sh = nuevaShell();
+  const r = correr(sh, 'echo no > "~/citado.txt"');
+  return contiene(r.salida, 'No such file or directory') === true && !sh.fs.exists('/home/user/citado.txt', sh.ctx) ? true : 'expandió un destino citado';
+});
 test('comando inexistente', () => {
   const r = correr(nuevaShell(), 'noexiste');
   return contiene(r.salida, 'command not found') === true && r.code === 127 ? true : `code ${r.code}`;

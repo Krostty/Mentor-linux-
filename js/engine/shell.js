@@ -19,13 +19,13 @@ export function tokenize(line) {
   let curQuoted = false;
   let had = false;
 
-  const add = (text, expand) => {
+  const add = (text, expand, quoted = false) => {
     if (text === '') return;
     // Se fusionan los trozos contiguos del mismo tipo: si no, `$curso` acabaría
     // troceado carácter a carácter y la variable nunca se reconocería.
     const ultimo = parts[parts.length - 1];
-    if (ultimo && ultimo.expand === expand) ultimo.text += text;
-    else parts.push({ text, expand });
+    if (ultimo && ultimo.expand === expand && ultimo.quoted === quoted) ultimo.text += text;
+    else parts.push({ text, expand, quoted });
     had = true;
   };
 
@@ -53,7 +53,7 @@ export function tokenize(line) {
     if (c === '#' && !had) break; // comentario
     if (c === '\\') {
       if (i + 1 < line.length) {
-        add(line[i + 1], false);
+        add(line[i + 1], false, true);
         curQuoted = true;
         i += 2;
         continue;
@@ -65,7 +65,7 @@ export function tokenize(line) {
       const end = line.indexOf("'", i + 1);
       if (end < 0) throw new ParseError('unexpected EOF while looking for matching `\'\'');
       // Comillas simples: literal absoluto, ni variables ni globs.
-      add(line.slice(i + 1, end), false);
+      add(line.slice(i + 1, end), false, true);
       had = true;
       curQuoted = true;
       i = end + 1;
@@ -90,7 +90,7 @@ export function tokenize(line) {
       }
       if (!closed) throw new ParseError('unexpected EOF while looking for matching `"\'');
       // Comillas dobles: no se expanden globs, pero sí las variables.
-      add(out, true);
+      add(out, true, true);
       had = true;
       curQuoted = true;
       i = j + 1;
@@ -103,7 +103,7 @@ export function tokenize(line) {
       i += op.length;
       continue;
     }
-    add(c, true);
+    add(c, true, false);
     i++;
   }
   flush();
@@ -150,7 +150,9 @@ export function parse(line) {
     // redirecciones
     const target = tokens[i + 1];
     if (!target || target.type !== 'word') throw new ParseError('syntax error near unexpected token `newline\'');
-    cmd.redirects.push({ op: t.value, target: target.value });
+    // Se conserva el token completo: las comillas deciden si `~`, variables
+    // y globs se expanden también en el destino de una redirección.
+    cmd.redirects.push({ op: t.value, target });
     i++;
   }
   endPipeline(null);
@@ -160,16 +162,59 @@ export function parse(line) {
 // --- expansiones --------------------------------------------------------
 
 function expandVars(text, env) {
-  return text.replace(/\$\{(\w+)\}|\$(\w+)|\$(\?|\$|#)/g, (_, a, b, c) => {
+  return text
+    .replace(/\$\{#(\w+)\[@\]\}/g, (_, name) => Array.isArray(env[name]) ? String(env[name].length) : '0')
+    .replace(/\$\{(\w+)\[(\d+|@|\*)\]\}/g, (_, name, index) => {
+      const value = env[name];
+      if (!Array.isArray(value)) return '';
+      return index === '@' || index === '*' ? value.join(' ') : String(value[Number(index)] ?? '');
+    })
+    .replace(/\$\{(\w+)\}|\$(\w+)|\$(\?|\$|#)/g, (_, a, b, c) => {
     const key = a || b || c;
     return env[key] != null ? String(env[key]) : '';
   });
 }
 
-function expandTilde(text, home) {
-  if (text === '~') return home;
-  if (text.startsWith('~/')) return home + text.slice(1);
+function homeDe(nombre, ctx) {
+  if (!nombre || nombre === ctx.user) return ctx.env.HOME;
+  if (nombre === 'root') return '/root';
+  const candidata = `/home/${nombre}`;
+  try {
+    if (ctx.fs.exists(candidata, ctx)) return candidata;
+  } catch {}
+  return null;
+}
+
+function expandTildePrefix(text, ctx, bare = true) {
+  if (text === '~' && bare) return ctx.env.HOME;
+  if (text === '~+' && bare) return ctx.cwd;
+  if (text === '~-' && bare && ctx.env.OLDPWD) return ctx.env.OLDPWD;
+  if (text.startsWith('~/')) return ctx.env.HOME + text.slice(1);
+  if (text.startsWith('~+/')) return ctx.cwd + text.slice(2);
+  if (text.startsWith('~-/') && ctx.env.OLDPWD) return ctx.env.OLDPWD + text.slice(2);
+
+  const usuario = text.match(/^~([^/]+)(\/.*)?$/);
+  if (usuario) {
+    const home = homeDe(usuario[1], ctx);
+    if (home) return home + (usuario[2] || '');
+  }
   return text;
+}
+
+// Bash solo expande un prefijo de tilde no citado. Se trabaja por partes
+// para que `~/"documentos"` expanda el prefijo, mientras `"~/documentos"`
+// y `~"documentos"` permanezcan literales. Las asignaciones (`X=~/ruta`)
+// usan la misma regla después del signo igual.
+function expandTildeParts(parts, ctx) {
+  if (!parts.length || parts[0].quoted) return parts;
+  const out = parts.map((p) => ({ ...p }));
+  const primero = out[0].text;
+  const asignacion = primero.match(/^([A-Za-z_]\w*=)(~.*)$/);
+  const prefijo = asignacion ? asignacion[1] : '';
+  const valor = asignacion ? asignacion[2] : primero;
+  const expandido = expandTildePrefix(valor, ctx, out.length === 1);
+  out[0].text = prefijo + expandido;
+  return out;
 }
 
 function globToRegex(pattern) {
@@ -243,9 +288,17 @@ function expandWords(words, ctx) {
   for (const w of words) {
     // Cada trozo se expande según de dónde venía: lo entrecomillado con
     // comillas simples se queda literal.
-    const parts = w.parts || [{ text: w.value, expand: true }];
-    let text = parts.map((p) => (p.expand ? expandVars(p.text, ctx.env) : p.text)).join('');
-    if (!w.quoted) text = expandTilde(text, ctx.env.HOME);
+    const parts = expandTildeParts(w.parts || [{ text: w.value, expand: true, quoted: false }], ctx);
+    const arrayExacta = parts.length === 1 && parts[0].expand
+      ? parts[0].text.match(/^\$\{(\w+)\[@\]\}$/)
+      : null;
+    if (arrayExacta && Array.isArray(ctx.env[arrayExacta[1]])) {
+      out.push(...ctx.env[arrayExacta[1]].map(String));
+      continue;
+    }
+    // Tilde se resuelve antes que variables. Así una variable cuyo valor
+    // literal sea `~` no se vuelve a expandir al imprimirla.
+    const text = parts.map((p) => (p.expand ? expandVars(p.text, ctx.env) : p.text)).join('');
     if (!w.quoted && hasGlob(text)) {
       const matches = expandGlob(text, ctx);
       if (matches) {
@@ -321,7 +374,9 @@ export class Shell {
   }
 
   resolve(path) {
-    return joinPath(this.cwd, expandTilde(path, this.env.HOME));
+    // Los argumentos ya llegan expandidos desde `expandWords`. Reexpandir
+    // aquí rompería rutas citadas como `cd "~"`.
+    return joinPath(this.cwd, path);
   }
 
   // Ejecuta una línea completa. Devuelve { output, code } donde output ya
@@ -330,6 +385,20 @@ export class Shell {
     const trimmed = line.trim();
     if (trimmed) this.history.push(trimmed);
     if (!trimmed) return { output: '', code: 0 };
+
+    // Arrays indexados de Bash: `puertos=(22 80 443)`. Se conservan como
+    // valores estructurados para `${puertos[@]}`, índices y longitud.
+    const arrayAssignment = trimmed.match(/^([A-Za-z_]\w*)=\((.*)\)$/s);
+    if (arrayAssignment) {
+      try {
+        const words = tokenize(arrayAssignment[2]).filter((token) => token.type === 'word');
+        this.env[arrayAssignment[1]] = expandWords(words, this.ctx);
+        this.env['?'] = '0';
+        return { output: '', code: 0 };
+      } catch (error) {
+        return { output: `bash: ${error.message}\n`, code: 2 };
+      }
+    }
 
     if (/^(for|while)\s/.test(trimmed)) {
       const bucle = this.runLoop(trimmed);
@@ -422,6 +491,11 @@ export class Shell {
 
   runCommand(cmd, stdin) {
     let argv = expandWords(cmd.words, this.ctx);
+    const redirects = cmd.redirects.map((r) => ({
+      ...r,
+      value: expandWords([r.target], this.ctx)[0] ?? '',
+      label: r.target.value,
+    }));
 
     // asignaciones de variables sueltas: FOO=bar
     while (argv.length && /^[A-Za-z_]\w*=/.test(argv[0]) && cmd.words.length) {
@@ -447,12 +521,12 @@ export class Shell {
 
     // redirección de entrada
     let input = stdin;
-    const inRedir = cmd.redirects.find((r) => r.op === '<');
+    const inRedir = redirects.find((r) => r.op === '<');
     if (inRedir) {
       try {
-        input = this.fs.readFile(this.resolve(inRedir.target), this.ctx);
+        input = this.fs.readFile(this.resolve(inRedir.value), this.ctx);
       } catch (e) {
-        return { stdout: '', stderr: `bash: ${inRedir.target}: ${fsMessage(e)}\n`, code: 1 };
+        return { stdout: '', stderr: `bash: ${inRedir.label}: ${fsMessage(e)}\n`, code: 1 };
       }
     }
 
@@ -480,11 +554,11 @@ export class Shell {
     // al mismo destino que tenga stdout en este momento».
     let redirected = false;
     let stderrShown = stderr;
-    const mergeStderr = cmd.redirects.some((r) => r.op === '2>' && (r.target === '&1' || r.target === '&2'));
-    const salidaAArchivo = cmd.redirects.some((r) => r.op === '>' || r.op === '>>');
+    const mergeStderr = redirects.some((r) => r.op === '2>' && !r.target.quoted && (r.value === '&1' || r.value === '&2'));
+    const salidaAArchivo = redirects.some((r) => r.op === '>' || r.op === '>>');
 
-    for (const r of cmd.redirects) {
-      if (r.op === '2>' && (r.target === '&1' || r.target === '&2')) {
+    for (const r of redirects) {
+      if (r.op === '2>' && !r.target.quoted && (r.value === '&1' || r.value === '&2')) {
         if (!salidaAArchivo) stdout += stderr;
         stderrShown = '';
         continue;
@@ -496,11 +570,11 @@ export class Shell {
           stderrShown = '';
         }
         // /dev/null descarta todo lo que se le escriba.
-        if (this.resolve(r.target) !== '/dev/null') {
+        if (this.resolve(r.value) !== '/dev/null') {
           try {
-            this.fs.writeFile(this.resolve(r.target), payload, this.ctx, { append: r.op === '>>' });
+            this.fs.writeFile(this.resolve(r.value), payload, this.ctx, { append: r.op === '>>' });
           } catch (e) {
-            return { stdout: '', stderr: `bash: ${r.target}: ${fsMessage(e)}\n`, code: 1 };
+            return { stdout: '', stderr: `bash: ${r.label}: ${fsMessage(e)}\n`, code: 1 };
           }
         }
         if (r.op !== '2>') redirected = true;

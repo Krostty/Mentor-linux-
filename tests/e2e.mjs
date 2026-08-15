@@ -48,7 +48,21 @@ const pagina = await contexto.newPage();
 pagina.on('console', (m) => { if (['error', 'warning'].includes(m.type())) errores.push(`[${m.type()}] ${m.text()}`); });
 pagina.on('pageerror', (e) => errores.push(`[pageerror] ${e.message}`));
 
-async function shot(nombre) { await pagina.screenshot({ path: join(capturas, `${nombre}.png`) }); }
+async function shot(nombre) {
+  await pagina.waitForTimeout(420);
+  await pagina.screenshot({ path: join(capturas, `${nombre}.png`) });
+}
+async function imagenCargada(selector, ancho = 0) {
+  const img = pagina.locator(selector);
+  await img.scrollIntoViewIfNeeded();
+  try {
+    await pagina.waitForFunction(({ selector, ancho }) => {
+      const node = document.querySelector(selector);
+      return !!node && node.complete && node.naturalWidth > 0 && (!ancho || node.naturalWidth === ancho);
+    }, { selector, ancho }, { timeout: 5000 });
+    return true;
+  } catch { return false; }
+}
 async function comando(texto) {
   const input = pagina.locator('.consola-input:visible');
   await input.fill(texto);
@@ -65,10 +79,10 @@ try {
   comprobar('la app arranca', await pagina.locator('.app').isVisible());
   // La portada muestra las academias como fichas de catálogo: los módulos
   // viven en la pantalla de cada academia, no amontonados en el inicio.
-  comprobar('hay 5 academias en la portada', await pagina.locator('.tarjeta-academia').count() === 5);
-  comprobar('cada academia lleva su cubierta', await pagina.locator('.tarjeta-academia .cubierta').count() === 5);
-  comprobar('las cinco academias usan las portadas PNG aprobadas',
-    await pagina.locator('.tarjeta-academia .cubierta[data-portada-png] img[src$=".png"]').count() === 5);
+  comprobar('hay 6 academias en la portada', await pagina.locator('.tarjeta-academia').count() === 6);
+  comprobar('cada academia lleva su cubierta', await pagina.locator('.tarjeta-academia .cubierta').count() === 6);
+  comprobar('las seis academias usan las portadas PNG aprobadas',
+    await pagina.locator('.tarjeta-academia .cubierta[data-portada-png] img[src$=".png"]').count() === 6);
   comprobar('la portada no despliega módulos', await pagina.locator('.modulo').count() === 0);
   comprobar('la portada muestra el nivel y la ruta de rangos', await pagina.locator('.rango').count() === 6);
   comprobar('la portada muestra las tres métricas', await pagina.locator('.metrica-inicio').count() === 3);
@@ -81,16 +95,27 @@ try {
   // Entrar en una academia abre su pantalla con todos sus módulos.
   await pagina.locator('.tarjeta-academia .cubierta-boton[data-academia="linux"]').click();
   comprobar('la academia abre su propia pantalla', await pagina.locator('.academia-detalle').isVisible());
-  comprobar('la academia Linux agrupa sus 5 rutas', await pagina.locator('.grupo-ruta').count() === 5);
-  comprobar('la academia Linux muestra sus 15 módulos', await pagina.locator('.modulo').count() === 15);
+  comprobar('la academia Linux agrupa sus 7 rutas', await pagina.locator('.grupo-ruta').count() === 7);
+  comprobar('cada ruta Linux muestra su preparación', await pagina.locator('[data-prerrequisitos-ruta]').count() === 7);
+  comprobar('la ruta inicial se presenta como punto de entrada',
+    await pagina.locator('[data-prerrequisitos-ruta="fundamentos-informatica"][data-estado="lista"]').count() === 1);
+  comprobar('las rutas posteriores recomiendan bases sin ocultarse',
+    await pagina.locator('[data-prerrequisitos-ruta][data-estado="refuerzo"]').count() >= 1);
+  comprobar('la academia Linux muestra sus 17 módulos', await pagina.locator('.modulo').count() === 17);
   comprobar('solo el módulo en curso viene abierto', await pagina.locator('.modulo[open]').count() === 1);
-  comprobar('el resto queda cerrado en orden', await pagina.locator('.modulo-etiqueta[data-estado="cerrado"]').count() === 14);
+  comprobar('el resto queda cerrado en orden', await pagina.locator('.modulo-etiqueta[data-estado="cerrado"]').count() === 16);
   await shot('v3-01b-academia');
 
-  await pagina.locator('.modulo[open] .btn-secundario[data-sala="cero-absoluto"]').click();
+  await pagina.locator('.modulo[open] .btn-secundario[data-sala="fundamentos-informatica"]').click();
+  comprobar('Fundamentos abre seis lecciones desde cero', await pagina.locator('.fila-leccion[data-leccion]').count() === 6);
+  comprobar('Fundamentos se identifica como punto de entrada',
+    (await pagina.locator('.preparacion-ruta').innerText()).includes('Punto de entrada'));
+  await pagina.evaluate(() => window.__mentor.ir('sala', { id: 'cero-absoluto' }));
   // La sala ya no vuelca su contenido: enumera lecciones cortas.
   comprobar('la sala lista sus 5 lecciones', await pagina.locator('.fila-leccion[data-leccion]').count() === 5);
   comprobar('la sala no pinta ejercicios', await pagina.locator('.ejercicio').count() === 0);
+  comprobar('la sala explica que los prerrequisitos no bloquean el acceso directo',
+    (await pagina.locator('.preparacion-ruta').innerText()).includes('Mentor no bloquea'));
   comprobar('las lecciones se abren en orden', await pagina.locator('.fila-leccion[data-estado="bloqueada"]').count() === 4);
   await shot('v4-02-sala-lecciones');
 
@@ -107,11 +132,15 @@ try {
   comprobar('tras la teoría llega el primer ejercicio', await pagina.locator('#ejercicio-cero-q1').isVisible());
   comprobar('el ejercicio trae la ficha del comando', await pagina.locator('.ficha-comando').count() === 1);
 
-  // Fallar descarta la opción y lo dice; antes solo repetía «aún no».
+  // Fallar explica la diferencia y deja volver a decidir sin convertir el
+  // quiz en descarte por eliminación.
   await pagina.locator('.opcion[data-opcion="1"]').click();
-  comprobar('la opción fallada queda descartada', await pagina.locator('.opcion[data-descartada]').count() === 1);
-  comprobar('el fallo dice cuántas opciones quedan', (await pagina.locator('.leccion-pie .feedback').innerText()).includes('Quedan 3'));
-  await shot('v4-04-fallo-descarte');
+  comprobar('la opción fallada queda marcada pero disponible',
+    await pagina.locator('.opcion[data-incorrecta]:not(:disabled)').count() === 1);
+  const feedbackQuiz = await pagina.locator('.leccion-pie .feedback').innerText();
+  comprobar('el fallo explica la elección sin eliminar alternativas',
+    feedbackQuiz.includes('Elegiste') && !feedbackQuiz.includes('Quedan'));
+  await shot('v4-04-fallo-correctivo');
 
   await pagina.locator('[data-pista]').click();
   comprobar('la pista se genera aunque el ejercicio no traiga ninguna', await pagina.locator('.pista').count() === 1);
@@ -204,6 +233,109 @@ try {
   comprobar('«Continuar» cae en un ejercicio pendiente', await pagina.locator('.paso-ejercicio:not([data-completo])').count() === 1);
   await pagina.locator('.leccion-salir').click();
 
+  console.log('▸ Motor pedagógico V2');
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'cero-moverse' }));
+  comprobar('el piloto Linux empieza con teoría', await pagina.locator('.paso-teoria').isVisible());
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('Linux intercala una imagen pedagógica', await pagina.locator('.paso-imagen img[src$="filesystem-raiz.png"]').isVisible());
+  comprobar('la imagen Linux tiene alt descriptivo', (await pagina.locator('.paso-imagen img').getAttribute('alt')).includes('filesystem Linux'));
+  comprobar('la imagen Linux carga y conserva proporción', await imagenCargada('.paso-imagen img', 960)
+    && await pagina.locator('.paso-imagen img').evaluate((img) => img.naturalHeight === 640));
+  comprobar('el bloque visual no desborda en móvil', await pagina.locator('.paso-imagen').evaluate((el) => el.scrollWidth <= el.clientWidth + 1));
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('después de la imagen llega práctica', await pagina.locator('#ejercicio-cero-q3').isVisible());
+
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'rc-que-es-red' }));
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('Redes intercala su PNG pedagógico', await pagina.locator('.paso-imagen img[src$="viaje-paquete.png"]').isVisible());
+  comprobar('el caption explica el gateway', (await pagina.locator('.paso-imagen figcaption').innerText()).includes('192.168.1.1'));
+  comprobar('la imagen de Redes carga', await imagenCargada('.paso-imagen img', 960));
+  await pagina.locator('.leccion-salir').click();
+
+  // El piloto completo empieza pidiendo recuperar y predecir, antes de
+  // revelar el modelo. La confianza se guarda junto con la respuesta.
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'rt-handshake' }));
+  comprobar('TCP empieza con diagnóstico, no con lectura pasiva',
+    await pagina.locator('[data-tipo-pedagogico="diagnostico"]').isVisible());
+  await shot('v6-01-tcp-diagnostico');
+  await pagina.locator('[data-evidencia-paso] textarea').fill('El cliente envió SYN y todavía falta SYN-ACK.');
+  await pagina.locator('.confianza label').nth(1).click();
+  await pagina.getByRole('button', { name: 'Guardar y continuar' }).click();
+  comprobar('el segundo paso pide predecir', await pagina.locator('[data-tipo-pedagogico="prediccion"]').isVisible());
+  await shot('v6-02-tcp-prediccion');
+  await pagina.locator('.opciones-prediccion .opcion').filter({ hasText: 'SYN-ACK' }).click();
+  await pagina.locator('.confianza label').nth(2).click();
+  await pagina.getByRole('button', { name: 'Guardar y continuar' }).click();
+  comprobar('después de predecir aparece un ejemplo resuelto',
+    await pagina.locator('.paso-teoria .ejemplo-pasos').isVisible());
+  await shot('v6-03-tcp-ejemplo');
+  await pagina.locator('.leccion-salir').click();
+
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'permisos-chmod-letras-teoria' }));
+  comprobar('Permisos también usa diagnóstico y confianza',
+    await pagina.locator('[data-tipo-pedagogico="diagnostico"] .confianza').isVisible());
+  await pagina.locator('.leccion-salir').click();
+
+  console.log('▸ Currículo Fases 3, 4 y 5');
+  comprobar('el currículo suma 56 salas y 1.547 ejercicios', await pagina.evaluate(() => {
+    const { salas, ejercicios } = window.__mentor.totales;
+    return salas === 56 && ejercicios === 1547;
+  }));
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'fi-cpu-memoria' }));
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('Fundamentos integra el diagrama de arquitectura',
+    await pagina.locator('.paso-imagen img[src$="arquitectura-computador.png"]').isVisible());
+  comprobar('el diagrama de arquitectura carga', await imagenCargada('.paso-imagen img', 960));
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'li-stack-almacenamiento' }));
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('Linux integra el diagrama de almacenamiento',
+    await pagina.locator('.paso-imagen img[src$="almacenamiento-internals.png"]').isVisible());
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 're-encapsulacion' }));
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('Redes integra encapsulación por capas',
+    await pagina.locator('.paso-imagen img[src$="encapsulacion.png"]').isVisible());
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'rt-handshake' }));
+  await pagina.getByRole('button', { name: 'Guardar y continuar' }).click();
+  await pagina.getByRole('button', { name: 'Guardar y continuar' }).click();
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('Redes integra el handshake TCP',
+    await pagina.locator('.paso-imagen img[src$="handshake-tcp.png"]').isVisible());
+  comprobar('las nuevas lecciones visuales no desbordan',
+    await pagina.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth + 1));
+  await pagina.locator('.leccion-salir').click();
+
+  await pagina.evaluate(() => window.__mentor.ir('academia', { id: 'bash' }));
+  comprobar('Bash y Python agrupa sus 6 rutas progresivas', await pagina.locator('.grupo-ruta').count() === 6);
+  comprobar('la academia de programación muestra sus 7 módulos', await pagina.locator('.modulo').count() === 7);
+  comprobar('Python aparece después de Bash profesional',
+    (await pagina.locator('.academia-detalle').innerText()).includes('Python desde cero'));
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'py-ejecucion', ejercicio: 'py-run-t2' }));
+  comprobar('la práctica Python abre una terminal real del laboratorio', await pagina.locator('#ejercicio-py-run-t2 .consola-input').isVisible());
+  await comando("python3 -c 'print(7 * 6)'");
+  comprobar('Python ejecuta y valida el resultado en la lección',
+    await pagina.locator('#ejercicio-py-run-t2[data-completo] .feedback-completo').getByText('Ya lo resolviste').isVisible());
+  await pagina.locator('.leccion-salir').click();
+
+  await pagina.evaluate(() => window.__mentor.ir('academia', { id: 'web' }));
+  comprobar('Web usa su portada PNG propia', await pagina.locator('.academia-detalle img[src$="09-web.png"]').count() === 1);
+  comprobar('Web agrupa sus 6 rutas progresivas', await pagina.locator('.grupo-ruta').count() === 6);
+  comprobar('la academia Web muestra sus 6 módulos', await pagina.locator('.modulo').count() === 6);
+  const nombresRutasWeb = await pagina.locator('.grupo-ruta > span:first-child').allTextContents();
+  comprobar('Web llega desde arquitectura hasta SQL',
+    nombresRutasWeb[0] === 'Cómo funciona la Web' && nombresRutasWeb.at(-1) === 'SQL y datos relacionales');
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'wa-viaje', ejercicio: 'wa-viaje-c1' }));
+  await pagina.locator('.leccion-pie [data-mover="-1"]').click();
+  comprobar('Web intercala el ciclo visual de una petición', await pagina.locator('.paso-imagen img[src$="ciclo-peticion.png"]').isVisible());
+  comprobar('el diagrama Web carga y explica el regreso de la respuesta',
+    await imagenCargada('.paso-imagen img', 1774) && (await pagina.locator('.paso-imagen figcaption').innerText()).includes('respuesta vuelve'));
+  comprobar('el diagrama Web no desborda en móvil', await pagina.locator('.paso-imagen').evaluate((el) => el.scrollWidth <= el.clientWidth + 1));
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'sf-select', ejercicio: 'sf-select-t2' }));
+  comprobar('SQL abre un laboratorio real de solo lectura', await pagina.locator('#ejercicio-sf-select-t2 .consola-input').isVisible());
+  await comando('sqlite3 tienda.db "SELECT nombre, precio FROM productos WHERE precio < 50 ORDER BY precio"');
+  comprobar('SQL ejecuta y valida filtros y orden',
+    await pagina.locator('#ejercicio-sf-select-t2[data-completo] .feedback-completo').getByText('Ya lo resolviste').isVisible());
+  await pagina.locator('.leccion-salir').click();
+
 
   console.log('▸ Máquina completa');
   await pagina.locator('[data-pestana="maquinas"]').click();
@@ -215,6 +347,11 @@ try {
   comprobar('la máquina abre en modo guiado', await pagina.locator('.maquina-guia').isVisible());
   comprobar('arranca en la fase 1', (await pagina.locator('#maq-cuenta').innerText()).trim() === 'Fase 1/4');
   comprobar('la fase trae su guía didáctica', await pagina.locator('.maquina-guia-texto').count() === 1);
+  comprobar('la máquina ofrece cinco niveles de autonomía', await pagina.locator('[data-autonomia]').count() === 5);
+  await pagina.locator('[data-autonomia="asistida"]').click();
+  comprobar('modo asistido retira la explicación completa', await pagina.locator('.maquina-guia-texto').count() === 0);
+  await pagina.locator('[data-autonomia="guiada"]').click();
+  comprobar('se puede volver al modo guiado', await pagina.locator('.maquina-guia-texto').count() === 1);
   comprobar('terminal de máquina enfoca sola', await pagina.locator('.consola-input').evaluate((e) => e === document.activeElement));
   // «Ver desarrollo» revela el comando de la fase.
   await pagina.locator('[data-dev-fase]').click();
@@ -235,9 +372,17 @@ try {
   await pagina.getByRole('button', { name: 'Validar user', exact: true }).click();
   await pagina.getByLabel('Bandera root.txt').fill(flags.at(-1) || '');
   await pagina.getByRole('button', { name: 'Validar root', exact: true }).click();
+  comprobar('las flags abren el reporte, no completan solas la máquina', await pagina.locator('[data-reporte-maquina]').isVisible());
+  await pagina.waitForTimeout(2700);
+  await shot('v6-04-maquina-reporte');
+  await pagina.locator('textarea[name="observacion"]').fill('La regla sudo permite elevar privilegios sin control suficiente.');
+  await pagina.locator('textarea[name="evidencia"]').fill('sudo -l y sudo -i demostraron una shell root reproducible.');
+  await pagina.locator('textarea[name="impacto"]').fill('El usuario local puede obtener control administrativo completo.');
+  await pagina.locator('textarea[name="remediacion"]').fill('Restringir sudoers al comando y los argumentos mínimos necesarios.');
+  await pagina.getByRole('button', { name: 'Entregar reporte' }).click();
   const celebMaquina = pagina.locator('.celebracion [data-boton="0"]');
   if (await celebMaquina.count()) await celebMaquina.click();
-  comprobar('el writeup se desbloquea al capturar las dos banderas', await pagina.locator('.writeup').isVisible());
+  comprobar('el writeup se desbloquea después del reporte', await pagina.locator('.writeup').isVisible());
   await shot('v3-03-maquina-completa');
   await pagina.locator('.maquina-guia .leccion-pie [data-ir="maquinas"]').click();
   comprobar('la máquina completada se marca en la lista', await pagina.locator('[data-maquina="lumen"] h3').innerText().then((t) => t.includes('✓')));
@@ -277,6 +422,11 @@ try {
   comprobar('la copia de seguridad es accesible', await copia.count() === 1);
   await copia.locator('summary').click();
   comprobar('exportar e importar se despliegan', await pagina.locator('.transferencia [data-exportar]').isVisible());
+  comprobar('el perfil muestra las 24 capacidades compuestas', await pagina.locator('[data-mapa-capacidades] .capacidad-fila').count() === 24);
+  comprobar('cada capacidad conserva su medidor de mastery', await pagina.locator('.capacidad-fila .barra').count() === 24);
+  await pagina.locator('[data-mapa-capacidades]').scrollIntoViewIfNeeded();
+  comprobar('el mapa de capacidades no desborda en móvil', await pagina.locator('[data-mapa-capacidades]').evaluate((nodo) => nodo.scrollWidth <= nodo.clientWidth + 1));
+  await shot('v2-05-capacidades');
   comprobar('el mapa cubre todas las salas', await pagina.locator('.dominio-fila').count() === await pagina.evaluate(() => window.__mentor.totales.salas));
   comprobar('hay 40 fichas de logro', await pagina.locator('.logro-ficha').count() === 40);
   comprobar('los ajustes traen vibración y sonidos', await pagina.locator('.fila-opcion[data-ajuste]').count() === 2);
@@ -286,7 +436,7 @@ try {
   comprobar('el interruptor de sonidos se apaga', await interruptor.getAttribute('aria-pressed') === 'false');
   comprobar('el ajuste queda guardado', await pagina.evaluate(() => window.__mentor.store.sonidosActivos === false));
   await interruptor.click();
-  comprobar('existe el dominio comando a comando', await pagina.getByText('Ver los 107 comandos').isVisible());
+  comprobar('existe el dominio comando a comando', await pagina.getByText('Ver los 109 comandos').isVisible());
   await shot('v3-05-perfil');
 
   await pagina.evaluate(() => navigator.serviceWorker.ready);
@@ -294,6 +444,18 @@ try {
   await pagina.reload({ waitUntil: 'domcontentloaded' });
   comprobar('la app abre offline', await pagina.locator('.app').isVisible());
   comprobar('el progreso sigue offline', (await pagina.locator('#ficha-xp').innerText()) !== '0 XP');
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'rc-que-es-red' }));
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('la imagen pedagógica abre offline', await imagenCargada('.paso-imagen img', 960));
+  await pagina.evaluate(() => window.__mentor.ir('leccion', { id: 'rt-handshake' }));
+  await pagina.locator('[data-evidencia-paso] textarea').fill('SYN enviado; falta respuesta.');
+  await pagina.locator('.confianza label').first().click();
+  await pagina.getByRole('button', { name: 'Guardar y continuar' }).click();
+  await pagina.locator('.opciones-prediccion .opcion').first().click();
+  await pagina.locator('.confianza label').first().click();
+  await pagina.getByRole('button', { name: 'Guardar y continuar' }).click();
+  await pagina.locator('.leccion-pie [data-mover="1"]').click();
+  comprobar('el diagrama Fase 3 abre offline', await imagenCargada('.paso-imagen img', 960));
   await contexto.setOffline(false);
 
   comprobar('no hubo errores de consola', errores.length === 0, errores.join(' | '));

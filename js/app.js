@@ -1,6 +1,6 @@
 import {
   SALAS, SALA_POR_ID, BLOQUES, ACADEMIAS, RUTAS, RUTA_POR_ID, ACADEMIA_POR_ID,
-  EJERCICIO_POR_ID, TAREA_POR_ID, siguienteTarea,
+  EJERCICIO_POR_ID, TAREA_POR_ID, siguienteTarea, secuenciaDeTarea,
   TOTAL_SALAS, TOTAL_TAREAS, TOTAL_EJERCICIOS,
 } from './data/salas.js';
 import { nombreHabilidad, NIVELES_DOMINIO } from './data/habilidades.js';
@@ -15,6 +15,10 @@ import { escapar, formato, brindis, celebrar, porcentaje, vibrar, permitirVibrac
 import { ilustracion, escenaDe, PORTADA_ACADEMIA } from './arte.js';
 import { PORTADA_PNG_POR_ID } from './portadas.js';
 import { sonido } from './sonido.js';
+import {
+  TIPOS_CON_EJERCICIO, TIPOS_CON_TEORIA, TIPOS_EVIDENCIA,
+  opcionesQuizOrdenadas, feedbackQuiz, NIVELES_AUTONOMIA, AUTONOMIA_POR_ID,
+} from './data/pedagogia.js';
 
 const vista = document.getElementById('vista');
 const pistasMostradas = new Map();
@@ -158,7 +162,7 @@ const RANGOS = [
   { nivel: 15, nombre: 'Mentor', icono: '👑' },
 ];
 
-// Las cinco academias usan las portadas PNG aprobadas. Los SVG quedan como
+// Las seis academias usan portadas PNG propias. Los SVG quedan como
 // respaldo para cubiertas dinámicas, por ejemplo los retos generados por tema.
 function cubierta(academia, { etiqueta = '', titulo = academia.nombre, escena, rotulo, color, insignia = '' } = {}) {
   const portada = PORTADA_ACADEMIA[academia?.id] || {};
@@ -200,6 +204,38 @@ function portadaPng({ imagen, titulo, rotulo, etiqueta = '', insignia = '' }) {
 function academiaDe(salaId) {
   if (!salaId) return null;
   return ACADEMIAS.find((a) => a.rutas.some((r) => (RUTA_POR_ID[r]?.salas || []).includes(salaId))) || null;
+}
+
+function textoRequisito(requisito) {
+  if (requisito.tipo === 'ruta') return `${requisito.nombre}: ${porcentaje(requisito.actual)}% de ${porcentaje(requisito.objetivo)}%`;
+  return `${requisito.nombre}: nivel ${requisito.actual} de ${requisito.objetivo}`;
+}
+
+function renderPreparacionRuta(ruta, { compacta = false } = {}) {
+  const estado = store.estadoPrerequisitosRuta(ruta.id);
+  const estadoVisual = estado.listo ? 'lista' : 'refuerzo';
+  const titulo = estado.requisitos.length === 0
+    ? 'Punto de entrada'
+    : estado.listo
+      ? 'Base preparada'
+      : `${estado.faltantes.length} ${estado.faltantes.length === 1 ? 'base por reforzar' : 'bases por reforzar'}`;
+  if (compacta) {
+    return `<span class="preparacion-compacta" data-estado="${estadoVisual}" data-prerrequisitos-ruta="${escapar(ruta.id)}">
+      <span aria-hidden="true">${estado.listo ? '✓' : '◇'}</span> ${escapar(titulo)}
+    </span>`;
+  }
+
+  const destinoRuta = estado.faltantes[0]?.rutaReferencia;
+  const destinoSala = RUTA_POR_ID[destinoRuta]?.salas?.[0];
+  return `<aside class="preparacion-ruta" data-estado="${estadoVisual}" data-prerrequisitos-ruta="${escapar(ruta.id)}">
+    <div class="preparacion-cabecera">
+      <span class="preparacion-icono" aria-hidden="true">${estado.listo ? '✓' : '◇'}</span>
+      <div><b>${escapar(titulo)}</b><small>${estado.listo ? 'Puedes continuar con confianza.' : 'Puedes entrar igualmente; Mentor no bloquea tu recorrido.'}</small></div>
+      <span class="contador">${porcentaje(estado.avance)}%</span>
+    </div>
+    ${estado.faltantes.length ? `<ul>${estado.faltantes.slice(0, 4).map((requisito) => `<li>${escapar(textoRequisito(requisito))}</li>`).join('')}</ul>` : ''}
+    ${destinoSala ? `<button class="btn-fantasma" data-sala="${escapar(destinoSala)}">Reforzar la primera base</button>` : ''}
+  </aside>`;
 }
 
 // El siguiente ejercicio pendiente DENTRO de una academia concreta: es lo que
@@ -325,6 +361,7 @@ function renderTarjetaAcademia(academia, esActual) {
   const abierta = salas.some((s) => store.salaDesbloqueada(s.id));
   const empezada = avance > 0;
   const pendiente = abierta ? siguienteDeAcademia(academia) : null;
+  const rutasPreparadas = academia.rutas.filter((rutaId) => store.estadoPrerequisitosRuta(rutaId).listo).length;
 
   // Dos acciones distintas, como en una ficha de curso: el botón grande
   // retoma la lección donde la dejaste, y el cuadrado abre el índice de
@@ -337,7 +374,7 @@ function renderTarjetaAcademia(academia, esActual) {
     </button>
     <div class="academia-cuerpo">
       <small>${escapar(academia.descripcion)}</small>
-      <span class="academia-datos">${salas.length} salas · ${ejercicios} ejercicios</span>
+      <span class="academia-datos">${salas.length} salas · ${ejercicios} ejercicios · ${rutasPreparadas}/${academia.rutas.length} bases listas</span>
       <div class="academia-avance">
         <span class="barra"><i style="width:${porcentaje(avance)}%"></i></span>
         <b>${porcentaje(avance)}%</b>
@@ -371,11 +408,12 @@ function renderAcademiaDetalle(id) {
   const minutos = salas.filter((s) => !store.salaCompletada(s.id)).reduce((t, s) => t + s.minutos, 0);
   const horas = minutos >= 60 ? `~${(minutos / 60).toFixed(minutos >= 600 ? 0 : 1).replace('.0', '')} h` : `${minutos} min`;
   const actual = store.salaActual();
+  const rutasPreparadas = rutas.filter((ruta) => store.estadoPrerequisitosRuta(ruta.id).listo).length;
 
   const modulos = rutas.map((ruta) => {
     const suyas = numeroSalas(ruta);
     if (!suyas.length) return '';
-    return `<p class="grupo-ruta">${escapar(ruta.nombre)}</p>
+    return `<div class="grupo-ruta"><span>${escapar(ruta.nombre)}</span>${renderPreparacionRuta(ruta, { compacta: true })}</div>
       <div class="modulos">${suyas.map((sala) => renderModulo(sala, actual)).join('')}</div>`;
   }).join('');
 
@@ -390,6 +428,7 @@ function renderAcademiaDetalle(id) {
       <span class="chip">${salas.length} salas</span>
       <span class="chip">${ejercicios} ejercicios</span>
       <span class="chip">${minutos ? `quedan ${horas}` : 'completada'}</span>
+      <span class="chip">${rutasPreparadas}/${rutas.length} bases listas</span>
     </div>
     <div class="barra"><i style="width:${porcentaje(avance)}%"></i></div>
     <p class="ruta-desc">${hechas} de ${salas.length} salas completadas · ${porcentaje(avance)}%</p>
@@ -498,6 +537,7 @@ function renderSala(id) {
     <div class="migas" style="margin-top:16px"><span>${escapar(academia?.nombre || 'Aprender')}</span><i>›</i><b>${escapar(ruta?.nombre || 'Ruta')}</b></div>
     <h1 class="titulo-detalle" style="margin-top:6px">${escapar(sala.nombre)}</h1>
     <p class="texto-detalle">${escapar(sala.resumen)}</p>
+    ${ruta ? renderPreparacionRuta(ruta) : ''}
     <div class="chips"><span class="chip chip-dificultad">${escapar(sala.dificultad)}</span><span class="chip">◷ ${sala.minutos} min</span><span class="chip">${total} ejercicios</span></div>
     <div class="barra"><i style="width:${porcentaje(hechos / total)}%"></i></div>
     <div class="habilidades-sala">${habilidades.slice(0, 8).map((h) => `<span>${NIVELES_DOMINIO[store.nivelHabilidad(h)].icono} ${escapar(nombreHabilidad(h))}</span>`).join('')}</div>
@@ -515,8 +555,7 @@ function renderSala(id) {
 // =====================================================================
 
 function pasosDeTarea(tarea) {
-  const pasos = (tarea.teoria || []).map((bloque) => ({ tipo: 'teoria', bloque }));
-  tarea.practica.forEach((ejercicio) => pasos.push({ tipo: 'ejercicio', ejercicio }));
+  const pasos = secuenciaDeTarea(tarea);
   // Lo que saltas vuelve al final de la lección, antes del cierre.
   saltados.forEach((id) => {
     const ejercicio = tarea.practica.find((e) => e.id === id);
@@ -528,13 +567,13 @@ function pasosDeTarea(tarea) {
 
 function pasoInicial(tarea, pasos, ejercicioId) {
   if (ejercicioId) {
-    const i = pasos.findIndex((p) => p.tipo === 'ejercicio' && p.ejercicio.id === ejercicioId);
+    const i = pasos.findIndex((p) => TIPOS_CON_EJERCICIO.has(p.tipo) && p.ejercicio.id === ejercicioId);
     if (i >= 0) return i;
   }
   // Si nunca la has tocado, empiezas por la teoría; si la retomas, por el
   // primer ejercicio que te falta.
   if (!tarea.practica.some((e) => store.ejercicioHecho(e.id))) return 0;
-  const pendiente = pasos.findIndex((p) => p.tipo === 'ejercicio' && !store.ejercicioHecho(p.ejercicio.id));
+  const pendiente = pasos.findIndex((p) => TIPOS_CON_EJERCICIO.has(p.tipo) && !store.ejercicioHecho(p.ejercicio.id));
   return pendiente >= 0 ? pendiente : 0;
 }
 
@@ -552,7 +591,7 @@ function renderLeccion(id) {
   // Los reintentos (lo que saltaste) no engordan la barra: la lección sigue
   // teniendo los pasos que anunció, y los repescados se marcan aparte.
   const visibles = pasos.filter((p) => !p.reintento).length - 1;
-  ejercicioActivo = paso.tipo === 'ejercicio' ? paso.ejercicio.id : null;
+  ejercicioActivo = TIPOS_CON_EJERCICIO.has(paso.tipo) ? paso.ejercicio.id : null;
 
   vista.innerHTML = `<div class="leccion" data-paso="${paso.tipo}">
     <header class="leccion-top">
@@ -575,25 +614,76 @@ function renderLeccion(id) {
 function estadoSegmento(paso, indice) {
   if (indice === pasoActual) return 'aqui';
   if (indice > pasoActual) return 'pendiente';
-  if (paso.tipo === 'ejercicio') return store.ejercicioHecho(paso.ejercicio.id) ? 'hecho' : 'saltado';
+  if (TIPOS_CON_EJERCICIO.has(paso.tipo)) return store.ejercicioHecho(paso.ejercicio.id) ? 'hecho' : 'saltado';
   return 'hecho';
+}
+
+const ETIQUETA_PASO = {
+  diagnostico: 'Diagnóstico inicial', prediccion: 'Predice antes de mirar',
+  ejemplo: 'Ejemplo resuelto', explicacion: 'Contrasta y explica',
+  'practica-guiada': 'Práctica guiada', escenario: 'Transferencia',
+  reflexion: 'Autoexplicación', reporte: 'Evidencia', repaso: 'Recuperación',
+};
+
+function cuerpoEvidenciaPaso(paso, tarea, sala) {
+  const guardada = store.evidenciaPaso(tarea.id, paso.id) || {};
+  const etiqueta = ETIQUETA_PASO[paso.tipo] || 'Tu razonamiento';
+  const opciones = paso.opciones || [];
+  const esReporte = paso.tipo === 'reporte';
+  const campos = paso.campos || [
+    ['observacion', 'Observación', '¿Qué observaste?'],
+    ['hipotesis', 'Hipótesis', '¿Qué lo explicaría?'],
+    ['evidencia', 'Evidencia', '¿Qué dato sostiene tu conclusión?'],
+    ['siguiente', 'Siguiente prueba', '¿Qué comprobarías ahora?'],
+  ];
+  const controles = esReporte
+    ? campos.map(([id, nombre, ayuda]) => `<label class="campo-pedagogico"><span>${escapar(nombre)}</span><textarea name="${escapar(id)}" rows="2" placeholder="${escapar(ayuda)}" required>${escapar(guardada[id] || '')}</textarea></label>`).join('')
+    : opciones.length
+      ? `<div class="opciones opciones-prediccion">${opciones.map((opcion, indice) => `<label class="opcion"><input type="radio" name="respuesta" value="${escapar(opcion)}" ${guardada.respuesta === opcion ? 'checked' : ''} required><span>${String.fromCharCode(65 + indice)}</span>${escapar(opcion)}</label>`).join('')}</div>`
+      : `<label class="campo-pedagogico"><span>Tu respuesta</span><textarea name="respuesta" rows="4" placeholder="${escapar(paso.placeholder || 'Explícalo con tus palabras. También puedes escribir «Aún no lo sé».')}" required>${escapar(guardada.respuesta || '')}</textarea></label>`;
+  const confianza = ['diagnostico', 'prediccion'].includes(paso.tipo)
+    ? `<fieldset class="confianza"><legend>¿Qué seguridad tienes?</legend>${[
+      [1, 'Baja'], [2, 'Media'], [3, 'Alta'],
+    ].map(([valor, nombre]) => `<label><input type="radio" name="confianza" value="${valor}" ${Number(guardada.confianza) === valor ? 'checked' : ''} required><span>${nombre}</span></label>`).join('')}</fieldset>`
+    : '';
+  return `<article class="paso paso-pedagogico" data-tipo-pedagogico="${escapar(paso.tipo)}">
+    <span class="eyebrow">${escapar(sala.nombre)} · ${escapar(etiqueta)}</span>
+    <h1 class="paso-titulo">${escapar(paso.titulo || tarea.titulo)}</h1>
+    <p class="paso-enunciado">${htmlSeguro(paso.pregunta || paso.texto || '')}</p>
+    ${paso.ayuda ? `<div class="pedagogia-ayuda">${htmlSeguro(paso.ayuda)}</div>` : ''}
+    <form id="evidencia-paso" class="evidencia-form" data-evidencia-paso="${escapar(paso.id)}">${controles}${confianza}</form>
+    ${guardada.fecha ? '<p class="evidencia-guardada">✓ Razonamiento guardado; puedes revisarlo antes de continuar.</p>' : ''}
+  </article>`;
 }
 
 function cuerpoPaso(paso, tarea, sala) {
   if (paso.tipo === 'fin') return cuerpoFin(tarea, sala);
-  if (paso.tipo === 'teoria') {
+  if (TIPOS_EVIDENCIA.has(paso.tipo)) return cuerpoEvidenciaPaso(paso, tarea, sala);
+  if (TIPOS_CON_TEORIA.has(paso.tipo)) {
     const primero = pasoActual === 0;
     return `<div class="paso paso-teoria">
+      ${paso.tipo !== 'teoria' ? `<span class="eyebrow">${escapar(ETIQUETA_PASO[paso.tipo] || paso.tipo)}</span>` : ''}
       ${primero ? `<span class="eyebrow">${escapar(sala.nombre)}</span>
         <h1 class="paso-titulo">${escapar(tarea.titulo)}</h1>
         ${tarea.subtitulo ? `<p class="paso-sub">${escapar(tarea.subtitulo)}</p>` : ''}` : ''}
       ${renderTeoria([paso.bloque])}
+      ${paso.desarrollo?.length ? `<ol class="ejemplo-pasos">${paso.desarrollo.map((item) => `<li>${htmlSeguro(item)}</li>`).join('')}</ol>` : ''}
     </div>`;
   }
-  return cuerpoEjercicio(paso.ejercicio);
+  if (paso.tipo === 'imagen') {
+    const imagen = paso.imagen;
+    return `<figure class="paso paso-imagen">
+      <img src="${escapar(imagen.src)}" alt="${escapar(imagen.alt)}"
+        width="${Number(imagen.width) || 1536}" height="${Number(imagen.height) || 1024}"
+        loading="lazy" decoding="async">
+      <figcaption>${htmlSeguro(imagen.caption)}</figcaption>
+    </figure>`;
+  }
+  if (TIPOS_CON_EJERCICIO.has(paso.tipo)) return cuerpoEjercicio(paso.ejercicio, paso);
+  return '<div class="paso"><p>Este paso pedagógico no tiene contenido.</p></div>';
 }
 
-function cuerpoEjercicio(ejercicio) {
+function cuerpoEjercicio(ejercicio, paso = { tipo: 'ejercicio' }) {
   const resuelto = ejercicioResuelto(ejercicio);
   const pistas = pistasMostradas.get(ejercicio.id) || 0;
   const habilidades = (ejercicio.habilidades || []).map((id) => {
@@ -601,8 +691,14 @@ function cuerpoEjercicio(ejercicio) {
     return `<span class="skill-chip" data-nivel="${nivel}">${NIVELES_DOMINIO[nivel].icono} ${escapar(nombreHabilidad(id))}</span>`;
   }).join('');
 
+  const contexto = paso.tipo !== 'ejercicio' ? `<div class="pedagogia-contexto">
+    <span class="eyebrow">${escapar(ETIQUETA_PASO[paso.tipo] || paso.tipo)}</span>
+    ${paso.contexto ? `<p>${htmlSeguro(paso.contexto)}</p>` : ''}
+    ${paso.guia ? `<p class="pedagogia-ayuda">${htmlSeguro(paso.guia)}</p>` : ''}
+  </div>` : '';
   return `<article class="paso paso-ejercicio ejercicio" id="ejercicio-${escapar(ejercicio.id)}"
       ${resuelto ? 'data-completo' : ''} ${modoRepaso ? 'data-repaso' : ''}>
+    ${contexto}
     <div class="ejercicio-cabecera">
       <span class="ejercicio-tipo">${tipoEjercicio(ejercicio.tipo)}</span>
       <span class="ejercicio-xp">${modoRepaso ? 'REPASO' : `+${ejercicio.xp || 15} XP`}</span>
@@ -621,8 +717,8 @@ function controlesEjercicio(ejercicio, resuelto) {
       ${ejercicio.explicacion ? `<div class="paso-explicacion"><b>Por qué</b>${htmlSeguro(ejercicio.explicacion)}</div>` : ''}`;
   }
   if (ejercicio.tipo === 'quiz') {
-    return `<div class="opciones">${ejercicio.opciones.map((o, i) =>
-      `<button class="opcion" data-quiz="${escapar(ejercicio.id)}" data-opcion="${i}"><span>${String.fromCharCode(65 + i)}</span>${escapar(o)}</button>`).join('')}</div>`;
+    return `<div class="opciones">${opcionesQuizOrdenadas(ejercicio).map((opcion, i) =>
+      `<button class="opcion" data-quiz="${escapar(ejercicio.id)}" data-opcion="${opcion.indiceOriginal}"><span>${String.fromCharCode(65 + i)}</span>${escapar(opcion.texto)}</button>`).join('')}</div>`;
   }
   if (ejercicio.tipo === 'respuesta' || ejercicio.tipo === 'completar') {
     // Si el enunciado ya enseña la plantilla, repetirla debajo solo añade ruido.
@@ -675,7 +771,7 @@ function piePaso(paso, pasos, tarea, sala) {
   if (paso.tipo === 'fin') {
     // Si quedan ejercicios sin resolver, lo útil es volver al primero de
     // ellos, no salir de la lección.
-    const pendiente = pasos.findIndex((p) => p.tipo === 'ejercicio' && !store.ejercicioHecho(p.ejercicio.id));
+    const pendiente = pasos.findIndex((p) => TIPOS_CON_EJERCICIO.has(p.tipo) && !store.ejercicioHecho(p.ejercicio.id));
     if (pendiente >= 0) {
       return `<footer class="leccion-pie"><div class="leccion-botones">${atras}
         <button class="btn" data-ir-paso="${pendiente}">Rematar lo que falta</button>
@@ -690,9 +786,15 @@ function piePaso(paso, pasos, tarea, sala) {
     </div></footer>`;
   }
 
-  if (paso.tipo === 'teoria') {
+  if (TIPOS_CON_TEORIA.has(paso.tipo) || paso.tipo === 'imagen') {
     return `<footer class="leccion-pie"><div class="leccion-botones">${atras}
       <button class="btn" data-mover="1">Continuar</button>
+    </div></footer>`;
+  }
+
+  if (TIPOS_EVIDENCIA.has(paso.tipo)) {
+    return `<footer class="leccion-pie"><div class="leccion-botones">${atras}
+      <button class="btn" type="submit" form="evidencia-paso">Guardar y continuar</button>
     </div></footer>`;
   }
 
@@ -747,19 +849,28 @@ function conectarLeccion(tarea, sala, paso) {
     renderLeccion(tarea.id);
   }));
 
-  if (paso.tipo !== 'ejercicio') return;
+  const evidenciaForm = vista.querySelector('[data-evidencia-paso]');
+  if (evidenciaForm) evidenciaForm.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    const datos = Object.fromEntries(new FormData(evidenciaForm).entries());
+    if (Number.isInteger(paso.correcta) && Array.isArray(paso.opciones)) {
+      datos.correcto = datos.respuesta === paso.opciones[paso.correcta];
+    }
+    store.guardarEvidenciaPaso(tarea.id, paso.id, datos);
+    moverPaso(tarea, 1);
+  });
+
+  if (!TIPOS_CON_EJERCICIO.has(paso.tipo)) return;
   const ejercicio = paso.ejercicio;
 
   vista.querySelectorAll('[data-quiz]').forEach((b) => b.addEventListener('click', () => {
     const elegida = Number(b.dataset.opcion);
     if (elegida !== ejercicio.correcta) {
       store.registrarIntento(ejercicio, { correcto: false });
-      b.disabled = true;
-      b.setAttribute('data-descartada', '');
-      const quedan = [...vista.querySelectorAll('[data-quiz]')].filter((o) => !o.disabled).length;
-      return feedback(ejercicio.id, `Esa no; queda descartada. ${quedan === 1 ? 'Solo queda una opción posible.' : `Quedan ${quedan} opciones.`}`);
+      b.setAttribute('data-incorrecta', '');
+      return feedback(ejercicio.id, feedbackQuiz(ejercicio, elegida));
     }
-    completarEjercicio(tarea, ejercicio);
+    completarEjercicio(tarea, ejercicio, paso.tipo === 'repaso');
   }));
 
   // Comprobar vive en el pie, bajo el pulgar; el formulario sigue aceptando
@@ -774,7 +885,7 @@ function conectarLeccion(tarea, sala, paso) {
         store.registrarIntento(ejercicio, { correcto: false });
         return feedback(ejercicio.id, diagnosticar(ejercicio, valor));
       }
-      completarEjercicio(tarea, ejercicio);
+      completarEjercicio(tarea, ejercicio, paso.tipo === 'repaso');
     };
     form.addEventListener('submit', (evento) => { evento.preventDefault(); comprobar(); });
   }
@@ -803,7 +914,7 @@ function conectarLeccion(tarea, sala, paso) {
         store.registrarIntento(ejercicio, { correcto: false });
         return feedback(ejercicio.id, diagnosticar(ejercicio, puestos));
       }
-      completarEjercicio(tarea, ejercicio);
+      completarEjercicio(tarea, ejercicio, paso.tipo === 'repaso');
     };
   }
 
@@ -812,12 +923,15 @@ function conectarLeccion(tarea, sala, paso) {
 
   const reiniciar = vista.querySelector('[data-reiniciar-terminal]');
   if (reiniciar) reiniciar.addEventListener('click', () => terminalActiva?.reiniciar());
-  iniciarTerminalEjercicio(tarea, sala, ejercicio);
+  iniciarTerminalEjercicio(tarea, sala, ejercicio, paso.tipo === 'repaso');
 }
 
-function completarEjercicio(tarea, ejercicio) {
+function completarEjercicio(tarea, ejercicio, esRepasoSemantico = false) {
   const nivelAntes = store.nivel.nivel;
-  const resultado = store.completarEjercicio(ejercicio, { usoPista: (pistasMostradas.get(ejercicio.id) || 0) > 0 });
+  const resultado = store.completarEjercicio(ejercicio, {
+    usoPista: (pistasMostradas.get(ejercicio.id) || 0) > 0,
+    esRepaso: modoRepaso || esRepasoSemantico,
+  });
   actualizarCabecera();
   vibrar(18);
   // Subir de nivel suena distinto de acertar: es la recompensa mayor.
@@ -830,7 +944,7 @@ function completarEjercicio(tarea, ejercicio) {
   renderLeccion(tarea.id);
 }
 
-function iniciarTerminalEjercicio(tarea, sala, ejercicio) {
+function iniciarTerminalEjercicio(tarea, sala, ejercicio, esRepasoSemantico = false) {
   const contenedor = document.getElementById('terminal-ejercicio');
   if (!contenedor || ejercicio.tipo !== 'terminal') return;
   // Cuántos comandos pide la solución. En los retos de varios pasos, cada
@@ -844,7 +958,7 @@ function iniciarTerminalEjercicio(tarea, sala, ejercicio) {
       store.contarComando(comandoDe(ctx.ultimo?.cmd));
       let correcto = false;
       try { correcto = ejercicio.check(ctx) === true; } catch { correcto = false; }
-      if (correcto) return completarEjercicio(tarea, ejercicio);
+      if (correcto) return completarEjercicio(tarea, ejercicio, esRepasoSemantico);
       ejecutados++;
       // Antes de completar los pasos: silencio. La propia salida de la
       // terminal (un error, un «not found») ya orienta; para más ayuda está
@@ -1022,13 +1136,13 @@ function feedback(id, mensaje, ok = false) {
 
 function progresoMaquina(maquina) {
   const e = store.estadoMaquina(maquina.id);
-  return (e.fases.length + Number(e.userFlag) + Number(e.rootFlag)) / (maquina.fases.length + 2);
+  return (e.fases.length + Number(e.userFlag) + Number(e.rootFlag) + Number(!!e.reporte)) / (maquina.fases.length + 3);
 }
 
 function renderMaquinas() {
   vista.innerHTML = `<div class="pagina">
     ${portadaSeccion('maquinas', 'Portada de Máquinas')}
-    <section class="hero"><span class="eyebrow">Laboratorio ofensivo · 100% simulado</span><h1>Máquinas vulnerables.<br>Entornos seguros.</h1><p>Practica una metodología completa: reconocimiento, enumeración, acceso y escalada. Todos los objetivos viven dentro del simulador; nunca se contactan sistemas reales.</p><div class="chips"><span class="chip">12 máquinas</span><span class="chip">48 fases</span><span class="chip">24 flags</span><span class="chip">writeups desbloqueables</span></div></section>
+    <section class="hero"><span class="eyebrow">Laboratorio ofensivo · 100% simulado</span><h1>Máquinas vulnerables.<br>Entornos seguros.</h1><p>Practica una metodología completa: reconocimiento, enumeración, acceso, escalada y reporte. Todos los objetivos viven dentro del simulador; nunca se contactan sistemas reales.</p><div class="chips"><span class="chip">12 máquinas</span><span class="chip">5 niveles de autonomía</span><span class="chip">24 flags</span><span class="chip">evidencia y reporte</span></div></section>
     <div class="seccion-titulo"><div><h2>Selecciona un objetivo</h2><p>De tu primer escaneo a cadenas de explotación avanzadas</p></div></div>
     <div class="maquinas-grid">${MAQUINAS.map(renderTarjetaMaquina).join('')}</div>
   </div>`;
@@ -1099,14 +1213,22 @@ function renderMaquina(id) {
 }
 
 function panelFase(maquina, fase, indice) {
+  const estado = store.estadoMaquina(maquina.id);
+  const autonomia = AUTONOMIA_POR_ID[estado.autonomia] || AUTONOMIA_POR_ID.guiada;
   const pistas = pistasMostradas.get(`${maquina.id}/${fase.id}`) || 0;
   const desarrollo = pistasMostradas.get(`${maquina.id}/${fase.id}/dev`);
   return `<article class="maquina-fase paso" data-fase="${escapar(fase.id)}">
     <div class="ejercicio-cabecera"><span class="ejercicio-tipo">Fase ${indice + 1} · ${escapar(fase.nombre)}</span><span class="ejercicio-xp">Máquina ${escapar(maquina.nombre)}</span></div>
+    <div class="autonomia-panel">
+      <div><b>Autonomía</b><span>${escapar(autonomia.descripcion)}</span></div>
+      <div class="autonomia-opciones">${NIVELES_AUTONOMIA.map((nivel) => `<button type="button" data-autonomia="${escapar(nivel.id)}" ${nivel.id === autonomia.id ? 'data-activa' : ''}>${escapar(nivel.nombre)}</button>`).join('')}</div>
+    </div>
+    <div class="alcance-lab"><b>Alcance autorizado</b><code>${maquina.alcance.map(escapar).join(' · ')}</code><span>Fuera: ${maquina.fueraDeAlcance.map(escapar).join(', ')}</span></div>
+    ${autonomia.requiereRoe ? `<label class="roe-check"><input type="checkbox" data-roe ${estado.roeAceptadas ? 'checked' : ''}> Confirmo que trabajaré dentro de estas reglas de operación.</label>` : ''}
     <p class="paso-enunciado">${htmlSeguro(fase.objetivo)}</p>
-    ${fase.guia ? `<div class="maquina-guia-texto">${htmlSeguro(fase.guia)}</div>` : ''}
-    ${renderPistas(fase, pistas)}
-    ${desarrollo ? `<div class="maquina-desarrollo"><b>Desarrollo</b><pre><code>${escapar(fase.solucion)}</code></pre><p>${htmlSeguro(fase.desarrollo || '')}</p></div>` : ''}
+    ${autonomia.muestraGuia && fase.guia ? `<div class="maquina-guia-texto">${htmlSeguro(fase.guia)}</div>` : ''}
+    ${autonomia.permitePistas ? renderPistas(fase, pistas) : ''}
+    ${autonomia.permiteDesarrollo && desarrollo ? `<div class="maquina-desarrollo"><b>Desarrollo</b><pre><code>${escapar(fase.solucion)}</code></pre><p>${htmlSeguro(fase.desarrollo || '')}</p></div>` : ''}
   </article>`;
 }
 
@@ -1123,11 +1245,34 @@ function panelBanderas(maquina) {
 }
 
 function panelWriteup(maquina) {
+  const estado = store.estadoMaquina(maquina.id);
   return `<article class="maquina-fase paso paso-fin" data-completa>
     <div class="fin-marca">✓</div>
     <h1>Máquina comprometida</h1>
     <p>Has recorrido ${escapar(maquina.nombre)} de principio a fin.</p>
+    <section class="reporte-entregado"><span class="eyebrow">Tu reporte</span><p><b>Hallazgo:</b> ${escapar(estado.reporte?.observacion || '')}</p><p><b>Impacto:</b> ${escapar(estado.reporte?.impacto || '')}</p><p><b>Remediación:</b> ${escapar(estado.reporte?.remediacion || '')}</p></section>
     <section class="writeup"><span class="eyebrow">Writeup</span><ol>${maquina.writeup.map((p) => `<li>${escapar(p)}</li>`).join('')}</ol></section>
+  </article>`;
+}
+
+function panelReporteMaquina(maquina) {
+  const estado = store.estadoMaquina(maquina.id);
+  const reporte = estado.reporte || {};
+  return `<article class="maquina-fase paso" data-reporte-maquina>
+    <div class="ejercicio-cabecera"><span class="ejercicio-tipo">Informe técnico</span><span class="ejercicio-xp">Última evidencia</span></div>
+    <h1 class="paso-titulo">Convierte acceso en aprendizaje</h1>
+    <p class="paso-enunciado">Las flags prueban acceso; el reporte demuestra que entiendes qué ocurrió y cómo corregirlo.</p>
+    <div class="evidencias-maquina"><b>Evidencia capturada</b><ol>${(estado.evidencias || []).map((item) => `<li><code>${escapar(item.faseId)}</code> ${escapar(item.texto)}</li>`).join('')}</ol></div>
+    <form class="reporte-form" data-form-reporte>
+      ${[
+        ['observacion', 'Hallazgo u observación', 'Describe la configuración o debilidad encontrada.'],
+        ['evidencia', 'Evidencia reproducible', 'Incluye comando, salida o estado que lo demuestra.'],
+        ['impacto', 'Impacto', 'Explica qué podría conseguir un atacante dentro del alcance.'],
+        ['remediacion', 'Remediación', 'Propón el cambio que elimina o reduce el riesgo.'],
+      ].map(([id, nombre, ayuda]) => `<label class="campo-pedagogico"><span>${nombre}</span><textarea name="${id}" rows="3" placeholder="${ayuda}" required>${escapar(reporte[id] || '')}</textarea></label>`).join('')}
+      <button class="btn" type="submit">Entregar reporte</button>
+    </form>
+    <div class="feedback" data-feedback-maquina></div>
   </article>`;
 }
 
@@ -1140,38 +1285,45 @@ function pintarMaquina(maquina) {
   if (!panel) return;
   const estado = store.estadoMaquina(maquina.id);
   const idxFase = faseActualMaquina(maquina);
-  const total = maquina.fases.length + 2; // fases + 2 banderas
+  const total = maquina.fases.length + 3; // fases + 2 banderas + reporte
   const hechas = maquina.fases.filter((f) => store.faseMaquinaHecha(maquina.id, f.id)).length;
   const flags = Number(estado.userFlag) + Number(estado.rootFlag);
-  const hechos = hechas + flags;
+  const hechos = hechas + flags + Number(!!estado.reporte);
 
   // Progreso segmentado: una marca por fase y una por bandera.
   const segs = [];
   for (let i = 0; i < maquina.fases.length; i++) segs.push(store.faseMaquinaHecha(maquina.id, maquina.fases[i].id) ? 'hecho' : i === idxFase ? 'aqui' : 'pendiente');
   segs.push(estado.userFlag ? 'hecho' : idxFase < 0 ? 'aqui' : 'pendiente');
   segs.push(estado.rootFlag ? 'hecho' : 'pendiente');
+  segs.push(estado.reporte ? 'hecho' : flags === 2 ? 'aqui' : 'pendiente');
   progreso.innerHTML = segs.map((s) => `<span data-estado="${s}"></span>`).join('');
   cuenta.textContent = idxFase >= 0 ? `Fase ${idxFase + 1}/${maquina.fases.length}` : `${hechos}/${total}`;
 
   const terminalVisible = document.querySelector('.maquina-terminal');
   if (idxFase >= 0) {
     const fase = maquina.fases[idxFase];
+    const autonomia = AUTONOMIA_POR_ID[estado.autonomia] || AUTONOMIA_POR_ID.guiada;
     panel.innerHTML = panelFase(maquina, fase, idxFase);
     if (terminalVisible) terminalVisible.style.display = '';
     const pistas = pistasMostradas.get(`${maquina.id}/${fase.id}`) || 0;
-    const hayPistas = pistas < fase.pistas.length;
+    const hayPistas = autonomia.permitePistas && pistas < fase.pistas.length;
     const verDev = pistasMostradas.get(`${maquina.id}/${fase.id}/dev`);
     pie.removeAttribute('data-estado');
     pie.innerHTML = `<div class="feedback" data-feedback-maquina>Escribe los comandos en la terminal. La fase se valida sola cuando el sistema queda en el estado correcto.</div>
       <div class="leccion-botones">
         ${hayPistas ? `<button class="btn-fantasma btn-mini" data-pista-fase="${escapar(fase.id)}">Pista</button>` : ''}
-        ${verDev ? '' : `<button class="btn-fantasma btn-mini" data-dev-fase="${escapar(fase.id)}">Ver desarrollo</button>`}
+        ${autonomia.permiteDesarrollo && !verDev ? `<button class="btn-fantasma btn-mini" data-dev-fase="${escapar(fase.id)}">Ver desarrollo</button>` : ''}
       </div>`;
   } else if (flags < 2) {
     panel.innerHTML = panelBanderas(maquina);
     if (terminalVisible) terminalVisible.style.display = '';
     pie.removeAttribute('data-estado');
     pie.innerHTML = `<div class="feedback" data-feedback-maquina>Lee las banderas con <code>cat</code> y pégalas arriba.</div>`;
+  } else if (!estado.reporte) {
+    panel.innerHTML = panelReporteMaquina(maquina);
+    if (terminalVisible) terminalVisible.style.display = 'none';
+    pie.removeAttribute('data-estado');
+    pie.innerHTML = '<div class="feedback">Entrega un reporte con observación, evidencia, impacto y remediación.</div>';
   } else {
     panel.innerHTML = panelWriteup(maquina);
     if (terminalVisible) terminalVisible.style.display = 'none';
@@ -1182,6 +1334,13 @@ function pintarMaquina(maquina) {
 }
 
 function conectarPanelMaquina(maquina) {
+  vista.querySelectorAll('[data-autonomia]').forEach((boton) => boton.addEventListener('click', () => {
+    store.cambiarAutonomiaMaquina(maquina.id, boton.dataset.autonomia);
+    pintarMaquina(maquina);
+    terminalActiva?.enfocar();
+  }));
+  const roe = vista.querySelector('[data-roe]');
+  if (roe) roe.addEventListener('change', () => store.aceptarRoeMaquina(maquina.id, roe.checked));
   vista.querySelectorAll('[data-pista-fase]').forEach((b) => b.addEventListener('click', () => {
     const fase = maquina.fases.find((f) => f.id === b.dataset.pistaFase);
     const clave = `${maquina.id}/${fase.id}`;
@@ -1208,6 +1367,29 @@ function conectarPanelMaquina(maquina) {
       pintarMaquina(maquina);
     }
   }));
+  const reporte = vista.querySelector('[data-form-reporte]');
+  if (reporte) reporte.addEventListener('submit', (evento) => {
+    evento.preventDefault();
+    const estado = store.estadoMaquina(maquina.id);
+    const autonomia = AUTONOMIA_POR_ID[estado.autonomia] || AUTONOMIA_POR_ID.guiada;
+    const mensaje = vista.querySelector('[data-feedback-maquina]');
+    if (autonomia.requiereRoe && !estado.roeAceptadas) {
+      if (mensaje) feedbackMaquina(mensaje, 'Debes aceptar las reglas de operación del modo Red Team.');
+      return;
+    }
+    const datos = Object.fromEntries(new FormData(reporte).entries());
+    if (!store.guardarReporteMaquina(maquina, datos)) {
+      if (mensaje) feedbackMaquina(mensaje, 'Desarrolla los cuatro campos con al menos una frase concreta.');
+      return;
+    }
+    actualizarCabecera();
+    celebrar({ marca: '✓', titulo: 'Informe entregado', texto: `Has completado ${maquina.nombre} con evidencia y remediación.`, xp: 0, botones: [{ texto: 'Ver writeup', accion: () => pintarMaquina(maquina) }] });
+  });
+}
+
+function feedbackMaquina(elemento, mensaje) {
+  elemento.textContent = mensaje;
+  elemento.dataset.error = '';
 }
 
 function conectarMaquina(maquina) {
@@ -1230,6 +1412,8 @@ function conectarMaquina(maquina) {
       let ok = false;
       try { ok = fase.check(ctx) === true; } catch { ok = false; }
       if (!ok) return;
+      const salida = String(ctx.ultimo?.salida || '').trim().replace(/\s+/g, ' ').slice(0, 180);
+      store.registrarEvidenciaMaquina(maquina.id, fase.id, `${ctx.ultimo?.cmd || 'estado validado'} → ${salida || 'estado correcto'}`);
       try { fase.onComplete?.(ctx); } catch {}
       store.completarFaseMaquina(maquina, fase);
       actualizarCabecera();
@@ -1433,6 +1617,7 @@ function emojiNivel(nivel) {
 
 function renderPerfil() {
   const s = store.estadisticas();
+  const calibracion = store.calibracionMetacognitiva();
   const tema = store.temaActual();
   const dominioComandos = TODOS_COMANDOS.map((c) => ({ ...c, usos: store.estado.dominioComandos[c.n] || 0 })).sort((a, b) => b.usos - a.usos || a.n.localeCompare(b.n));
   const habilidades = Object.keys(store.estado.habilidades).map((id) => ({ id, nivel: store.nivelHabilidad(id), datos: store.estado.habilidades[id] })).sort((a, b) => b.nivel - a.nivel || b.datos.aciertos - a.datos.aciertos);
@@ -1450,6 +1635,12 @@ function renderPerfil() {
       <span class="perfil-porcentaje">${porcentaje(s.nivel.progreso)}%</span>
     </section>
     <div class="metricas"><div class="metrica"><b>${s.xp}</b><span>XP total</span></div><div class="metrica"><b>${s.racha}</b><span>racha actual</span></div><div class="metrica"><b>${s.maquinas}/${s.totalMaquinas}</b><span>máquinas</span></div><div class="metrica"><b>${s.logros}/${s.totalLogros}</b><span>logros</span></div></div>
+    <section class="tarjeta calibracion-card">
+      <div><span class="eyebrow">Calibración metacognitiva</span><h2>${escapar(calibracion.etiqueta)}</h2><p>Compara la seguridad que declaras antes de responder con el resultado real. Sirve para detectar exceso o falta de confianza.</p></div>
+      <div class="calibracion-datos"><b>${calibracion.muestras}</b><span>predicciones</span><b>${porcentaje(calibracion.precision)}%</b><span>precisión</span></div>
+    </section>
+    <div class="seccion-titulo"><div><h2>Capacidades compuestas</h2><p>Combinan varias habilidades y descubren la base que necesitas reforzar</p></div><span class="contador">${s.capacidadesDominadas}/${s.capacidades} sólidas</span></div>
+    <section class="tarjeta mapa-capacidades" data-mapa-capacidades>${s.dominioCapacidades.map((capacidad) => `<div class="capacidad-fila" data-capacidad="${escapar(capacidad.id)}"><span class="habilidad-icono" data-nivel="${capacidad.nivel}">${NIVELES_DOMINIO[capacidad.nivel].icono}</span><div><b>${escapar(capacidad.nombre)}</b><small>${escapar(capacidad.descripcion)} · ${capacidad.practicadas}/${capacidad.total} habilidades con evidencia</small><span class="barra"><i style="width:${porcentaje(capacidad.avance)}%"></i></span></div><span class="contador">Nv ${capacidad.nivel}/6</span></div>`).join('')}</section>
     <div class="seccion-titulo"><div><h2>Memoria de habilidades</h2><p>El dominio exige aciertos sin pista, contextos diferentes y repasos en días distintos</p></div><span class="contador">${s.habilidadesDominadas}/${s.habilidades} dominadas</span></div>
     <section class="tarjeta mapa-habilidades">${habilidades.length ? habilidades.map((h) => `<div class="habilidad-fila"><span class="habilidad-icono" data-nivel="${h.nivel}">${NIVELES_DOMINIO[h.nivel].icono}</span><div><b>${escapar(nombreHabilidad(h.id))}</b><small>${NIVELES_DOMINIO[h.nivel].nombre} · ${h.datos.sinPista || 0} ${(h.datos.sinPista || 0) === 1 ? 'acierto' : 'aciertos'} sin pista · ${(h.datos.fechas || []).length} ${(h.datos.fechas || []).length === 1 ? 'día' : 'días'}</small></div><span class="contador">Nv ${h.nivel}/6</span></div>`).join('') : '<p class="muted">Completa tu primera práctica para empezar el mapa.</p>'}</section>
     <div class="seccion-titulo"><div><h2>Mapa de dominio</h2><p>Avance sala por sala</p></div></div><section class="tarjeta dominio">${s.dominio.map((d) => `<div class="dominio-fila"><span>${escapar(d.nombre)}</span><span class="barra"><i style="width:${porcentaje(d.progreso)}%"></i></span><span class="contador">${porcentaje(d.progreso)}%</span></div>`).join('')}</section>

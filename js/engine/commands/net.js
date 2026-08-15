@@ -13,6 +13,7 @@ const HOSTS = {
   'intranet.local': '192.168.1.70',
   'correo.local': '192.168.1.80',
   'mentor.dev': '10.30.0.15',
+  'web.local': '192.168.1.90',
 };
 
 // Zonas DNS: un dominio no solo tiene dirección. Sin MX, TXT y NS no se puede
@@ -32,6 +33,7 @@ const ZONAS = {
   'google.com': { A: ['142.250.185.46'], MX: ['10 smtp.google.com.'], NS: ['ns1.google.com.'] },
   'debian.org': { A: ['151.101.66.132'], NS: ['nsp.dnsnode.net.'] },
   'servidor.local': { A: ['192.168.1.50'], NS: ['ns1.local.'] },
+  'web.local': { A: ['192.168.1.90'], TXT: ['"entorno=mentor-web"'], NS: ['ns1.local.'] },
 };
 
 const TIPOS_DNS = ['A', 'AAAA', 'MX', 'TXT', 'NS', 'CNAME', 'PTR', 'SOA', 'ANY'];
@@ -62,15 +64,110 @@ const PAGES = {
   'http://10.30.0.15/copias': { code: 403, body: 'Forbidden' },
 };
 
-function paginaDe(url, ctx) {
+const PRODUCTOS_WEB = [
+  { id: 1, nombre: 'Teclado', precio: 45 },
+  { id: 2, nombre: 'Ratón', precio: 25 },
+  { id: 3, nombre: 'Monitor', precio: 220 },
+];
+
+function paginaLaboratorioWeb(url, solicitud = {}) {
+  const original = String(url || '').replace(/\/$/, '');
+  if (!/^https?:\/\/web\.local(?:[/?]|$)/.test(original)) return null;
+  if (original.startsWith('http://')) {
+    return { code: 308, location: original.replace('http://', 'https://'), body: '' };
+  }
+  const despuesHost = original.slice('https://web.local'.length) || '/';
+  const [ruta, query = ''] = despuesHost.split('?');
+  const metodo = (solicitud.method || 'GET').toUpperCase();
+  const cabecera = String(solicitud.header || '');
+  const cookie = String(solicitud.cookie || '');
+  const cors = cabecera.toLowerCase().startsWith('origin:') ? cabecera.slice(cabecera.indexOf(':') + 1).trim() : '';
+
+  if (ruta === '/') {
+    return {
+      code: 200,
+      tipo: 'text/html; charset=utf-8',
+      body: '<!doctype html>\n<html lang="es"><head><meta charset="utf-8"><title>Tienda Mentor</title></head>\n<body><main><h1>Tienda Mentor</h1><form method="post" action="/api/login"><input name="usuario"><input name="clave" type="password"><button>Entrar</button></form></main><script src="/app.js"></script></body></html>',
+    };
+  }
+  if (ruta === '/app.js') {
+    return {
+      code: 200,
+      tipo: 'text/javascript; charset=utf-8',
+      body: "async function cargarProductos() {\n  const respuesta = await fetch('/api/productos');\n  if (!respuesta.ok) throw new Error('HTTP ' + respuesta.status);\n  return respuesta.json();\n}\ndocument.querySelector('button')?.addEventListener('click', cargarProductos);\n",
+    };
+  }
+  if (ruta === '/documentacion') {
+    return { code: 200, tipo: 'text/plain; charset=utf-8', body: 'API Mentor Web\nGET /api/productos\nPOST /api/login\nGET /api/perfil' };
+  }
+  if (ruta === '/redirect') {
+    return { code: 302, location: 'https://web.local/documentacion', body: '' };
+  }
+  if (ruta === '/api/productos' && metodo === 'OPTIONS') {
+    return {
+      code: 204,
+      tipo: 'application/json',
+      headers: {
+        'Access-Control-Allow-Origin': cors || 'https://app.local',
+        'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
+        'Access-Control-Allow-Headers': 'Content-Type, Authorization',
+      },
+      body: '',
+    };
+  }
+  if (ruta === '/api/productos' && metodo === 'GET') {
+    const limite = Number(new URLSearchParams(query).get('limite'));
+    const productos = Number.isInteger(limite) && limite > 0 ? PRODUCTOS_WEB.slice(0, limite) : PRODUCTOS_WEB;
+    return { code: 200, tipo: 'application/json', body: JSON.stringify(productos) };
+  }
+  const producto = ruta.match(/^\/api\/productos\/(\d+)$/);
+  if (producto && metodo === 'GET') {
+    const encontrado = PRODUCTOS_WEB.find((item) => item.id === Number(producto[1]));
+    return encontrado
+      ? { code: 200, tipo: 'application/json', body: JSON.stringify(encontrado) }
+      : { code: 404, tipo: 'application/json', body: '{"error":"producto no encontrado"}' };
+  }
+  if (ruta === '/api/productos' && metodo === 'POST') {
+    if (!/content-type:\s*application\/json/i.test(cabecera)) {
+      return { code: 415, tipo: 'application/json', body: '{"error":"se requiere application/json"}' };
+    }
+    if (!/"nombre"\s*:\s*"[^"]+"/.test(solicitud.data || '')) {
+      return { code: 400, tipo: 'application/json', body: '{"error":"nombre requerido"}' };
+    }
+    return { code: 201, tipo: 'application/json', headers: { Location: '/api/productos/4' }, body: '{"id":4,"creado":true}' };
+  }
+  if (ruta === '/api/login' && metodo === 'POST') {
+    const valido = /(?:^|&)usuario=ana(?:&|$)/.test(solicitud.data || '')
+      && /(?:^|&)clave=practica-local(?:&|$)/.test(solicitud.data || '');
+    return valido
+      ? { code: 200, tipo: 'application/json', cookie: 'session=mentor-local-123', body: '{"autenticado":true}' }
+      : { code: 401, tipo: 'application/json', body: '{"error":"credenciales inválidas"}' };
+  }
+  if (ruta === '/api/perfil' && metodo === 'GET') {
+    return cookie.includes('session=mentor-local-123')
+      ? { code: 200, tipo: 'application/json', body: '{"id":1,"usuario":"ana","rol":"analista"}' }
+      : { code: 401, tipo: 'application/json', body: '{"error":"sesión requerida"}' };
+  }
+  if (ruta.startsWith('/api/')) return { code: 405, tipo: 'application/json', headers: { Allow: 'GET, POST, OPTIONS' }, body: '{"error":"método no permitido"}' };
+  return { code: 404, body: 'Not Found' };
+}
+
+function paginaDe(url, ctx, solicitud = {}) {
   const key = String(url || '').replace(/\/$/, '');
+  const laboratorioWeb = paginaLaboratorioWeb(key, solicitud);
+  if (laboratorioWeb) return laboratorioWeb;
   const propias = ctx.shell.state.machine?.pages || {};
   const enMaquina = propias[key] ?? propias[key.replace('https://', 'http://')];
   if (enMaquina != null) return typeof enMaquina === 'string' ? { code: 200, body: enMaquina } : enMaquina;
   return PAGES[key] || PAGES[key.replace('https://', 'http://')] || null;
 }
 
-const ESTADOS = { 200: 'OK', 301: 'Moved Permanently', 302: 'Found', 403: 'Forbidden', 404: 'Not Found', 500: 'Internal Server Error' };
+const ESTADOS = {
+  200: 'OK', 201: 'Created', 204: 'No Content', 301: 'Moved Permanently',
+  302: 'Found', 308: 'Permanent Redirect', 400: 'Bad Request',
+  401: 'Unauthorized', 403: 'Forbidden', 404: 'Not Found',
+  405: 'Method Not Allowed', 415: 'Unsupported Media Type', 500: 'Internal Server Error',
+};
 
 function seccionDig(host, tipo, registros, servidor = '') {
   return `; <<>> DiG 9.18.24 <<>>${servidor ? ` @${servidor}` : ''} ${tipo === 'A' ? '' : tipo + ' '}${host}\n` +
@@ -152,11 +249,22 @@ export const net = {
   },
 
   curl: (args, ctx) => {
-    const { operands, has, values } = parseArgs(args, { withValue: ['o', 'X', 'H', 'd', 'w'] });
+    const { operands, has, values } = parseArgs(args, { withValue: ['o', 'X', 'H', 'd', 'w', 'b', 'c', 'u'] });
     const url = operands[0];
     if (!url) return err('curl: try \'curl --help\' for more information', 2);
 
-    let pagina = paginaDe(url, ctx);
+    let cookie = values.b || '';
+    if (cookie && !cookie.includes('=')) {
+      try { cookie = ctx.fs.readFile(ctx.shell.resolve(cookie), ctx).trim(); } catch {}
+    }
+    const solicitud = {
+      method: (values.X || (values.d ? 'POST' : 'GET')).toUpperCase(),
+      header: values.H || '',
+      data: values.d || '',
+      cookie,
+      auth: values.u || '',
+    };
+    let pagina = paginaDe(url, ctx, solicitud);
     if (!pagina) {
       const dominio = url.replace(/^https?:\/\//, '').split('/')[0].split(':')[0];
       // Si el nombre resuelve pero la ruta no existe, el error es 404, no DNS.
@@ -167,27 +275,39 @@ export const net = {
     // -L sigue la redirección hasta la página final.
     let saltos = 0;
     while (has('-L') && pagina.location && saltos++ < 5) {
-      pagina = paginaDe(pagina.location, ctx) || { code: 404, body: 'Not Found' };
+      solicitud.method = [301, 302, 308].includes(pagina.code) ? 'GET' : solicitud.method;
+      pagina = paginaDe(pagina.location, ctx, solicitud) || { code: 404, body: 'Not Found' };
     }
 
     const cuerpo = pagina.body || '';
     const cabeceras = [
       `HTTP/1.1 ${pagina.code} ${ESTADOS[pagina.code] || 'OK'}`,
       'Server: nginx/1.24.0',
+      'Date: Thu, 14 Aug 2026 12:00:00 GMT',
       `Content-Type: ${pagina.tipo || 'text/html'}`,
       `Content-Length: ${cuerpo.length}`,
+      ...(String(url).startsWith('https://') ? ['Strict-Transport-Security: max-age=31536000'] : []),
       ...(pagina.location ? [`Location: ${pagina.location}`] : []),
+      ...(pagina.cookie ? [`Set-Cookie: ${pagina.cookie}; HttpOnly; Secure; SameSite=Lax`] : []),
+      ...Object.entries(pagina.headers || {}).map(([nombre, valor]) => `${nombre}: ${valor}`),
     ].join('\n');
 
+    if (values.c && pagina.cookie) ctx.fs.writeFile(ctx.shell.resolve(values.c), pagina.cookie + '\n', ctx);
+    const hostPeticion = url.replace(/^https?:\/\//, '').split('/')[0];
+    const despuesHost = url.replace(/^https?:\/\//, '').slice(hostPeticion.length);
+    const rutaPeticion = despuesHost.startsWith('/') ? despuesHost : '/';
+    const verbose = has('-v')
+      ? `* Connected to ${hostPeticion}\n> ${solicitud.method} ${rutaPeticion} HTTP/1.1\n> Host: ${hostPeticion}\n< HTTP/1.1 ${pagina.code} ${ESTADOS[pagina.code] || 'OK'}\n`
+      : '';
     if (has('-I')) return ok(cabeceras + '\n\n');
     if (values.w) return ok(values.w.replace(/%\{http_code\}/g, String(pagina.code)).replace(/\\n/g, '\n'));
     if (values.o) {
       ctx.fs.writeFile(ctx.shell.resolve(values.o), cuerpo + '\n', ctx);
-      return ok('');
+      return verbose ? { stdout: '', stderr: verbose, code: 0 } : ok('');
     }
     // Sin -L, una redirección devuelve el cuerpo vacío: es lo que despista.
-    if (pagina.location && !has('-L')) return ok('');
-    return ok(cuerpo + '\n');
+    const salida = (has('-i') ? cabeceras + '\n\n' : '') + (pagina.location && !has('-L') ? '' : cuerpo + (cuerpo ? '\n' : ''));
+    return verbose ? { stdout: salida, stderr: verbose, code: 0 } : ok(salida);
   },
 
   wget: (args, ctx) => {

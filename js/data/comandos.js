@@ -129,7 +129,7 @@ export const CATEGORIAS = [
       { n: 'ping', q: 'Comprueba conectividad', s: 'ping [-c N] destino', o: [['-c N', 'solo N paquetes']], e: 'ping -c 4 8.8.8.8' },
       { n: 'ss', q: 'Puertos y conexiones', s: 'ss [opciones]', o: [['-t', 'TCP'], ['-u', 'UDP'], ['-l', 'solo en escucha'], ['-p', 'qué proceso'], ['-n', 'sin resolver nombres']], e: 'ss -tulpn' },
       { n: 'dig', q: 'Consulta DNS', s: 'dig [+short] dominio', o: [['+short', 'solo la respuesta']], e: 'dig +short github.com' },
-      { n: 'curl', q: 'Cliente HTTP desde la terminal', s: 'curl [opciones] url', o: [['-I', 'solo cabeceras'], ['-o archivo', 'guarda la respuesta'], ['-L', 'sigue redirecciones'], ['-v', 'muestra el detalle']], e: 'curl -I https://example.com' },
+      { n: 'curl', q: 'Cliente HTTP desde la terminal', s: 'curl [opciones] url', o: [['-I / -i', 'solo cabeceras / cabeceras y cuerpo'], ['-X método', 'elige GET, POST u OPTIONS'], ['-H cabecera', 'añade una cabecera'], ['-d datos', 'envía un cuerpo'], ['-b / -c archivo', 'lee o guarda cookies'], ['-o archivo', 'guarda la respuesta'], ['-L', 'sigue redirecciones'], ['-v', 'muestra el detalle']], e: 'curl -I https://web.local' },
       { n: 'ssh', q: 'Sesión remota cifrada', s: 'ssh [-p puerto] usuario@host', o: [['-p', 'puerto'], ['-i', 'clave concreta']], e: 'ssh -p 2222 deploy@servidor' },
       { n: 'scp', q: 'Copia archivos por SSH', s: 'scp origen destino', o: [['-r', 'carpetas']], e: 'scp notas.txt user@host:/tmp' },
       { n: 'traceroute', q: 'Por dónde pasa el tráfico', s: 'traceroute host', o: [], e: 'traceroute google.com' },
@@ -191,6 +191,46 @@ export const CATEGORIAS = [
       { n: 'nc', q: 'Cliente y listener TCP de diagnóstico', s: 'nc [opciones] host puerto', o: [['-l', 'modo escucha'], ['-v', 'salida detallada']], e: 'nc -v servidor 80' },
       { n: 'tmux', q: 'Mantiene sesiones de terminal persistentes', s: 'tmux [new|ls|attach]', o: [['new -s nombre', 'crea una sesión'], ['attach -t nombre', 'retoma una sesión']], e: 'tmux new -s trabajo' },
       { n: 'vim', q: 'Editor modal disponible en terminal', s: 'vim archivo', o: [], e: 'vim deploy.sh' },
+    ],
+  },
+  {
+    id: 'python',
+    nombre: 'Python',
+    comandos: [
+      {
+        n: 'python3', q: 'Ejecuta Python 3 en el laboratorio offline', s: 'python3 [-c código] [archivo] [args]',
+        o: [
+          ['--version / -c', 'consulta el runtime o ejecuta un fragmento'],
+          ['print · len · range', 'salida, longitud y secuencias'],
+          ['list · dict', 'colecciones y registros por clave'],
+          ['pathlib.Path', 'lee y escribe el filesystem virtual'],
+          ['try · except', 'controla excepciones esperadas'],
+          ['json', 'parsea y serializa datos'],
+          ['re', 'extrae patrones de texto'],
+          ['requests', 'consulta solo endpoints *.local simulados'],
+          ['socket', 'resuelve y conecta servicios locales simulados'],
+        ],
+        e: 'python3 programa.py datos.json',
+      },
+    ],
+  },
+  {
+    id: 'web-datos',
+    nombre: 'Web y datos',
+    comandos: [
+      {
+        n: 'sqlite3', q: 'Consulta la base relacional del laboratorio', s: 'sqlite3 [opciones] base.db "SQL"',
+        o: [
+          ['.tables / .schema tabla', 'descubre tablas y relaciones'],
+          ['SELECT · FROM · WHERE', 'proyecta y filtra filas'],
+          ['ORDER BY · LIMIT', 'ordena y limita resultados'],
+          ['COUNT · GROUP BY', 'resume grupos'],
+          ['JOIN · ON', 'relaciona tablas por claves'],
+          ['-header -column', 'muestra una tabla legible'],
+          ['?', 'placeholder para valores parametrizados'],
+        ],
+        e: 'sqlite3 tienda.db "SELECT nombre FROM productos ORDER BY id"',
+      },
     ],
   },
 ];

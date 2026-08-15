@@ -10,8 +10,14 @@ import { SALAS_REDES } from './salas-redes.js';
 import { SALAS_PENTESTING } from './salas-pentesting.js';
 import { SALAS_OFENSIVA } from './salas-ofensiva.js';
 import { SALAS_DEFENSA } from './salas-defensa.js';
+import { SALAS_FUNDAMENTOS } from './salas-fundamentos.js';
+import { SALAS_LINUX_INTERNALS } from './salas-linux-internals.js';
+import { SALAS_REDES_PROFUNDAS } from './salas-redes-profundas.js';
+import { SALAS_PROGRAMACION } from './salas-programacion.js';
+import { SALAS_WEB } from './salas-web.js';
 import { REFUERZOS_1 } from './refuerzos-1.js';
 import { REFUERZOS_2 } from './refuerzos-2.js';
+import { TIPOS_PASO, TIPOS_CON_EJERCICIO, TIPOS_CON_TEORIA } from './pedagogia.js';
 
 // Las salas heredadas del currículo v1 solo traían test y terminal. Los
 // refuerzos les añaden construir el comando, rellenar huecos y recordar la
@@ -70,6 +76,53 @@ function normalizarModulo(modulo) {
     const teoricas = tareas.filter((t) => t.id.endsWith('-teoria'));
     const destinos = teoricas.length ? teoricas : tareas;
     extra.forEach((ejercicio, i) => destinos[i % destinos.length].practica.push(ejercicio));
+  }
+
+  // Piloto de permisos: conserva IDs, teoría y ejercicios heredados, pero
+  // cambia su secuencia para enseñar predicción, contraste y transferencia.
+  if (modulo.id === 'permisos') {
+    const piloto = tareas.find((tarea) => tarea.id === 'permisos-chmod-letras-teoria');
+    if (piloto) {
+      piloto.objetivo = 'Interpretar permisos y elegir el cambio mínimo sin conceder acceso de más.';
+      piloto.prerrequisitos = ['Leer rwx', 'Distinguir dueño, grupo y otros'];
+      piloto.pasos = [
+        {
+          id: 'perm-diagnostico', tipo: 'diagnostico', titulo: '¿Qué recuerdas de rwx?',
+          pregunta: 'Sin consultar la explicación, escribe qué representan u, g, o y los permisos r, w, x.',
+        },
+        {
+          id: 'perm-prediccion', tipo: 'prediccion', titulo: 'Predice el efecto',
+          pregunta: 'Un archivo empieza en -rw-r--r--. ¿Qué cambiará chmod u+x archivo?',
+          opciones: ['Solo el dueño ganará ejecución', 'Todos ganarán ejecución', 'El dueño perderá lectura', 'Cambiará el propietario'],
+          correcta: 0,
+        },
+        {
+          id: 'perm-ejemplo', tipo: 'ejemplo', indice: 0,
+          desarrollo: ['Identifica a quién afecta: u.', 'Interpreta la operación: + añade.', 'Aplica únicamente x y conserva los demás bits.'],
+        },
+        { id: 'perm-recupera-640', tipo: 'ejercicio', ejercicioId: 'q-permisos-2' },
+        { id: 'perm-modelo', tipo: 'explicacion', indice: 1 },
+        {
+          id: 'perm-guiada', tipo: 'practica-guiada', ejercicioId: 'rf-perm-2',
+          contexto: 'Trabaja con privilegio mínimo: el secreto debe quedar accesible solo para su dueño.',
+          guia: 'Separa dueño, grupo y otros; luego traduce cada bloque a su cifra.',
+        },
+        { id: 'perm-contraste', tipo: 'explicacion', indice: 2 },
+        {
+          id: 'perm-transferencia', tipo: 'escenario', ejercicioId: 'rf-perm-7',
+          contexto: 'Ahora cambia de representación: del número a las letras, sin copiar el ejemplo.',
+        },
+        { id: 'perm-sudo', tipo: 'ejercicio', ejercicioId: 'rf-perm-12' },
+        {
+          id: 'perm-reflexion', tipo: 'reflexion', titulo: 'Explica tu decisión',
+          pregunta: '¿Por qué chmod 777 suele ser una mala solución aunque elimine un error de permisos?',
+        },
+        {
+          id: 'perm-reporte', tipo: 'reporte', titulo: 'Deja evidencia verificable',
+          pregunta: 'Documenta cómo comprobarías un permiso incorrecto y cuál sería el cambio mínimo.',
+        },
+      ];
+    }
   }
 
   return {
@@ -143,6 +196,27 @@ const SALA_CERO = {
         quiz('cero-cd-guion-predice', 'Si partes en `/home/user`, ejecutas `cd /etc` y luego `cd -`, ¿dónde terminas?', ['/home/user', '/etc', '/', '/home'], 0, '`cd -` vuelve al directorio anterior.'),
         terminal('cero-cd-guion', 'Entra en `/var/log`, vuelve a la carpeta anterior con `cd -` y confirma que estás en `/home/user`.', 'inicio', 'cd /var/log\ncd -\npwd', (c) => k.cwdEs(c, '/home/user') && k.salidaTiene(c, '/home/user'), ['`cd -` usa la ubicación anterior guardada por la shell.']),
         terminal('cero-cd-etc', 'Desde cualquier ubicación entra en `/etc` mediante una ruta absoluta y confirma el resultado.', 'inicio', 'cd documentos\ncd /etc\npwd', (c) => k.cwdEs(c, '/etc') && k.salidaTiene(c, '/etc'), ['Las rutas absolutas comienzan con `/`.']),
+      ],
+      pasos: [
+        { tipo: 'teoria', indice: 0 },
+        {
+          tipo: 'imagen', src: 'assets/teoria/linux/filesystem-raiz.png', width: 960, height: 640,
+          alt: 'Árbol del filesystem Linux con la raíz, directorios principales y el home del usuario.',
+          caption: 'Todo cuelga de `/`. Tu atajo `~` apunta a `/home/user`; una ruta absoluta siempre comienza en la raíz.',
+        },
+        { tipo: 'ejercicio', ejercicioId: 'cero-q3' },
+        { tipo: 'teoria', indice: 1 },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-orden' },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-relativa' },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-anidada' },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-padre' },
+        { tipo: 'teoria', indice: 2 },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-sube' },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-home' },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-tilde' },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-guion-predice' },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-guion' },
+        { tipo: 'ejercicio', ejercicioId: 'cero-cd-etc' },
       ],
     },
     {
@@ -345,20 +419,33 @@ const SALA_BASH_APLICADO = {
 };
 
 const NORMALIZADAS = MODULOS.map(normalizarModulo);
-const SALAS_BASE = [SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_REDES_CERO, ...SALAS_REDES, ...SALAS_PENTESTING, ...SALAS_OFENSIVA, ...SALAS_DEFENSA];
+const SALAS_BASE = [...SALAS_FUNDAMENTOS, SALA_CERO, ...NORMALIZADAS, SALA_ARCHIVOS_AVANZADOS, ...SALAS_LINUX_INTERNALS, SALA_PROFESIONAL, SALA_BASH_APLICADO, ...SALAS_PROGRAMACION, ...SALAS_REDES_CERO, ...SALAS_REDES_PROFUNDAS, ...SALAS_REDES, ...SALAS_WEB, ...SALAS_PENTESTING, ...SALAS_OFENSIVA, ...SALAS_DEFENSA];
 
 export const RUTAS = [
+  { id: 'fundamentos-informatica', academia: 'linux', nombre: 'Fundamentos informáticos', descripcion: 'Hardware, datos, sistemas operativos y virtualización', nivel: 'Inicial', salas: ['fundamentos-informatica'] },
   { id: 'linux-cero', academia: 'linux', nombre: 'Empieza desde cero', descripcion: 'Terminal, identidad y primeros hábitos', nivel: 'Inicial', salas: ['cero-absoluto', 'inicio'] },
   { id: 'linux-esencial', academia: 'linux', nombre: 'Linux Essentials', descripcion: 'Navegación, archivos y lectura de texto', nivel: 'Principiante', salas: ['navegacion', 'archivos', 'texto'] },
   { id: 'linux-filesystem', academia: 'linux', nombre: 'Filesystem y datos', descripcion: 'Permisos, búsquedas, pipelines y formatos', nivel: 'Fácil', salas: ['permisos', 'busqueda', 'pipes', 'archivos-avanzados'] },
   { id: 'linux-admin', academia: 'linux', nombre: 'Administración Linux', descripcion: 'Procesos, paquetes, descriptores y servicios', nivel: 'Intermedio', salas: ['procesos', 'paquetes', 'descriptores', 'especiales', 'systemd'] },
+  { id: 'linux-internals', academia: 'linux', nombre: 'Linux bajo la superficie', descripcion: 'Almacenamiento, memoria, kernel y filesystems virtuales', nivel: 'Intermedio', salas: ['linux-internals'] },
   { id: 'linux-profesional', academia: 'linux', nombre: 'Flujo profesional', descripcion: 'Git, tmux, editor y diagnóstico cotidiano', nivel: 'Intermedio', salas: ['herramientas-profesionales'] },
   { id: 'redes-cimientos', academia: 'redes', nombre: 'Redes desde cero', descripcion: 'Direcciones, subredes y cómo viaja un paquete', nivel: 'Inicial', salas: ['redes-cero', 'subredes'] },
+  { id: 'redes-protocolos', academia: 'redes', nombre: 'Protocolos por capas', descripcion: 'Enlace, encapsulación, transporte y protección', nivel: 'Intermedio', salas: ['enlace-red', 'transporte-red'] },
   { id: 'redes-linux', academia: 'redes', nombre: 'Redes desde Linux', descripcion: 'Interfaces, DNS, servicios y acceso remoto', nivel: 'Fácil', salas: ['redes', 'ssh'] },
   { id: 'redes-servicios', academia: 'redes', nombre: 'Servicios y diagnóstico', descripcion: 'DNS, puertos, HTTP y el método capa a capa', nivel: 'Intermedio', salas: ['dns', 'puertos', 'http', 'diagnostico-red'] },
   { id: 'redes-diagnostico', academia: 'redes', nombre: 'Diagnóstico avanzado', descripcion: 'Conexiones, latencia, rutas y servicios a mano', nivel: 'Intermedio', salas: ['trafico'] },
   { id: 'bash-base', academia: 'bash', nombre: 'Bash fundamental', descripcion: 'Variables, condiciones, bucles y funciones', nivel: 'Fácil', salas: ['bash1', 'bash2'] },
   { id: 'bash-proyectos', academia: 'bash', nombre: 'Automatización aplicada', descripcion: 'Scripts ejecutables y proyectos de operación', nivel: 'Intermedio', salas: ['bash-aplicado'] },
+  { id: 'bash-profesional', academia: 'bash', nombre: 'Bash profesional', descripcion: 'Arrays, parsing, errores e idempotencia', nivel: 'Intermedio', salas: ['bash-profesional'] },
+  { id: 'python-fundamentos', academia: 'bash', nombre: 'Python desde cero', descripcion: 'Tipos, colecciones, control de flujo y funciones', nivel: 'Inicial', salas: ['python-fundamentos'] },
+  { id: 'python-datos', academia: 'bash', nombre: 'Python para datos', descripcion: 'Archivos, excepciones, JSON, regex y parsing', nivel: 'Intermedio', salas: ['python-datos'] },
+  { id: 'python-laboratorios', academia: 'bash', nombre: 'Python para laboratorios', descripcion: 'HTTP, APIs, sockets y automatización segura', nivel: 'Intermedio', salas: ['python-laboratorios'] },
+  { id: 'web-arquitectura', academia: 'web', nombre: 'Cómo funciona la Web', descripcion: 'Cliente, servidor, navegador, HTML, formularios y capas', nivel: 'Inicial', salas: ['web-arquitectura'] },
+  { id: 'web-http', academia: 'web', nombre: 'HTTP y HTTPS', descripcion: 'Mensajes, métodos, estados, cabeceras, TLS y CORS', nivel: 'Intermedio', salas: ['http-aplicaciones'] },
+  { id: 'web-javascript', academia: 'web', nombre: 'JavaScript del navegador', descripcion: 'DOM, eventos, fetch, validación y fronteras de confianza', nivel: 'Intermedio', salas: ['javascript-web'] },
+  { id: 'web-apis', academia: 'web', nombre: 'APIs y contratos', descripcion: 'REST, JSON, recursos, errores y clientes reproducibles', nivel: 'Intermedio', salas: ['apis-rest'] },
+  { id: 'web-identidad', academia: 'web', nombre: 'Identidad y sesiones', descripcion: 'Autenticación, autorización, cookies, CSRF y tokens', nivel: 'Intermedio', salas: ['identidad-web'] },
+  { id: 'web-sql', academia: 'web', nombre: 'SQL y datos relacionales', descripcion: 'Modelado, filtros, agregación, joins y parámetros', nivel: 'Intermedio', salas: ['sql-fundamentos'] },
   { id: 'ofensiva-cimientos', academia: 'ofensiva', nombre: 'Pentesting desde cero', descripcion: 'Qué se contrata, qué se firma y qué se entrega', nivel: 'Inicial', salas: ['pentest-cero'] },
   { id: 'ofensiva-base', academia: 'ofensiva', nombre: 'Hacking ético', descripcion: 'Criptografía práctica y metodología autorizada', nivel: 'Intermedio', salas: ['cifrado', 'etico'] },
   { id: 'ofensiva-metodologia', academia: 'ofensiva', nombre: 'Metodología de auditoría', descripcion: 'Reconocimiento, enumeración, acceso y escalada', nivel: 'Avanzado', salas: ['recon', 'enumeracion', 'acceso', 'escalada'] },
@@ -370,9 +457,10 @@ export const RUTAS = [
 // `objetivo` dice qué sabrás HACER al terminar la academia. Un nombre técnico
 // («Filesystem y datos») no orienta a quien empieza; una capacidad sí.
 export const ACADEMIAS = [
-  { id: 'linux', nombre: 'Linux', descripcion: 'De tu primera terminal a administrar y diagnosticar sistemas', objetivo: 'Sobrevives en cualquier servidor', color: 'lime', icono: '$_', rutas: ['linux-cero', 'linux-esencial', 'linux-filesystem', 'linux-admin', 'linux-profesional'] },
-  { id: 'redes', nombre: 'Redes', descripcion: 'Comprende conexiones, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-cimientos', 'redes-linux', 'redes-servicios', 'redes-diagnostico'] },
-  { id: 'bash', nombre: 'Bash y automatización', descripcion: 'Convierte comandos en herramientas repetibles', objetivo: 'Automatizas lo que hacías a mano', color: 'magenta', icono: '{}', rutas: ['bash-base', 'bash-proyectos'] },
+  { id: 'linux', nombre: 'Linux', descripcion: 'De fundamentos informáticos a administrar y diagnosticar sistemas', objetivo: 'Sobrevives en cualquier servidor', color: 'lime', icono: '$_', rutas: ['fundamentos-informatica', 'linux-cero', 'linux-esencial', 'linux-filesystem', 'linux-admin', 'linux-internals', 'linux-profesional'] },
+  { id: 'redes', nombre: 'Redes', descripcion: 'Comprende capas, protocolos, servicios, DNS y acceso remoto', objetivo: 'Diagnosticas por qué algo no conecta', color: 'cyan', icono: '<>', rutas: ['redes-cimientos', 'redes-protocolos', 'redes-linux', 'redes-servicios', 'redes-diagnostico'] },
+  { id: 'bash', nombre: 'Bash y Python', descripcion: 'De scripts robustos a programas para datos y laboratorios', objetivo: 'Automatizas, parseas y validas con código', color: 'magenta', icono: '{}', rutas: ['bash-base', 'bash-proyectos', 'bash-profesional', 'python-fundamentos', 'python-datos', 'python-laboratorios'] },
+  { id: 'web', nombre: 'Web y datos', descripcion: 'Comprende el navegador, HTTP, APIs, identidad y SQL antes de romper nada', objetivo: 'Sigues una petición desde la URL hasta la base de datos', color: 'cyan', icono: '://', rutas: ['web-arquitectura', 'web-http', 'web-javascript', 'web-apis', 'web-identidad', 'web-sql'] },
   { id: 'ofensiva', nombre: 'Seguridad ofensiva', descripcion: 'Metodología de hacking ético en laboratorios autorizados', objetivo: 'Auditas una máquina de principio a fin', color: 'red', icono: '#!', rutas: ['ofensiva-cimientos', 'ofensiva-base', 'ofensiva-metodologia', 'ofensiva-aplicaciones'] },
   { id: 'defensa', nombre: 'Defensa y forense', descripcion: 'Protege, investiga y explica lo ocurrido', objetivo: 'Detectas un ataque y lo explicas', color: 'blue', icono: '[]', rutas: ['defensa-base', 'defensa-operacion'] },
 ];
@@ -416,4 +504,60 @@ export function academiaDeSala(salaId) {
 export function siguienteTarea(sala, tareaId) {
   const i = sala.tareas.findIndex((t) => t.id === tareaId);
   return i >= 0 ? sala.tareas[i + 1] || null : sala.tareas[0] || null;
+}
+
+// Contrato pedagógico V2. `pasos` es opcional: el contenido antiguo sigue
+// produciendo exactamente teoría -> práctica. Una tarea migrada referencia
+// sus bloques y ejercicios existentes, así que no duplica ni cambia IDs.
+export function secuenciaDeTarea(tarea) {
+  if (!Array.isArray(tarea.pasos) || !tarea.pasos.length) {
+    return [
+      ...(tarea.teoria || []).map((bloque) => ({ tipo: 'teoria', bloque })),
+      ...(tarea.practica || []).map((ejercicio) => ({ tipo: 'ejercicio', ejercicio })),
+    ];
+  }
+
+  return tarea.pasos.map((paso) => {
+    if (TIPOS_CON_TEORIA.has(paso.tipo)) return { ...paso, bloque: Number.isInteger(paso.indice) ? tarea.teoria?.[paso.indice] : paso.bloque };
+    if (TIPOS_CON_EJERCICIO.has(paso.tipo)) return { ...paso, ejercicio: tarea.practica?.find((e) => e.id === paso.ejercicioId) };
+    if (paso.tipo === 'imagen') return { tipo: 'imagen', imagen: paso };
+    if (TIPOS_PASO.has(paso.tipo)) return { ...paso };
+    return null;
+  }).filter((paso) => paso && (paso.tipo === 'imagen' || paso.bloque || paso.ejercicio || paso.id));
+}
+
+export function erroresPasosTarea(tarea) {
+  if (!Array.isArray(tarea.pasos)) return [];
+  const errores = [];
+  const teorias = new Map();
+  const ejercicios = new Map();
+  const tipos = TIPOS_PASO;
+
+  tarea.pasos.forEach((paso, i) => {
+    if (!paso || !tipos.has(paso.tipo)) return errores.push(`paso ${i}: tipo inválido`);
+    if (TIPOS_CON_TEORIA.has(paso.tipo) && Number.isInteger(paso.indice)) {
+      if (!Number.isInteger(paso.indice) || !tarea.teoria?.[paso.indice]) errores.push(`paso ${i}: teoría inexistente`);
+      else teorias.set(paso.indice, (teorias.get(paso.indice) || 0) + 1);
+    }
+    if (TIPOS_CON_EJERCICIO.has(paso.tipo)) {
+      if (!tarea.practica?.some((e) => e.id === paso.ejercicioId)) errores.push(`paso ${i}: ejercicio inexistente`);
+      else ejercicios.set(paso.ejercicioId, (ejercicios.get(paso.ejercicioId) || 0) + 1);
+    }
+    if (paso.tipo === 'imagen') {
+      if (typeof paso.src !== 'string' || !paso.src.endsWith('.png')) errores.push(`paso ${i}: src PNG requerido`);
+      if (typeof paso.alt !== 'string' || paso.alt.trim().length < 12) errores.push(`paso ${i}: alt descriptivo requerido`);
+      if (typeof paso.caption !== 'string' || paso.caption.trim().length < 12) errores.push(`paso ${i}: caption requerido`);
+    }
+    if (!['teoria', 'imagen', 'ejercicio'].includes(paso.tipo) && typeof paso.id !== 'string') {
+      errores.push(`paso ${i}: id pedagógico requerido`);
+    }
+  });
+
+  (tarea.teoria || []).forEach((_, i) => {
+    if (teorias.get(i) !== 1) errores.push(`teoría ${i}: debe aparecer una vez`);
+  });
+  (tarea.practica || []).forEach((ejercicio) => {
+    if (ejercicios.get(ejercicio.id) !== 1) errores.push(`ejercicio ${ejercicio.id}: debe aparecer una vez`);
+  });
+  return errores;
 }

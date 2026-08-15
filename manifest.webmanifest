@@ -1,7 +1,7 @@
 {
   "name": "Mentor Linux",
   "short_name": "Mentor Linux",
-  "description": "Aprende Linux, Bash y hacking ético con rutas, práctica adaptativa, máquinas simuladas y un Wargame offline.",
+  "description": "Aprende fundamentos, Linux, Redes, Bash, Python, Web, SQL y hacking ético con práctica adaptativa y laboratorios offline.",
   "lang": "es",
   "dir": "ltr",
   "id": "./",
